@@ -1,3 +1,4 @@
+import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/views/auth/login.dart';
 import 'package:family_tree_app/views/family_data/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
@@ -24,6 +25,7 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final config = Config();
 
     final router = GoRouter(
       restorationScopeId: 'router',
@@ -107,6 +109,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Flutter Demo',
       debugShowCheckedModeBanner: false,
+      theme: config.lightTheme,
       restorationScopeId: 'app',
       routerConfig: router,
     );

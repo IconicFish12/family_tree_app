@@ -13,6 +13,90 @@ import 'package:family_tree_app/views/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+class MainNavigationShell extends StatelessWidget {
+  final Widget child;
+
+  const MainNavigationShell({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // Get current location to determine which nav item to highlight
+    final location = GoRouterState.of(context).uri.path;
+    int selectedIndex = _getSelectedIndex(location);
+
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: (index) {
+          _navigateToPage(index, context);
+        },
+        type: BottomNavigationBarType.fixed,
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home),
+            label: 'Beranda',
+            backgroundColor: Colors.grey[100],
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.search),
+            label: 'Pencarian',
+            backgroundColor: Colors.grey[100],
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.people),
+            label: 'Keluarga',
+            backgroundColor: Colors.grey[100],
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.settings),
+            label: 'Pengaturan',
+            backgroundColor: Colors.grey[100],
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _getSelectedIndex(String location) {
+    if (location.startsWith('/home')) {
+      return 0;
+    } else if (location.startsWith('/family-search')) {
+      return 1;
+    } else if (location.startsWith('/family-list') ||
+        location.startsWith('/member-info') ||
+        location.startsWith('/family-info') ||
+        location.startsWith('/tree-visual')) {
+      return 2;
+    } else if (location.startsWith('/profile')) {
+      return 3;
+    }
+    return 0;
+  }
+
+  void _navigateToPage(int index, BuildContext context) {
+    switch (index) {
+      case 0:
+        context.goNamed('home');
+        break;
+      case 1:
+        context.goNamed('familySearch');
+        break;
+      case 2:
+        context.goNamed('familyList');
+        break;
+      case 3:
+        context.goNamed('profile');
+        break;
+    }
+  }
+}
+
+// Helper function untuk cek apakah bisa pop/back
+bool canGoBack(BuildContext context) {
+  return Navigator.of(context).canPop();
+}
+
 void main() {
   runApp(const MyApp());
 }
@@ -20,11 +104,8 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-
     final router = GoRouter(
       restorationScopeId: 'router',
       routerNeglect: true,
@@ -39,14 +120,16 @@ class MyApp extends StatelessWidget {
           name: 'login',
           builder: (context, state) => const LoginPage(),
         ),
-        GoRoute(
-          path: '/home',
-          name: 'home',
-          builder: (context, state) => const HomePage(),
-        ),
-        GoRoute(
-          path: '/family',
+        ShellRoute(
+          builder: (context, state, child) {
+            return MainNavigationShell(child: child);
+          },
           routes: [
+            GoRoute(
+              path: '/home',
+              name: 'home',
+              builder: (context, state) => const HomePage(),
+            ),
             GoRoute(
               path: '/family-list',
               name: 'familyList',
@@ -63,12 +146,12 @@ class MyApp extends StatelessWidget {
               builder: (context, state) => const MemberInfoPage(),
               routes: [
                 GoRoute(
-                  path: '/add-family-member',
+                  path: 'add-family-member',
                   name: 'addFamilyMember',
                   builder: (context, state) => const AddFamilyMemberPage(),
                 ),
                 GoRoute(
-                  path: '/edit-family-member',
+                  path: 'edit-family-member',
                   name: 'editFamilyMember',
                   builder: (context, state) => const UpdateFamilyMemberPage(),
                 ),
@@ -84,11 +167,6 @@ class MyApp extends StatelessWidget {
               name: 'treeVisual',
               builder: (context, state) => const TreeVisualPage(),
             ),
-          ],
-        ),
-        GoRoute(
-          path: '/user',
-          routes: [
             GoRoute(
               path: '/profile',
               name: 'profile',

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -24,6 +25,9 @@ class Config {
   static const FontWeight medium = FontWeight.w500;
   static const FontWeight semiBold = FontWeight.w600;
   static const FontWeight bold = FontWeight.w700;
+
+  // Dio API Fetching
+  static final Dio dio = Dio();
 
   ThemeData get lightTheme {
     return ThemeData(

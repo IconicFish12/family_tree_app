@@ -1,4 +1,6 @@
+import 'package:family_tree_app/components/ui.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class FamilyInfoPage extends StatefulWidget {
   const FamilyInfoPage({super.key});
@@ -25,12 +27,9 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1.0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+        leading: CustomBackButton(
           onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
+            context.pop();
           },
         ),
         title: const Text(

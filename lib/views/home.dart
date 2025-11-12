@@ -37,7 +37,11 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: CircleAvatar(
               backgroundColor: Colors.grey[200],
-              child: const Icon(Icons.person, color: Colors.grey),
+              child: IconButton(
+                onPressed: () => context.pushNamed('profile'),
+                icon: Icon(Icons.person),
+                color: Colors.grey,
+              ),
             ),
           ),
         ],

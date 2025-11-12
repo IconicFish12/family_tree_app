@@ -1,4 +1,3 @@
-import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -115,11 +114,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: CustomBackButton(
-          onPressed: () {
-            context.pop();
-          },
-        ),
         title: const Text(
           'List Keluarga',
           style: TextStyle(
@@ -253,7 +247,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
   Widget _buildMemberTile(FamilyMember member, int index) {
     return InkWell(
       onTap: () {
-        context.goNamed('memberInfo');
+        context.pushNamed('memberInfo');
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

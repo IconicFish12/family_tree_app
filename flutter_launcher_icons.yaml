@@ -1,0 +1,37 @@
+# flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/images/logo_aplikasi_silsilah_keluarga.png"
+
+  android: "launcher_icon"
+  image_path_android: "assets/images/logo_aplikasi_silsilah_keluarga.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  # adaptive_icon_background: "assets/icon/background.png"
+  # adaptive_icon_foreground: "assets/icon/foreground.png"
+  # adaptive_icon_foreground_inset: 16
+  # adaptive_icon_monochrome: "assets/icon/monochrome.png"
+
+  ios: true
+  image_path_ios: "assets/images/logo_aplikasi_silsilah_keluarga.png" # Ini perbaikannya
+  remove_alpha_ios: true
+  # image_path_ios_dark_transparent: "assets/icon/icon_dark.png"
+  # image_path_ios_tinted_grayscale: "assets/icon/icon_tinted.png"
+  # desaturate_tinted_to_grayscale_ios: true
+  # background_color_ios: "#ffffff"
+
+  # --- Pengaturan Web ---
+  web:
+    generate: true
+    image_path: "assets/images/logo_aplikasi_silsilah_keluarga.png" # Ganti juga path ini
+    background_color: "#F3F3F3" # Gunakan warna background tema Anda
+    theme_color: "#1FA15D" # Gunakan warna primary tema Anda
+
+  # --- Pengaturan Windows ---
+  windows:
+    generate: true
+    image_path: "assets/images/logo_aplikasi_silsilah_keluarga.png" # Ganti juga path ini
+    icon_size: 48
+
+  # --- Pengaturan macOS ---
+  macos:
+    generate: true
+    image_path: "assets/images/logo_aplikasi_silsilah_keluarga.png" # Ganti juga path ini

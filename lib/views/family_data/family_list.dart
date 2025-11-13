@@ -1,6 +1,42 @@
 import 'package:family_tree_app/components/member_avatar.dart';
+import 'package:family_tree_app/components/ui.dart';
+import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+class ChildMember {
+  final String nit; // Nomor Induk (misal "1.1")
+  final String name;
+  final String? spouseName; // Pasangan dari anak
+  final String location;
+  final String? photoUrl;
+  final String emoji;
+
+  ChildMember({
+    required this.nit,
+    required this.name,
+    this.spouseName,
+    required this.location,
+    this.photoUrl,
+    this.emoji = '👤',
+  });
+}
+
+class FamilyUnit {
+  final String nit; // Nomor Induk (misal "1.")
+  final String headName; // Nama Kepala (misal "ROISAH")
+  final String? spouseName; // Pasangan Kepala (misal "ISKANDAR")
+  final String location;
+  final List<ChildMember> children; // Daftar anak (baris 1.1, 1.2, ...)
+
+  FamilyUnit({
+    required this.nit,
+    required this.headName,
+    this.spouseName,
+    required this.location,
+    required this.children,
+  });
+}
 
 class FamilyListPage extends StatefulWidget {
   const FamilyListPage({super.key});
@@ -10,143 +46,157 @@ class FamilyListPage extends StatefulWidget {
 }
 
 class _FamilyListPageState extends State<FamilyListPage> {
-  late List<FamilyGroup> familyGroups;
-  Map<int, bool> expandedGroups = {};
+  late List<FamilyUnit> familyUnits;
+  Map<String, bool> expandedUnits = {}; // Pakai NIT sebagai key
 
   @override
   void initState() {
     super.initState();
-    _initializeFamilyGroups();
+    _initializeFamilyData();
   }
 
-  void _initializeFamilyGroups() {
-    familyGroups = [
-      FamilyGroup(
-        name: 'Keluarga Utama',
-        memberCount: 20,
-        members: [
-          FamilyMember(
-            name: 'Topan Namas',
-            relation: 'Kepala Keluarga',
-            emoji: '👨',
+  // Inisialisasi data dummy berdasarkan image_d18642.png
+  void _initializeFamilyData() {
+    familyUnits = [
+      FamilyUnit(
+        nit: '1.',
+        headName: 'ROISAH',
+        spouseName: 'ISKANDAR',
+        location: 'Bedi Babadan Ponorogo',
+        children: [
+          ChildMember(
+            nit: '1.1',
+            name: 'Moh. Harjo',
+            spouseName: 'S. Yasin',
+            location: 'Ngunut Babadan Ponorogo',
           ),
-          FamilyMember(
-            name: 'Sinta Suke',
-            relation: 'Ibu Rumah Tangga',
-            emoji: '👩',
+          ChildMember(
+            nit: '1.2',
+            name: 'Abu Thoyib',
+            spouseName: 'Tasmiyah',
+            location: 'Jarakan Banyuudono Ponorogo',
           ),
-          FamilyMember(
-            name: 'Tomas Alla Edisound',
-            relation: 'Anak Ke 1',
-            emoji: '👨',
+          ChildMember(
+            nit: '1.3',
+            name: 'Syihabur Romli',
+            spouseName: 'Marhamah',
+            location: 'Bedi Babadan Ponorogo',
           ),
-          FamilyMember(name: 'Nana Donal', relation: 'Anak Ke 2', emoji: '👩'),
+          ChildMember(
+            nit: '1.4',
+            name: 'Jazin Nafsi',
+            spouseName: 'Hasan Puro',
+            location: 'Kebon Kadipaten Babadan Ponorogo',
+          ),
+          ChildMember(
+            nit: '1.5',
+            name: 'Sulatun',
+            spouseName: 'H. Qosim',
+            location: 'Bedi Babadan Ponorogo',
+          ),
+          ChildMember(
+            nit: '1.6',
+            name: 'Husnun/Mahfud',
+            spouseName: null,
+            location: '-',
+          ),
+          ChildMember(
+            nit: '1.7',
+            name: 'Hisnatun',
+            spouseName: 'Bajuri',
+            location: 'Prayungan Paju Ponorogo',
+          ),
+          ChildMember(
+            nit: '1.8',
+            name: 'Sringatun',
+            spouseName: 'H. Usman',
+            location: 'Karangtengah Garu Baron Nganjuk',
+          ),
+          ChildMember(
+            nit: '1.9',
+            name: 'Suci',
+            spouseName: 'Mangun Suyoto',
+            location: 'Plosorejo Garu Baron Nganjuk',
+          ),
         ],
       ),
-      FamilyGroup(
-        name: 'Keluarga Ibu',
-        memberCount: 20,
-        members: [
-          FamilyMember(
-            name: 'Ahmad Salim',
-            relation: 'Kepala Keluarga',
-            emoji: '👨',
+      // Tambah data dummy lain
+      FamilyUnit(
+        nit: '2.',
+        headName: 'AHMAD SUJADMIMKO',
+        spouseName: 'SITI AMINAH',
+        location: 'Surabaya',
+        children: [
+          ChildMember(
+            nit: '2.1',
+            name: 'Budi Sujadmiko',
+            spouseName: 'Rina',
+            location: 'Surabaya',
           ),
-          FamilyMember(name: 'Siti Nurhaliza', relation: 'Istri', emoji: '👩'),
-          FamilyMember(
-            name: 'Budi Santoso',
-            relation: 'Anak Ke 1',
-            emoji: '👨',
-          ),
-        ],
-      ),
-      FamilyGroup(
-        name: 'Keluarga Ayah',
-        memberCount: 20,
-        members: [
-          FamilyMember(
-            name: 'Muhammad Hasan',
-            relation: 'Kepala Keluarga',
-            emoji: '👨',
-          ),
-          FamilyMember(name: 'Fatimah Zahra', relation: 'Istri', emoji: '👩'),
-          FamilyMember(
-            name: 'Umar Faruq',
-            relation: 'Anak Pertama',
-            emoji: '👨',
-          ),
-        ],
-      ),
-      FamilyGroup(
-        name: 'Keluarga Kakak Pertama',
-        memberCount: 20,
-        members: [
-          FamilyMember(
-            name: 'Ibrahim Khalil',
-            relation: 'Kepala Keluarga',
-            emoji: '👨',
-          ),
-          FamilyMember(name: 'Aisha Maulida', relation: 'Istri', emoji: '👩'),
-          FamilyMember(
-            name: 'Zainab Nurul',
-            relation: 'Anak Ke 1',
-            emoji: '👩',
-          ),
-          FamilyMember(
-            name: 'Hassan Firdaus',
-            relation: 'Anak Ke 2',
-            emoji: '👨',
+          ChildMember(
+            nit: '2.2',
+            name: 'Ani Sujadmiko',
+            spouseName: 'Joko',
+            location: 'Jakarta',
           ),
         ],
       ),
     ];
 
-    // Initialize all groups as collapsed
-    for (int i = 0; i < familyGroups.length; i++) {
-      expandedGroups[i] = false;
+    // Initialize all units as collapsed
+    for (var unit in familyUnits) {
+      expandedUnits[unit.nit] = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Config.background, // Sesuai Config
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Config.background, // Sesuai Config
         elevation: 0,
-        title: const Text(
+        title: Text(
           'List Keluarga',
           style: TextStyle(
-            color: Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            color: Config.textHead, // Sesuai Config
+            fontSize: 20,
+            fontWeight: Config.semiBold, // Sesuai Config
           ),
+        ),
+        leading: CustomBackButton(
+          color: Config.textHead, // Sesuai Config
+          onPressed: () {
+            context.pop();
+          },
         ),
         centerTitle: true,
         actions: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: CircleAvatar(
-              backgroundColor: Colors.grey[300],
-              child: const Icon(Icons.person, color: Colors.grey),
+          IconButton(
+            onPressed: () => context.pushNamed('profile'),
+            icon: Icon(
+              Icons.account_circle_outlined,
+              color: Config.textSecondary, // Sesuai Config
+              size: 28,
             ),
+            tooltip: "Profile",
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: familyGroups.length,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: familyUnits.length,
         itemBuilder: (context, index) {
-          final familyGroup = familyGroups[index];
-          final isExpanded = expandedGroups[index] ?? false;
+          final familyUnit = familyUnits[index];
+          final isExpanded = expandedUnits[familyUnit.nit] ?? false;
 
-          return _buildFamilyGroupCard(
-            index: index,
-            familyGroup: familyGroup,
+          return _buildFamilyUnitCard(
+            unit: familyUnit,
             isExpanded: isExpanded,
             onToggle: () {
               setState(() {
-                expandedGroups[index] = !isExpanded;
+                expandedUnits[familyUnit.nit] = !isExpanded;
               });
             },
           );
@@ -156,86 +206,118 @@ class _FamilyListPageState extends State<FamilyListPage> {
         onPressed: () {
           context.goNamed('addFamilyMember');
         },
-        backgroundColor: const Color(0xFF4CAF50),
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: Config.primary, // Sesuai Config
+        child: const Icon(Icons.add, color: Config.white), // Sesuai Config
       ),
     );
   }
 
-  Widget _buildFamilyGroupCard({
-    required int index,
-    required FamilyGroup familyGroup,
+  /// Widget untuk Card Unit Keluarga (Kepala Keluarga + Pasangan)
+  Widget _buildFamilyUnitCard({
+    required FamilyUnit unit,
     required bool isExpanded,
     required VoidCallback onToggle,
   }) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Config.white,
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Config.textHead.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Family Group Header
-          InkWell(
-            onTap: onToggle,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Avatar dengan emoji keluarga
-                  MemberAvatar(emoji: '👨‍👩‍👧‍👦', size: 50),
-                  const SizedBox(width: 12),
-                  // Family Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          // Header (Kepala Keluarga)
+          // Hapus InkWell pembungkus luar
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // === BAGIAN YANG BISA DI-KLIK UNTUK NAVIGASI ===
+                Expanded(
+                  child: InkWell(
+                    // Aksi navigasi baru
+                    onTap: () {
+                      // Navigasi ke FamilyInfoPage
+                      // (Asumsi nama route-nya 'familyInfo')
+                      context.pushNamed('familyInfo');
+                    },
+                    child: Row(
                       children: [
-                        Text(
-                          familyGroup.name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
+                        MemberAvatar(
+                          emoji: '👨‍👩‍👧‍👦',
+                          size: 50,
+                          borderRadius: 12, // Dibuat lebih kotak
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Jumlah Anggota: ${familyGroup.memberCount}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                        const SizedBox(width: 12),
+                        // Info Keluarga
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                // Menggabungkan nama & pasangan
+                                "${unit.nit} ${unit.headName}" +
+                                    (unit.spouseName != null
+                                        ? " & ${unit.spouseName}"
+                                        : ""),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: Config.semiBold,
+                                  color: Config.textHead,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Jumlah Anak: ${unit.children.length}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Config.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Expand Arrow
-                  Icon(
+                ),
+                // === BAGIAN YANG BISA DI-KLIK UNTUK TOGGLE ===
+                IconButton(
+                  icon: Icon(
                     isExpanded
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
-                    color: Colors.grey[600],
+                    color: Config.textSecondary,
                   ),
-                ],
-              ),
+                  // Aksi toggle
+                  onPressed: onToggle,
+                  tooltip: isExpanded ? 'Tutup' : 'Buka',
+                ),
+              ],
             ),
           ),
-          // Family Members List
+          // Daftar Anak (Jika di-expand)
           if (isExpanded)
             Container(
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                border: Border(
+                  top: BorderSide(color: Config.background, width: 2),
+                ), // Garis pemisah
               ),
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: familyGroup.members.length,
+                itemCount: unit.children.length,
                 itemBuilder: (context, memberIndex) {
-                  final member = familyGroup.members[memberIndex];
-                  return _buildMemberTile(member, memberIndex);
+                  final member = unit.children[memberIndex];
+                  return _buildChildMemberTile(member);
                 },
               ),
             ),
@@ -244,46 +326,64 @@ class _FamilyListPageState extends State<FamilyListPage> {
     );
   }
 
-  Widget _buildMemberTile(FamilyMember member, int index) {
+  /// Widget untuk Tile Anak (di dalam card)
+  Widget _buildChildMemberTile(ChildMember member) {
     return InkWell(
       onTap: () {
-        context.pushNamed('memberInfo');
+        context.pushNamed('memberInfo'); // Navigasi ke detail anak
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // Member Avatar dengan support foto
+            // Avatar Anak
             MemberAvatar(
               photoUrl: member.photoUrl,
               emoji: member.emoji,
               size: 40,
-              borderRadius: 6,
+              borderRadius: 8,
             ),
             const SizedBox(width: 12),
-            // Member Info
+            // Info Anak
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    member.name,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
+                    "${member.nit} ${member.name}", // Tampilkan NIT + Nama
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: Config.medium,
+                      color: Config.textHead,
                     ),
                   ),
                   const SizedBox(height: 2),
+                  // Tampilkan Pasangan jika ada
+                  if (member.spouseName != null)
+                    Text(
+                      "Pasangan: ${member.spouseName}",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Config.textSecondary,
+                      ),
+                    ),
+                  // Tampilkan Lokasi
                   Text(
-                    member.relation,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    member.location,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Config.textSecondary.withOpacity(0.8),
+                    ),
                   ),
                 ],
               ),
             ),
             // Arrow Icon
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Config.textSecondary.withOpacity(0.5),
+            ),
           ],
         ),
       ),

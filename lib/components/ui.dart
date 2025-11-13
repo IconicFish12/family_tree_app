@@ -1,3 +1,4 @@
+import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 
 /// Custom back button yang disabled kalau tidak ada halaman sebelumnya
@@ -21,7 +22,7 @@ class CustomBackButton extends StatelessWidget {
       icon: Icon(
         Icons.arrow_back,
         size: size,
-        color: canPop ? (color ?? Colors.black) : Colors.grey[400],
+        color: canPop ? (color ?? Config.textHead) : Config.textSecondary.withOpacity(0.5),
       ),
       onPressed: canPop
           ? (onPressed ?? () => Navigator.of(context).pop())

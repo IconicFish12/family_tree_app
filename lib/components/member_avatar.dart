@@ -1,3 +1,4 @@
+import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 
 /// Widget untuk menampilkan foto member dengan fallback
@@ -26,7 +27,7 @@ class MemberAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Config.background,
         borderRadius: BorderRadius.circular(radius),
       ),
       child: photoUrl != null && photoUrl!.isNotEmpty

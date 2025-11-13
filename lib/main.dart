@@ -1,4 +1,4 @@
-// import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/views/auth/login.dart';
 import 'package:family_tree_app/views/family_data/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
@@ -106,6 +106,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final config = Config();
+
     final router = GoRouter(
       restorationScopeId: 'router',
       routerNeglect: true,
@@ -185,7 +187,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Flutter Demo',
       debugShowCheckedModeBanner: false,
-      // theme: config.lightTheme,
+      theme: config.lightTheme,
       restorationScopeId: 'app',
       routerConfig: router,
     );

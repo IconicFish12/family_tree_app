@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../config/config.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,37 +21,35 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Config.background,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Silsilah Keluarga',
           style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+            color: Config.textHead,
+            fontSize: 20,
+            fontWeight: Config.semiBold,
           ),
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: CircleAvatar(
-              backgroundColor: Colors.grey[200],
-              child: IconButton(
-                onPressed: () => context.pushNamed('profile'),
-                icon: Icon(Icons.person),
-                color: Colors.grey,
-              ),
+          IconButton(
+            onPressed: () => context.pushNamed('profile'),
+            icon: Icon(
+              Icons.account_circle_outlined,
+              color: Config.textSecondary,
+              size: 28,
             ),
+            tooltip: "Profile",
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Banner dengan Search Bar floating
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -67,39 +66,7 @@ class _HomePageState extends State<HomePage> {
                   bottom: -25,
                   left: 20,
                   right: 20,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Cari berdasarkan nama, nik atau hal lainnya..',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 12,
-                        ),
-                        suffixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 15,
-                          horizontal: 20,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: _buildSearchBar(),
                 ),
               ],
             ),
@@ -109,132 +76,37 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Selamat Datang, Deva!',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      fontSize: 22,
+                      fontWeight: Config.semiBold,
+                      color: Config.textHead,
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  /// Kartu informasi keluarga dengan gambar
-                  Container(
-                    height: 180,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            width: double.infinity,
-                            decoration: const BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(
-                                  'assets/images/family_logo.png',
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.2),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: double.infinity,
-                          color: const Color(0xFF4CAF50),
-                          padding: const EdgeInsets.all(16),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Keluarga Utama',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                '15 Anggota',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Keluarga Besar Sujadmiko',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  _buildFamilyInfoCard(
+                    context: context,
+                    title: 'Keluarga Utama',
+                    memberCount: '15 Anggota',
+                    description: 'Keluarga Besar Sujadmiko',
+                    imageUrl: 'assets/images/family_logo.png',
+                    onTap: () => context.goNamed('familyList'),
                   ),
-                  const SizedBox(height: 16),
-
-                  /// Tombol aksi untuk navigasi
+                  const SizedBox(height: 24),
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            context.goNamed('addFamilyMember');
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF4CAF50),
-                            side: const BorderSide(
-                              color: Color(0xFF4CAF50),
-                              width: 1.5,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Tambah Anggota Baru',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: _buildOutlinedButton(
+                          text: 'Tambah Anggota Baru',
+                          onPressed: () => context.pushNamed('addFamilyMember'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            context.goNamed('familyList');
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4CAF50),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Lihat List Keluarga',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: _buildElevatedButton(
+                          text: 'Lihat List Keluarga',
+                          onPressed: () => context.pushNamed('familyList'),
                         ),
                       ),
                     ],
@@ -244,6 +116,177 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGET HELPER ---
+
+  /// Widget untuk Search Bar
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Config.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Config.textHead.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Cari berdasarkan nama, nik atau hal lainnya..',
+          hintStyle: TextStyle(
+            color: Config.textSecondary.withOpacity(0.7),
+            fontSize: 14,
+          ),
+          suffixIcon: Icon(Icons.search, color: Config.textSecondary),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 15,
+            horizontal: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFamilyInfoCard({
+    required BuildContext context,
+    required String title,
+    required String memberCount,
+    required String description,
+    required String imageUrl,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Config.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Config.textHead.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Bagian Gambar
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage(imageUrl),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Container(
+                  color: Colors.black.withOpacity(0.2),
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                color: Config.primary,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: Config.semiBold,
+                        color: Config.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      memberCount,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: Config.regular,
+                        color: Config.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: Config.regular,
+                        color: Config.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Widget untuk OutlinedButton
+  Widget _buildOutlinedButton({
+    required String text,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Config.primary,
+        side: BorderSide(color: Config.primary, width: 1.5),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: Config.semiBold,
+        ),
+      ),
+    );
+  }
+
+  /// Widget untuk ElevatedButton
+  Widget _buildElevatedButton({
+    required String text,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Config.primary,
+        foregroundColor: Config.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Config.white,
+          fontSize: 14,
+          fontWeight: Config.semiBold,
         ),
       ),
     );

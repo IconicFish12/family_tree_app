@@ -1,6 +1,8 @@
+import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:family_tree_app/config/config.dart';
 
 class FamilyInfoPage extends StatefulWidget {
   const FamilyInfoPage({super.key});
@@ -10,98 +12,109 @@ class FamilyInfoPage extends StatefulWidget {
 }
 
 class _FamilyInfoPageState extends State<FamilyInfoPage> {
+// Indeks 2 (Keluarga) dipilih sesuai desain
   int _selectedIndex = 2;
 
-  final List<Map<String, String>> familyMembers = [
-    {"name": "Topan Namas", "role": "Kepala Keluarga"},
-    {"name": "Sinta Suke", "role": "Ibu Rumah Tangga"},
+  // --- DATA DUMMY (Akan dipecah) ---
+  final Map<String, String> kepalaKeluarga = {
+    "name": "Topan Namas",
+    "role": "Kepala Keluarga",
+  };
+  final Map<String, String> pasangan = {
+    "name": "Sinta Suke",
+    "role": "Ibu Rumah Tangga",
+  };
+  final List<Map<String, String>> anakAnak = [
     {"name": "Tomas Alfa Edisound", "role": "Anak Ke 1"},
     {"name": "Nana Donal", "role": "Anak Ke 2"},
+    // Tambahkan anak lain di sini...
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Latar belakang body utama (abu-abu muda)
-      backgroundColor: const Color(0xFFF7F7F7),
+      // --- Latar Belakang dari Config ---
+      backgroundColor: Config.background,
+      // --- AppBar dari Config ---
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Config.white,
         elevation: 1.0,
         leading: CustomBackButton(
+          color: Config.textHead,
           onPressed: () {
             context.pop();
           },
         ),
-        title: const Text(
+        title: Text(
           "Keluarga Utama",
           style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+            color: Config.textHead,
+            fontWeight: Config.semiBold,
+            fontSize: 20,
           ),
         ),
         centerTitle: true,
-        // Ikon Aksi (Profil)
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.account_circle_outlined,
-              color: Colors.black87,
-              size: 30,
-            ),
-            onPressed: () {
-            },
-          ),
-          const SizedBox(width: 8), // Sedikit padding di kanan
-        ],
+        // Hapus ikon aksi yang tidak perlu
+        actions: [],
       ),
-
-      body: ListView.builder(
+      // --- BODY BARU (Bukan hanya ListView) ---
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-        itemCount: familyMembers.length,
-        itemBuilder: (context, index) {
-          final member = familyMembers[index];
-          return _buildMemberCard(
-            name: member['name']!,
-            role: member['role']!,
-            onTap: () {
-              // Aksi saat card anggota di-tap
-              print("Tapped on ${member['name']}");
-            },
-          );
-        },
-      ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // === 1. KARTU INFORMASI UTAMA KELUARGA ===
+            _buildFamilyHeaderCard(kepalaKeluarga, pasangan),
+            const SizedBox(height: 24),
 
-      // === Floating Action Button ===
+            // === 2. JUDUL UNTUK DAFTAR ANAK ===
+            Text(
+              'Anak-Anak (${anakAnak.length})',
+              style: TextStyle(
+                color: Config.textHead,
+                fontSize: 18,
+                fontWeight: Config.semiBold,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // === 3. DAFTAR ANAK ===
+            // Menggunakan Column karena sudah di dalam SingleChildScrollView
+            Column(
+              children: anakAnak.map((member) {
+                return _buildMemberCard(
+                  name: member['name']!,
+                  role: member['role']!,
+                  onTap: () {
+                    // Aksi saat card anggota (anak) di-tap
+                    context.pushNamed('memberInfo');
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+      // --- Floating Action Button dari Config ---
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Aksi untuk tombol tambah
-        },
-        // Warna hijau tua sesuai desain
-        backgroundColor: const Color(0xFF2E7D32), // Mirip Colors.green[800]
-        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () => context.pushNamed('treeVisual'),
+        backgroundColor: Config.primary,
+        child: const Icon(Icons.account_tree_outlined, color: Config.white),
+        tooltip: 'Lihat Pohon Keluarga',
       ),
-
-      // === Bottom Navigation Bar ===
+      // --- Bottom Navigation Bar (Ditambahkan kembali) ---
       bottomNavigationBar: BottomNavigationBar(
-        // Tipe 'fixed' agar semua item tampil dan tidak bergeser
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        // Item yang sedang aktif
+        backgroundColor: Config.white,
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
           });
-          // Tambahkan logika navigasi di sini
+          // Logika navigasi shell
         },
-        // Warna item yang aktif (hitam/abu tua)
-        selectedItemColor: Colors.black87,
-        // Warna item yang tidak aktif (abu-abu)
-        unselectedItemColor: Colors.grey[600],
-        // Nonaktifkan label agar mirip desain (opsional)
-        // showSelectedLabels: false,
-        // showUnselectedLabels: false,
+        selectedItemColor: Config.primary,
+        unselectedItemColor: Config.textSecondary,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -128,69 +141,120 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
     );
   }
 
-  // --- Widget Kustom untuk Card Anggota Keluarga ---
+  // --- WIDGET BARU: Kartu Info Utama Keluarga ---
+  Widget _buildFamilyHeaderCard(
+    Map<String, String> head,
+    Map<String, String> spouse,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Config.white,
+        borderRadius: BorderRadius.circular(12.0),
+        boxShadow: [
+          BoxShadow(
+            color: Config.textHead.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildMemberTile(
+            name: head['name']!,
+            role: head['role']!,
+            emoji: '👨', // Ganti dengan foto jika ada
+            onTap: () => context.pushNamed('memberInfo'), // Ke info Kepala
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Divider(color: Config.background, height: 1),
+          ),
+          _buildMemberTile(
+            name: spouse['name']!,
+            role: spouse['role']!,
+            emoji: '👩', // Ganti dengan foto jika ada
+            onTap: () => context.pushNamed('memberInfo'), // Ke info Pasangan
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- WIDGET REFAKTOR: Card Anggota (Anak) ---
   Widget _buildMemberCard({
     required String name,
     required String role,
     VoidCallback? onTap,
   }) {
-    return Card(
-      // Latar belakang card putih
-      color: Colors.white,
-      // Bayangan tipis
-      elevation: 0.5,
-      // Sedikit margin antar card
-      margin: const EdgeInsets.only(bottom: 12.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: Config.white,
         borderRadius: BorderRadius.circular(12.0),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              // 1. Placeholder Foto Profil
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  // Warna abu-abu placeholder
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                // child: ClipRRect(
-                //   borderRadius: BorderRadius.circular(8.0),
-                //   child: Image.network('URL_FOTO', fit: BoxFit.cover),
-                // ),
-              ),
-              const SizedBox(width: 16),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Nama
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Peran
-                    Text(
-                      role,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-
-              Icon(Icons.chevron_right, color: Colors.grey[600], size: 28),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Config.textHead.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      margin: const EdgeInsets.only(bottom: 12.0),
+      child: _buildMemberTile(
+        name: name,
+        role: role,
+        emoji: '👤',
+        onTap: onTap,
+      ),
+    );
+  }
+
+  // --- WIDGET HELPER: Tile Anggota (Bisa dipakai di Card Header & Anak) ---
+  Widget _buildMemberTile({
+    required String name,
+    required String role,
+    required String emoji,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12.0),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            // --- Avatar (Menggunakan Komponen) ---
+            MemberAvatar(emoji: emoji, size: 60, borderRadius: 8.0),
+            const SizedBox(width: 16),
+            // --- Info Teks (Menggunakan Config) ---
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: Config.semiBold,
+                      fontSize: 16,
+                      color: Config.textHead,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    role,
+                    style: TextStyle(fontSize: 14, color: Config.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            // --- Ikon Panah (Menggunakan Config) ---
+            Icon(
+              Icons.chevron_right,
+              color: Config.textSecondary.withOpacity(0.5),
+              size: 28,
+            ),
+          ],
         ),
       ),
     );

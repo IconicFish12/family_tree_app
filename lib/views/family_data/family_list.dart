@@ -263,10 +263,9 @@ class _FamilyListPageState extends State<FamilyListPage> {
                             children: [
                               Text(
                                 // Menggabungkan nama & pasangan
-                                "${unit.nit} ${unit.headName}" +
-                                    (unit.spouseName != null
+                                "${unit.nit} ${unit.headName}${unit.spouseName != null
                                         ? " & ${unit.spouseName}"
-                                        : ""),
+                                        : ""}",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: Config.semiBold,

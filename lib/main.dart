@@ -191,5 +191,11 @@ class MyApp extends StatelessWidget {
       restorationScopeId: 'app',
       routerConfig: router,
     );
+    // return MaterialApp(
+    //   title: 'Flutter Demo',
+    //   debugShowCheckedModeBanner: false,
+    //   theme: config.lightTheme,
+    //   home: const TreeVisualPage(),
+    // );
   }
 }

@@ -39,8 +39,6 @@ class Config {
         onPrimary: Config.white,
         secondary: Config.accent,
         onSecondary: Config.white,
-        background: Config.background,
-        onBackground: Config.textHead,
         surface: Config.white,
         onSurface: Config.textHead,
         error: Colors.red.shade700,

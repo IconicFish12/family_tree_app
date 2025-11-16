@@ -51,10 +51,9 @@ class MemberInfoPage extends StatelessWidget {
             size: 30,
           ),
           onPressed: () {
-            // Aksi untuk membuka halaman profil
           },
         ),
-        const SizedBox(width: 8), // Sedikit padding di kanan
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -62,7 +61,6 @@ class MemberInfoPage extends StatelessWidget {
   // --- Widget untuk Body Halaman ---
   Widget _buildBody() {
     return SingleChildScrollView(
-      // Padding untuk keseluruhan konten body
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

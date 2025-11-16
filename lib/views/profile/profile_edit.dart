@@ -278,7 +278,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           hint: Text(hint, style: TextStyle(color: Colors.grey[400])),
           items: items.map((String item) {
             return DropdownMenuItem<String>(value: item, child: Text(item));

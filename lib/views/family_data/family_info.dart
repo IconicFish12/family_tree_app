@@ -12,8 +12,6 @@ class FamilyInfoPage extends StatefulWidget {
 }
 
 class _FamilyInfoPageState extends State<FamilyInfoPage> {
-// Indeks 2 (Keluarga) dipilih sesuai desain
-  int _selectedIndex = 2;
 
   // --- DATA DUMMY (Akan dipecah) ---
   final Map<String, String> kepalaKeluarga = {
@@ -99,44 +97,8 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.pushNamed('treeVisual'),
         backgroundColor: Config.primary,
-        child: const Icon(Icons.account_tree_outlined, color: Config.white),
         tooltip: 'Lihat Pohon Keluarga',
-      ),
-      // --- Bottom Navigation Bar (Ditambahkan kembali) ---
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Config.white,
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          // Logika navigasi shell
-        },
-        selectedItemColor: Config.primary,
-        unselectedItemColor: Config.textSecondary,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Beranda',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search_outlined),
-            activeIcon: Icon(Icons.search),
-            label: 'Pencarian',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people),
-            label: 'Keluarga',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Pengaturan',
-          ),
-        ],
+        child: const Icon(Icons.account_tree_outlined, color: Config.white),
       ),
     );
   }

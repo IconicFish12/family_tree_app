@@ -1,5 +1,4 @@
 import 'package:family_tree_app/components/member_avatar.dart';
-import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -154,7 +153,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
     return Scaffold(
       backgroundColor: Config.background, // Sesuai Config
       appBar: AppBar(
-        backgroundColor: Config.background, // Sesuai Config
+        backgroundColor: Config.white, // Sesuai Config
         elevation: 0,
         title: Text(
           'List Keluarga',
@@ -163,12 +162,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
             fontSize: 20,
             fontWeight: Config.semiBold, // Sesuai Config
           ),
-        ),
-        leading: CustomBackButton(
-          color: Config.textHead, // Sesuai Config
-          onPressed: () {
-            context.pop();
-          },
         ),
         centerTitle: true,
         actions: [
@@ -185,7 +178,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
         ],
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         itemCount: familyUnits.length,
         itemBuilder: (context, index) {
           final familyUnit = familyUnits[index];
@@ -204,7 +197,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          context.goNamed('addFamilyMember');
+          context.goNamed('addFamily');
         },
         backgroundColor: Config.primary, // Sesuai Config
         child: const Icon(Icons.add, color: Config.white), // Sesuai Config
@@ -225,7 +218,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -263,9 +256,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                             children: [
                               Text(
                                 // Menggabungkan nama & pasangan
-                                "${unit.nit} ${unit.headName}${unit.spouseName != null
-                                        ? " & ${unit.spouseName}"
-                                        : ""}",
+                                "${unit.nit} ${unit.headName}${unit.spouseName != null ? " & ${unit.spouseName}" : ""}",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: Config.semiBold,
@@ -298,6 +289,18 @@ class _FamilyListPageState extends State<FamilyListPage> {
                   // Aksi toggle
                   onPressed: onToggle,
                   tooltip: isExpanded ? 'Tutup' : 'Buka',
+                ),
+                // Tombol Edit Keluarga
+                IconButton(
+                  icon: Icon(Icons.edit, color: Config.primary, size: 20),
+                  onPressed: () {
+                    // Navigasi ke EditFamilyPage dengan data keluarga
+                    context.goNamed(
+                      'editFamily',
+                      queryParameters: {'id': unit.nit},
+                    );
+                  },
+                  tooltip: 'Edit Keluarga',
                 ),
               ],
             ),
@@ -371,7 +374,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                     member.location,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Config.textSecondary.withOpacity(0.8),
+                      color: Config.textSecondary.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -381,7 +384,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
             Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: Config.textSecondary.withOpacity(0.5),
+              color: Config.textSecondary.withValues(alpha: 0.5),
             ),
           ],
         ),

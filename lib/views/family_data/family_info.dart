@@ -12,7 +12,6 @@ class FamilyInfoPage extends StatefulWidget {
 }
 
 class _FamilyInfoPageState extends State<FamilyInfoPage> {
-
   // --- DATA DUMMY (Akan dipecah) ---
   final Map<String, String> kepalaKeluarga = {
     "name": "Topan Namas",
@@ -36,11 +35,15 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
       // --- AppBar dari Config ---
       appBar: AppBar(
         backgroundColor: Config.white,
-        elevation: 1.0,
+        elevation: 0,
         leading: CustomBackButton(
           color: Config.textHead,
           onPressed: () {
-            context.pop();
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/family-list');
+            }
           },
         ),
         title: Text(
@@ -52,7 +55,6 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
           ),
         ),
         centerTitle: true,
-        // Hapus ikon aksi yang tidak perlu
         actions: [],
       ),
       // --- BODY BARU (Bukan hanya ListView) ---
@@ -66,13 +68,33 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
             const SizedBox(height: 24),
 
             // === 2. JUDUL UNTUK DAFTAR ANAK ===
-            Text(
-              'Anak-Anak (${anakAnak.length})',
-              style: TextStyle(
-                color: Config.textHead,
-                fontSize: 18,
-                fontWeight: Config.semiBold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Anak-Anak (${anakAnak.length})',
+                  style: TextStyle(
+                    color: Config.textHead,
+                    fontSize: 18,
+                    fontWeight: Config.semiBold,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    context.goNamed('addFamilyMember');
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Config.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -115,7 +137,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -156,7 +178,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -213,7 +235,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
             // --- Ikon Panah (Menggunakan Config) ---
             Icon(
               Icons.chevron_right,
-              color: Config.textSecondary.withOpacity(0.5),
+              color: Config.textSecondary.withValues(alpha: 0.5),
               size: 28,
             ),
           ],

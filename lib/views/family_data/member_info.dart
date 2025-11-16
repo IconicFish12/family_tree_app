@@ -24,12 +24,11 @@ class MemberInfoPage extends StatelessWidget {
     return AppBar(
       // Latar belakang AppBar putih
       backgroundColor: Colors.white,
-      // Bayangan tipis di bawah AppBar
-      elevation: 1.0,
+      elevation: 0,
       // Tombol Kembali
       leading: CustomBackButton(
         onPressed: () {
-          context.pop();
+          context.go('/family-info');
         },
       ),
       // Judul Halaman
@@ -42,16 +41,14 @@ class MemberInfoPage extends StatelessWidget {
         ),
       ),
       centerTitle: true,
-      // Ikon Aksi (Profil)
+      // Ikon Aksi (Edit)
       actions: [
         IconButton(
-          icon: const Icon(
-            Icons.account_circle_outlined,
-            color: Colors.black87,
-            size: 30,
-          ),
+          icon: const Icon(Icons.edit, color: Colors.black87, size: 24),
           onPressed: () {
+            context.goNamed('editFamilyMember');
           },
+          tooltip: 'Edit Anggota',
         ),
         const SizedBox(width: 8),
       ],
@@ -205,7 +202,7 @@ class MemberInfoPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),

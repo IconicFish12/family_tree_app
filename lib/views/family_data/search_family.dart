@@ -1,5 +1,6 @@
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/components/member_avatar.dart';
+import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -151,11 +152,12 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Filter',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: Config.semiBold,
+                        color: Config.textHead,
                       ),
                     ),
                     IconButton(
@@ -254,6 +256,8 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                         },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Config.primary),
+                          foregroundColor: Config.primary,
                         ),
                         child: const Text('Reset'),
                       ),
@@ -271,8 +275,9 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
+                          backgroundColor: Config.primary,
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: Config.white,
                         ),
                         child: const Text(
                           'Terapkan',
@@ -299,21 +304,16 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Config.white,
         elevation: 0,
-        leading: CustomBackButton(
-          onPressed: () {
-            context.pop();
-          },
-        ),
-        title: const Text(
+        title: Text(
           'Pencarian',
           style: TextStyle(
-            color: Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            color: Config.textHead,
+            fontSize: 20,
+            fontWeight: Config.semiBold,
           ),
         ),
         centerTitle: true,
@@ -340,7 +340,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[50],
+                          color: Config.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey[300]!),
                         ),
@@ -350,12 +350,12 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                             hintText:
                                 'Cari berdasarkan nama, nik atau hal lainnya.',
                             hintStyle: TextStyle(
-                              color: Colors.grey[400],
+                              color: Config.textSecondary,
                               fontSize: 12,
                             ),
                             prefixIcon: Icon(
                               Icons.search,
-                              color: Colors.grey[400],
+                              color: Config.textSecondary,
                             ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
@@ -371,12 +371,12 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                       onTap: _showFilterBottomSheet,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[50],
+                          color: Config.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey[300]!),
                         ),
                         padding: const EdgeInsets.all(12),
-                        child: Icon(Icons.tune, color: Colors.grey[600]),
+                        child: Icon(Icons.tune, color: Config.accent),
                       ),
                     ),
                   ],
@@ -394,7 +394,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50),
+                            color: Config.primary,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -432,7 +432,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50),
+                            color: Config.primary,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -476,21 +476,23 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
+                      color: Config.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue[200]!),
+                      border: Border.all(
+                        color: Config.primary.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info, size: 18, color: Colors.blue[700]),
+                        Icon(Icons.info, size: 18, color: Config.primary),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Ditemukan ${filteredMembers.length} anggota${_buildFilterSummary()}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.blue[800],
-                              fontWeight: FontWeight.w500,
+                              color: Config.textHead,
+                              fontWeight: Config.medium,
                             ),
                           ),
                         ),
@@ -510,14 +512,14 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                         Icon(
                           Icons.search_off,
                           size: 60,
-                          color: Colors.grey[400],
+                          color: Config.textSecondary,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'Tidak ada hasil pencarian',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey[600],
+                            color: Config.textSecondary,
                           ),
                         ),
                       ],
@@ -562,6 +564,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
+      color: Config.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.grey[200]!),
@@ -589,27 +592,37 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                   children: [
                     Text(
                       member.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                        fontWeight: Config.semiBold,
+                        color: Config.textHead,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       member.nik,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Config.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       member.dateRange,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Config.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
               // Arrow Icon
-              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey[400]),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+                color: Config.textSecondary,
+              ),
             ],
           ),
         ),

@@ -131,7 +131,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -142,7 +142,7 @@ class _HomePageState extends State<HomePage> {
         decoration: InputDecoration(
           hintText: 'Cari berdasarkan nama, nik atau hal lainnya..',
           hintStyle: TextStyle(
-            color: Config.textSecondary.withOpacity(0.7),
+            color: Config.textSecondary.withValues(alpha: 0.7),
             fontSize: 14,
           ),
           suffixIcon: Icon(Icons.search, color: Config.textSecondary),
@@ -171,7 +171,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -195,9 +195,7 @@ class _HomePageState extends State<HomePage> {
                     fit: BoxFit.cover,
                   ),
                 ),
-                child: Container(
-                  color: Colors.black.withOpacity(0.2),
-                ),
+                child: Container(color: Colors.black.withValues(alpha: 0.2)),
               ),
               Container(
                 width: double.infinity,
@@ -220,7 +218,7 @@ class _HomePageState extends State<HomePage> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: Config.regular,
-                        color: Config.white.withOpacity(0.9),
+                        color: Config.white.withValues(alpha: 0.9),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -229,7 +227,7 @@ class _HomePageState extends State<HomePage> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: Config.regular,
-                        color: Config.white.withOpacity(0.9),
+                        color: Config.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -258,10 +256,7 @@ class _HomePageState extends State<HomePage> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: Config.semiBold,
-        ),
+        style: TextStyle(fontSize: 14, fontWeight: Config.semiBold),
       ),
     );
   }

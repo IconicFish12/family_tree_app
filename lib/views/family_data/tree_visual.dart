@@ -71,7 +71,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
       backgroundColor: Config.background, // Sesuai Config
       appBar: AppBar(
         backgroundColor: Config.white, // Sesuai Config
-        elevation: 1.0,
+        elevation: 0,
         leading: CustomBackButton(
           color: Config.textHead,
           onPressed: () => context.pop(),
@@ -117,8 +117,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                 TreeEdgeRenderer(builder),
               ),
               paint: Paint()
-                ..color = Config.textSecondary
-                    .withOpacity(0.5)
+                ..color = Config.textSecondary.withValues(alpha: 0.5)
                 ..strokeWidth = 2
                 ..style = PaintingStyle.stroke,
               builder: (Node node) {
@@ -129,20 +128,20 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                 return _buildNodeWidget(nodeId);
               },
             ),
-      ),
+          ),
     );
   }
 
   // --- Widget Node Kustom (Sudah disesuaikan dengan Config) ---
   Widget _buildNodeWidget(String name) {
     return Container(
-      width: 150, 
+      width: 150,
       decoration: BoxDecoration(
-        color: Config.white, 
+        color: Config.white,
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.1),
+            color: Config.textHead.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(0, 3),
@@ -156,7 +155,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
             width: double.infinity,
             height: 80,
             decoration: BoxDecoration(
-              color: Config.background, 
+              color: Config.background,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12.0),
                 topRight: Radius.circular(12.0),
@@ -165,14 +164,14 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
             child: Icon(
               Icons.person,
               size: 50,
-              color: Config.textSecondary.withOpacity(0.5),
+              color: Config.textSecondary.withValues(alpha: 0.5),
             ),
           ),
           // 2. Nama
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
             decoration: const BoxDecoration(
-              color: Config.primary, 
+              color: Config.primary,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(12.0),
                 bottomRight: Radius.circular(12.0),

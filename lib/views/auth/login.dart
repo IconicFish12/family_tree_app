@@ -268,29 +268,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Register Link
-              RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  children: [
-                    const TextSpan(
-                      text: 'Belum punya akun? ',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    TextSpan(
-                      text: 'Daftar sekarang!',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF4CAF50),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      recognizer:
-                          null, // Bisa ditambah gesture recognizer untuk register
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
             ],
           ),
         ),

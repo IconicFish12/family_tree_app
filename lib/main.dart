@@ -2,8 +2,10 @@ import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/views/auth/login.dart';
 import 'package:family_tree_app/views/family_data/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
+import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
-import 'package:family_tree_app/views/family_data/forms/update_family_member.dart';
+import 'package:family_tree_app/views/family_data/forms/edit_family.dart';
+import 'package:family_tree_app/views/family_data/forms/edit_family_member.dart';
 import 'package:family_tree_app/views/family_data/member_info.dart';
 import 'package:family_tree_app/views/family_data/search_family.dart';
 import 'package:family_tree_app/views/family_data/tree_visual.dart';
@@ -66,7 +68,11 @@ class MainNavigationShell extends StatelessWidget {
     } else if (location.startsWith('/family-list') ||
         location.startsWith('/member-info') ||
         location.startsWith('/family-info') ||
-        location.startsWith('/tree-visual')) {
+        location.startsWith('/tree-visual') ||
+        location.startsWith('/add-family') ||
+        location.startsWith('/edit-family') ||
+        location.startsWith('/add-family-member') ||
+        location.startsWith('/edit-family-member')) {
       return 2;
     } else if (location.startsWith('/profile')) {
       return 3;
@@ -136,6 +142,19 @@ class MyApp extends StatelessWidget {
               path: '/family-list',
               name: 'familyList',
               builder: (context, state) => const FamilyListPage(),
+            ),
+            GoRoute(
+              path: '/add-family',
+              name: 'addFamily',
+              builder: (context, state) => const AddFamilyPage(),
+            ),
+            GoRoute(
+              path: '/edit-family',
+              name: 'editFamily',
+              builder: (context, state) => EditFamilyPage(
+                familyData: state.extra as Map<String, dynamic>? ?? {},
+                familyId: state.uri.queryParameters['id'] ?? '',
+              ),
             ),
             GoRoute(
               path: '/family-info',

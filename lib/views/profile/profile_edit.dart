@@ -35,7 +35,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 1.0,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),

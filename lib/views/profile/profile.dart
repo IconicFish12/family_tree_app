@@ -28,13 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.white,
-      elevation: 1.0,
-      // Tombol Kembali (dihilangkan untuk halaman tab utama)
-      leading: CustomBackButton(
-        onPressed: () {
-          context.pop();
-        },
-      ),
+      elevation: 0,
       automaticallyImplyLeading: false, // Menyembunyikan tombol back
       title: const Text(
         "Profile",
@@ -177,7 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),

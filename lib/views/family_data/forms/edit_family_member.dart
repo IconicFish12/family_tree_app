@@ -2,25 +2,26 @@ import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/family_member.dart';
+import 'package:family_tree_app/data/dummy_data.dart';
 import 'package:family_tree_app/components/image_picker_field.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class AddFamilyMemberPage extends StatefulWidget {
-  const AddFamilyMemberPage({super.key});
+class UpdateFamilyMemberPage extends StatefulWidget {
+  const UpdateFamilyMemberPage({super.key});
 
   @override
-  State<AddFamilyMemberPage> createState() => _AddFamilyMemberPageState();
+  State<UpdateFamilyMemberPage> createState() => _UpdateFamilyMemberPageState();
 }
 
-class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
+class _UpdateFamilyMemberPageState extends State<UpdateFamilyMemberPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _nikController = TextEditingController();
   final _dateRangeController = TextEditingController();
   final _notesController = TextEditingController();
 
-  String _selectedGender = 'Laki-Laki'; // Default gender
+  String _selectedGender = 'Laki-Laki';
   String _selectedMonth = 'Januari';
   int _selectedYear = DateTime.now().year;
   String? _selectedRelation;
@@ -56,6 +57,27 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // TODO: Load member data from route parameters or state management
+    _initializeMemberData();
+  }
+
+  void _initializeMemberData() {
+    // Load dummy data untuk testing
+    final dummy = DummyData.dummyMemberData;
+    _nameController.text = dummy['name'] ?? '';
+    _nikController.text = dummy['nik'] ?? '';
+    _dateRangeController.text = dummy['dateRange'] ?? '';
+    _notesController.text = dummy['notes'] ?? '';
+    _memberPhotoUrl = dummy['photoUrl'];
+    _selectedGender = dummy['gender'] ?? 'Laki-Laki';
+    _selectedRelation = dummy['relation'];
+    _selectedMonth = dummy['month'] ?? 'Januari';
+    _selectedYear = dummy['year'] ?? DateTime.now().year;
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _nikController.dispose();
@@ -64,11 +86,11 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     super.dispose();
   }
 
-  void _saveFamily() {
+  void _updateFamily() {
     if (_formKey.currentState!.validate()) {
-      // Create FamilyMember object
-      final newMember = FamilyMember(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+      // Create updated FamilyMember object
+      final updatedMember = FamilyMember(
+        id: 'member-id', // TODO: Get from existing member
         name: _nameController.text,
         nik: _nikController.text,
         dateRange: _dateRangeController.text,
@@ -79,12 +101,11 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
         status: 'active',
       );
 
-      // TODO: Save to database/API with newMember.toJson()
-      debugPrint('Saving member: ${newMember.toJson()}');
+      debugPrint('Updating member: ${updatedMember.toJson()}');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${_nameController.text} berhasil ditambahkan'),
+          content: Text('${_nameController.text} berhasil diperbarui'),
           backgroundColor: Config.primary,
         ),
       );
@@ -94,13 +115,47 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     }
   }
 
+  void _deleteMember() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Anggota'),
+          content: const Text(
+            'Apakah Anda yakin ingin menghapus anggota keluarga ini?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => context.pop(),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                // TODO: Delete from database/API
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Anggota berhasil dihapus'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                context.pop(); // Close dialog
+                context.pop(); // Go back to previous page
+              },
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
         backgroundColor: Config.white,
-        elevation: 0,
+        elevation: 1.0,
         leading: CustomBackButton(
           color: Config.textHead,
           onPressed: () {
@@ -112,7 +167,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           },
         ),
         title: Text(
-          'Tambah Anggota Keluarga',
+          'Edit Anggota Keluarga',
           style: TextStyle(
             color: Config.textHead,
             fontWeight: Config.semiBold,
@@ -120,6 +175,13 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: _deleteMember,
+            tooltip: 'Hapus Anggota',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -128,7 +190,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Foto Anggota Keluarga (at top, centered)
+              // Foto Anggota Keluarga
               Center(
                 child: ImagePickerField(
                   label: 'Foto Anggota Keluarga',
@@ -202,7 +264,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
               ),
               const SizedBox(height: 16),
 
-              // Tanggal Lahir (Tanggal - Bulan - Tahun)
+              // Tanggal Lahir
               Text(
                 'Tanggal Lahir',
                 style: TextStyle(
@@ -214,7 +276,6 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  // Tanggal
                   Expanded(
                     flex: 1,
                     child: TextFormField(
@@ -243,7 +304,6 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  // Bulan
                   Expanded(
                     flex: 2,
                     child: DropdownButtonFormField<String>(
@@ -277,7 +337,6 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  // Tahun
                   Expanded(
                     flex: 1,
                     child: TextFormField(
@@ -342,7 +401,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _saveFamily,
+                        onPressed: _updateFamily,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Config.primary,
                           foregroundColor: Config.white,
@@ -352,7 +411,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                           ),
                         ),
                         child: const Text(
-                          'Simpan Anggota',
+                          'Simpan Perubahan',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,

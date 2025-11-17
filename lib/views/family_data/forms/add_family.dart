@@ -20,7 +20,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
   final _spouseNameController = TextEditingController();
   final _locationController = TextEditingController();
 
-  File? _familyPhoto;
+  File? familyPhoto;
   String? _familyPhotoUrl;
   List<Map<String, dynamic>> _selectedChildren = [];
 
@@ -127,7 +127,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
                 isNetworkImage: true,
                 onImageSelected: (file) {
                   setState(() {
-                    _familyPhoto = file;
+                    familyPhoto = file;
                     if (file != null) {
                       _familyPhotoUrl = null;
                     }

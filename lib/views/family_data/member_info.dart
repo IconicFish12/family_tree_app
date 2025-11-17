@@ -28,7 +28,7 @@ class MemberInfoPage extends StatelessWidget {
       // Tombol Kembali
       leading: CustomBackButton(
         onPressed: () {
-          context.go('/family-info');
+          context.pop();
         },
       ),
       // Judul Halaman

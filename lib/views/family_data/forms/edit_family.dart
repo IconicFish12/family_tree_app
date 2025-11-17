@@ -28,7 +28,7 @@ class _EditFamilyPageState extends State<EditFamilyPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late List<Map<String, TextEditingController>> _childrenControllers;
 
-  File? _familyPhoto;
+  File? familyPhoto;
   String? _familyPhotoUrl;
   List<Map<String, dynamic>> _selectedChildren = [];
 
@@ -253,7 +253,7 @@ class _EditFamilyPageState extends State<EditFamilyPage> {
                 isNetworkImage: true,
                 onImageSelected: (file) {
                   setState(() {
-                    _familyPhoto = file;
+                    familyPhoto = file;
                     if (file != null) {
                       _familyPhotoUrl = null;
                     }

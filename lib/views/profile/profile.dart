@@ -1,7 +1,5 @@
-import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});

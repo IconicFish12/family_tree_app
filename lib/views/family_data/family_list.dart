@@ -1,15 +1,17 @@
 import 'package:family_tree_app/components/member_avatar.dart';
+import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class ChildMember {
-  final String nit; // Nomor Induk (misal "1.1")
+  final String nit;
   final String name;
-  final String? spouseName; // Pasangan dari anak
+  final String? spouseName;
   final String location;
   final String? photoUrl;
   final String emoji;
+  final List<ChildMember>? children; // Anak dari anak ini
 
   ChildMember({
     required this.nit,
@@ -18,15 +20,16 @@ class ChildMember {
     required this.location,
     this.photoUrl,
     this.emoji = '👤',
+    this.children, // Tambahkan di constructor
   });
 }
 
 class FamilyUnit {
-  final String nit; // Nomor Induk (misal "1.")
-  final String headName; // Nama Kepala (misal "ROISAH")
-  final String? spouseName; // Pasangan Kepala (misal "ISKANDAR")
+  final String nit;
+  final String headName;
+  final String? spouseName;
   final String location;
-  final List<ChildMember> children; // Daftar anak (baris 1.1, 1.2, ...)
+  final List<ChildMember> children;
 
   FamilyUnit({
     required this.nit,
@@ -44,9 +47,13 @@ class FamilyListPage extends StatefulWidget {
   State<FamilyListPage> createState() => _FamilyListPageState();
 }
 
+
 class _FamilyListPageState extends State<FamilyListPage> {
   late List<FamilyUnit> familyUnits;
-  Map<String, bool> expandedUnits = {}; // Pakai NIT sebagai key
+  // State untuk expand/collapse
+  Map<String, bool> expandedUnits = {};
+  Map<String, bool> expandedChildren = {};
+  bool _areAllExpanded = false;
 
   @override
   void initState() {
@@ -54,7 +61,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
     _initializeFamilyData();
   }
 
-  // Inisialisasi data dummy berdasarkan image_d18642.png
+  // Inisialisasi data dummy yang lebih banyak dan nested
   void _initializeFamilyData() {
     familyUnits = [
       FamilyUnit(
@@ -66,32 +73,44 @@ class _FamilyListPageState extends State<FamilyListPage> {
           ChildMember(
             nit: '1.1',
             name: 'Moh. Harjo',
-            spouseName: 'S. Yasin',
+            spouseName: 'S. Yasin', 
             location: 'Ngunut Babadan Ponorogo',
+            children: [
+              ChildMember(
+                nit: '1.1.1',
+                name: 'Anak Harjo 1',
+                spouseName: 'Pasangan Anak Harjo',
+                location: 'Ponorogo',
+                children: [],
+              ),
+              ChildMember(
+                nit: '1.1.2',
+                name: 'Anak Harjo 2',
+                spouseName: null,
+                location: 'Ponorogo',
+              ),
+            ],
           ),
           ChildMember(
             nit: '1.2',
             name: 'Abu Thoyib',
             spouseName: 'Tasmiyah',
             location: 'Jarakan Banyuudono Ponorogo',
+            children: [
+              ChildMember(
+                nit: '1.2.1',
+                name: 'Anak Thoyib 1',
+                spouseName: null,
+                location: 'Jarakan',
+              ),
+            ],
           ),
           ChildMember(
             nit: '1.3',
             name: 'Syihabur Romli',
-            spouseName: 'Marhamah',
+            spouseName: 'Marhamah', 
             location: 'Bedi Babadan Ponorogo',
-          ),
-          ChildMember(
-            nit: '1.4',
-            name: 'Jazin Nafsi',
-            spouseName: 'Hasan Puro',
-            location: 'Kebon Kadipaten Babadan Ponorogo',
-          ),
-          ChildMember(
-            nit: '1.5',
-            name: 'Sulatun',
-            spouseName: 'H. Qosim',
-            location: 'Bedi Babadan Ponorogo',
+            children: [], 
           ),
           ChildMember(
             nit: '1.6',
@@ -104,22 +123,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
             name: 'Hisnatun',
             spouseName: 'Bajuri',
             location: 'Prayungan Paju Ponorogo',
-          ),
-          ChildMember(
-            nit: '1.8',
-            name: 'Sringatun',
-            spouseName: 'H. Usman',
-            location: 'Karangtengah Garu Baron Nganjuk',
-          ),
-          ChildMember(
-            nit: '1.9',
-            name: 'Suci',
-            spouseName: 'Mangun Suyoto',
-            location: 'Plosorejo Garu Baron Nganjuk',
+            children: [],
           ),
         ],
       ),
-      // Tambah data dummy lain
+      // Data dummy lain
       FamilyUnit(
         nit: '2.',
         headName: 'AHMAD SUJADMIMKO',
@@ -129,50 +137,103 @@ class _FamilyListPageState extends State<FamilyListPage> {
           ChildMember(
             nit: '2.1',
             name: 'Budi Sujadmiko',
-            spouseName: 'Rina',
+            spouseName: 'Rina', 
             location: 'Surabaya',
+            children: [
+              ChildMember(
+                nit: '2.1.1',
+                name: 'Cahyo',
+                spouseName: null,
+                location: 'Surabaya',
+              ),
+            ],
           ),
           ChildMember(
             nit: '2.2',
             name: 'Ani Sujadmiko',
             spouseName: 'Joko',
             location: 'Jakarta',
+            children: [],
+          ),
+        ],
+      ),
+      FamilyUnit(
+        nit: '3.',
+        headName: 'Kakek Jono',
+        spouseName: 'Nenek Mar',
+        location: 'Desa Lama',
+        children: [
+          ChildMember(
+            nit: '3.1',
+            name: 'Anak Kakek 1',
+            spouseName: null,
+            location: 'Desa Lama',
           ),
         ],
       ),
     ];
 
-    // Initialize all units as collapsed
+    // Initialize all units and children as collapsed
+    _initializeExpandedState(false);
+  }
+
+  // Helper untuk inisialisasi/reset state expand
+  void _initializeExpandedState(bool isExpanded) {
+    expandedUnits = {};
+    expandedChildren = {};
     for (var unit in familyUnits) {
-      expandedUnits[unit.nit] = false;
+      expandedUnits[unit.nit] = isExpanded;
+      _initializeChildrenState(unit.children, isExpanded);
     }
+  }
+
+  // Helper rekursif untuk set state anak
+  void _initializeChildrenState(List<ChildMember>? children, bool isExpanded) {
+    if (children == null) return;
+    for (var child in children) {
+      expandedChildren[child.nit] = isExpanded;
+      _initializeChildrenState(child.children, isExpanded);
+    }
+  }
+
+  // Fungsi untuk tombol "Expand/Collapse All"
+  void _toggleAllDropdowns() {
+    setState(() {
+      _areAllExpanded = !_areAllExpanded;
+      _initializeExpandedState(_areAllExpanded);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Config.background, // Sesuai Config
+      backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.white, // Sesuai Config
+        backgroundColor: Config.white,
         elevation: 0,
+        leading: CustomBackButton(),
         title: Text(
           'List Keluarga',
           style: TextStyle(
-            color: Config.textHead, // Sesuai Config
+            color: Config.textHead,
             fontSize: 20,
-            fontWeight: Config.semiBold, // Sesuai Config
+            fontWeight: Config.semiBold,
           ),
         ),
         centerTitle: true,
         actions: [
+          // === PERUBAHAN 1: Tombol Toggle All ===
           IconButton(
-            onPressed: () => context.pushNamed('profile'),
+            onPressed: _toggleAllDropdowns,
             icon: Icon(
-              Icons.account_circle_outlined,
-              color: Config.textSecondary, // Sesuai Config
+              _areAllExpanded
+                  ? Icons
+                        .unfold_less // Ikon jika semua terbuka
+                  : Icons.unfold_more, // Ikon jika semua tertutup
+              color: Config.textSecondary,
               size: 28,
             ),
-            tooltip: "Profile",
+            tooltip: _areAllExpanded ? "Tutup Semua" : "Buka Semua",
           ),
           const SizedBox(width: 8),
         ],
@@ -197,15 +258,15 @@ class _FamilyListPageState extends State<FamilyListPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          context.goNamed('addFamily');
+          context.pushNamed('addFamily');
         },
-        backgroundColor: Config.primary, // Sesuai Config
-        child: const Icon(Icons.add, color: Config.white), // Sesuai Config
+        backgroundColor: Config.primary,
+        child: const Icon(Icons.add, color: Config.white),
       ),
     );
   }
 
-  /// Widget untuk Card Unit Keluarga (Kepala Keluarga + Pasangan)
+  /// Widget untuk Card Unit Keluarga (Level 1)
   Widget _buildFamilyUnitCard({
     required FamilyUnit unit,
     required bool isExpanded,
@@ -218,7 +279,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
+            color: Config.textHead.withOpacity(0.08), // Perbaikan alpha
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -226,19 +287,13 @@ class _FamilyListPageState extends State<FamilyListPage> {
       ),
       child: Column(
         children: [
-          // Header (Kepala Keluarga)
-          // Hapus InkWell pembungkus luar
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // === BAGIAN YANG BISA DI-KLIK UNTUK NAVIGASI ===
                 Expanded(
                   child: InkWell(
-                    // Aksi navigasi baru
                     onTap: () {
-                      // Navigasi ke FamilyInfoPage
-                      // (Asumsi nama route-nya 'familyInfo')
                       context.pushNamed('familyInfo');
                     },
                     child: Row(
@@ -246,16 +301,14 @@ class _FamilyListPageState extends State<FamilyListPage> {
                         MemberAvatar(
                           emoji: '👨‍👩‍👧‍👦',
                           size: 50,
-                          borderRadius: 12, // Dibuat lebih kotak
+                          borderRadius: 12,
                         ),
                         const SizedBox(width: 12),
-                        // Info Keluarga
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                // Menggabungkan nama & pasangan
                                 "${unit.nit} ${unit.headName}${unit.spouseName != null ? " & ${unit.spouseName}" : ""}",
                                 style: TextStyle(
                                   fontSize: 16,
@@ -278,7 +331,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                     ),
                   ),
                 ),
-                // === BAGIAN YANG BISA DI-KLIK UNTUK TOGGLE ===
+                // Tombol expand/collapse
                 IconButton(
                   icon: Icon(
                     isExpanded
@@ -286,21 +339,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
                         : Icons.keyboard_arrow_down,
                     color: Config.textSecondary,
                   ),
-                  // Aksi toggle
                   onPressed: onToggle,
                   tooltip: isExpanded ? 'Tutup' : 'Buka',
-                ),
-                // Tombol Edit Keluarga
-                IconButton(
-                  icon: Icon(Icons.edit, color: Config.primary, size: 20),
-                  onPressed: () {
-                    // Navigasi ke EditFamilyPage dengan data keluarga
-                    context.goNamed(
-                      'editFamily',
-                      queryParameters: {'id': unit.nit},
-                    );
-                  },
-                  tooltip: 'Edit Keluarga',
                 ),
               ],
             ),
@@ -311,16 +351,13 @@ class _FamilyListPageState extends State<FamilyListPage> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(color: Config.background, width: 2),
-                ), // Garis pemisah
+                ),
               ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: unit.children.length,
-                itemBuilder: (context, memberIndex) {
-                  final member = unit.children[memberIndex];
-                  return _buildChildMemberTile(member);
-                },
+              child: Column(
+                children: unit.children.map((member) {
+                  // Panggil build tile rekursif
+                  return _buildChildMemberTile(member: member, level: 1);
+                }).toList(),
               ),
             ),
         ],
@@ -328,67 +365,132 @@ class _FamilyListPageState extends State<FamilyListPage> {
     );
   }
 
-  /// Widget untuk Tile Anak (di dalam card)
-  Widget _buildChildMemberTile(ChildMember member) {
-    return InkWell(
-      onTap: () {
-        context.pushNamed('memberInfo'); // Navigasi ke detail anak
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            // Avatar Anak
-            MemberAvatar(
-              photoUrl: member.photoUrl,
-              emoji: member.emoji,
-              size: 40,
-              borderRadius: 8,
+  // --- PERUBAHAN 2: Widget Tile Anak yang Rekursif ---
+  /// Widget untuk Tile Anak (Level 2+)
+  Widget _buildChildMemberTile({
+    required ChildMember member,
+    required int level,
+  }) {
+    final bool isExpandable = member.spouseName != null;
+    final bool isExpanded = expandedChildren[member.nit] ?? false;
+    final double indentation = 20.0 * level;
+
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            if (member.children != null && member.children!.isNotEmpty) {
+              context.pushNamed('familyInfo');
+            }
+            context.pushNamed('memberInfo');
+          },
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16 + indentation,
+              right: 16,
+              top: 12,
+              bottom: 12,
             ),
-            const SizedBox(width: 12),
-            // Info Anak
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "${member.nit} ${member.name}", // Tampilkan NIT + Nama
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: Config.medium,
-                      color: Config.textHead,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  // Tampilkan Pasangan jika ada
-                  if (member.spouseName != null)
-                    Text(
-                      "Pasangan: ${member.spouseName}",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Config.textSecondary,
+            child: Row(
+              children: [
+                // Avatar Anak
+                MemberAvatar(
+                  photoUrl: member.photoUrl,
+                  emoji: member.emoji,
+                  size: 40,
+                  borderRadius: 8,
+                ),
+                const SizedBox(width: 12),
+                // Info Anak
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "${member.nit} ${member.name}",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: Config.medium,
+                          color: Config.textHead,
+                        ),
                       ),
-                    ),
-                  // Tampilkan Lokasi
-                  Text(
-                    member.location,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Config.textSecondary.withValues(alpha: 0.8),
-                    ),
+                      const SizedBox(height: 2),
+                      if (member.spouseName != null)
+                        Text(
+                          "Pasangan: ${member.spouseName}",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Config.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
-                ],
+                ),
+                if (isExpandable)
+                  IconButton(
+                    icon: Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: Config.textSecondary,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        expandedChildren[member.nit] = !isExpanded;
+                      });
+                    },
+                  )
+                else
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Config.textSecondary.withOpacity(0.5),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (isExpanded &&
+            member.children != null &&
+            member.children!.isNotEmpty)
+          Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: Config.primary.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              color: Config.primary.withOpacity(0.03),
+            ),
+            child: Column(
+              children: member.children!.map((grandChild) {
+                return _buildChildMemberTile(
+                  member: grandChild,
+                  level: level + 1,
+                );
+              }).toList(),
+            ),
+          )
+        else if (isExpanded &&
+            isExpandable &&
+            (member.children == null || member.children!.isEmpty))
+          Padding(
+            padding: EdgeInsets.only(
+              left: 16 + indentation + 20,
+              right: 16,
+              bottom: 12,
+            ),
+            child: Text(
+              "Belum ada data anak.",
+              style: TextStyle(
+                color: Config.textSecondary,
+                fontStyle: FontStyle.italic,
               ),
             ),
-            // Arrow Icon
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Config.textSecondary.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }
@@ -408,8 +510,8 @@ class FamilyGroup {
 class FamilyMember {
   final String name;
   final String relation;
-  final String emoji; // Emoji placeholder sementara
-  final String? photoUrl; // URL foto
+  final String emoji;
+  final String? photoUrl;
 
   FamilyMember({
     required this.name,

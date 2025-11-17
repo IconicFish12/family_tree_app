@@ -7,11 +7,11 @@ class ChildSelectionWidget extends StatefulWidget {
   final Function(List<Map<String, dynamic>>) onChildrenSelected;
 
   const ChildSelectionWidget({
-    Key? key,
+    super.key,
     required this.availableChildren,
     this.selectedChildren,
     required this.onChildrenSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<ChildSelectionWidget> createState() => _ChildSelectionWidgetState();

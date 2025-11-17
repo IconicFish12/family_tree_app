@@ -25,7 +25,7 @@ class _UpdateFamilyMemberPageState extends State<UpdateFamilyMemberPage> {
   String _selectedMonth = 'Januari';
   int _selectedYear = DateTime.now().year;
   String? _selectedRelation;
-  File? _memberPhoto;
+  File? memberPhoto;
   String? _memberPhotoUrl;
 
   final List<String> _months = [
@@ -198,7 +198,7 @@ class _UpdateFamilyMemberPageState extends State<UpdateFamilyMemberPage> {
                   isNetworkImage: true,
                   onImageSelected: (file) {
                     setState(() {
-                      _memberPhoto = file;
+                      memberPhoto = file;
                       if (file != null) {
                         _memberPhotoUrl = null;
                       }
@@ -307,7 +307,7 @@ class _UpdateFamilyMemberPageState extends State<UpdateFamilyMemberPage> {
                   Expanded(
                     flex: 2,
                     child: DropdownButtonFormField<String>(
-                      value: _selectedMonth,
+                      initialValue: _selectedMonth,
                       items: _months
                           .map(
                             (month) => DropdownMenuItem(
@@ -500,7 +500,7 @@ class _UpdateFamilyMemberPageState extends State<UpdateFamilyMemberPage> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           items: items
               .map((item) => DropdownMenuItem(value: item, child: Text(item)))
               .toList(),

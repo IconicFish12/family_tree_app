@@ -1,4 +1,3 @@
-import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';

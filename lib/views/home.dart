@@ -33,18 +33,6 @@ class _HomePageState extends State<HomePage> {
             fontWeight: Config.semiBold,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => context.pushNamed('profile'),
-            icon: Icon(
-              Icons.account_circle_outlined,
-              color: Config.textSecondary,
-              size: 28,
-            ),
-            tooltip: "Profile",
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(

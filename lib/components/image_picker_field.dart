@@ -10,12 +10,12 @@ class ImagePickerField extends StatefulWidget {
   final bool isNetworkImage;
 
   const ImagePickerField({
-    Key? key,
+    super.key,
     required this.label,
     this.initialImagePath,
     required this.onImageSelected,
     this.isNetworkImage = false,
-  }) : super(key: key);
+  });
 
   @override
   State<ImagePickerField> createState() => _ImagePickerFieldState();

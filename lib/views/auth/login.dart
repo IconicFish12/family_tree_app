@@ -65,22 +65,16 @@ class _LoginPageState extends State<LoginPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             children: [
-              const SizedBox(height: 120), // Space di atas seperti ada header
-              // Family Icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: const Icon(
-                  Icons.family_restroom,
-                  size: 60,
-                  color: Color(0xFF4CAF50),
+              const SizedBox(height: 100),
+              ClipRRect(
+                borderRadius: BorderRadiusGeometry.circular(40),
+                child: Image.asset(
+                  'assets/images/logo_aplikasi_silsilah_keluarga.png',
+                  cacheWidth: 200,
+                  alignment: AlignmentGeometry.center,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 18),
               // Welcome Text
               const Text(
                 'Selamat Datang',

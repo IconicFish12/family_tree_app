@@ -46,13 +46,8 @@ class MainNavigationShell extends StatelessWidget {
             backgroundColor: Colors.grey[100],
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.people),
-            label: 'Keluarga',
-            backgroundColor: Colors.grey[100],
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.settings),
-            label: 'Pengaturan',
+            icon: const Icon(Icons.account_circle_outlined),
+            label: 'Profile',
             backgroundColor: Colors.grey[100],
           ),
         ],
@@ -65,17 +60,9 @@ class MainNavigationShell extends StatelessWidget {
       return 0;
     } else if (location.startsWith('/family-search')) {
       return 1;
-    } else if (location.startsWith('/family-list') ||
-        location.startsWith('/member-info') ||
-        location.startsWith('/family-info') ||
-        location.startsWith('/tree-visual') ||
-        location.startsWith('/add-family') ||
-        location.startsWith('/edit-family') ||
-        location.startsWith('/add-family-member') ||
-        location.startsWith('/edit-family-member')) {
+    } else if (location.startsWith('/profile') ||
+        location.startsWith('/profile-edit')) {
       return 2;
-    } else if (location.startsWith('/profile')) {
-      return 3;
     }
     return 0;
   }
@@ -89,9 +76,6 @@ class MainNavigationShell extends StatelessWidget {
         context.goNamed('familySearch');
         break;
       case 2:
-        context.goNamed('familyList');
-        break;
-      case 3:
         context.goNamed('profile');
         break;
     }
@@ -214,7 +198,7 @@ class MyApp extends StatelessWidget {
     //   title: 'Flutter Demo',
     //   debugShowCheckedModeBanner: false,
     //   theme: config.lightTheme,
-    //   home: const TreeVisualPage(),
+    //   home: const LoginPage(),
     // );
   }
 }

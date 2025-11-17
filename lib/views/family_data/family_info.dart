@@ -12,7 +12,6 @@ class FamilyInfoPage extends StatefulWidget {
 }
 
 class _FamilyInfoPageState extends State<FamilyInfoPage> {
-  // --- DATA DUMMY (Akan dipecah) ---
   final Map<String, String> kepalaKeluarga = {
     "name": "Topan Namas",
     "role": "Kepala Keluarga",
@@ -24,15 +23,12 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
   final List<Map<String, String>> anakAnak = [
     {"name": "Tomas Alfa Edisound", "role": "Anak Ke 1"},
     {"name": "Nana Donal", "role": "Anak Ke 2"},
-    // Tambahkan anak lain di sini...
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- Latar Belakang dari Config ---
       backgroundColor: Config.background,
-      // --- AppBar dari Config ---
       appBar: AppBar(
         backgroundColor: Config.white,
         elevation: 0,
@@ -42,7 +38,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             } else {
-              context.go('/family-list');
+              context.pushNamed('/family-list');
             }
           },
         ),
@@ -57,7 +53,6 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
         centerTitle: true,
         actions: [],
       ),
-      // --- BODY BARU (Bukan hanya ListView) ---
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
         child: Column(

@@ -33,27 +33,15 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Logo Icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.blue,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.family_restroom,
-                size: 50,
-                color: Colors.white,
+            ClipRRect(
+              borderRadius: BorderRadiusGeometry.circular(40),
+              child: Image.asset(
+                'assets/images/logo_aplikasi_silsilah_keluarga.png',
+                cacheWidth: 200,
+                alignment: AlignmentGeometry.center,
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 16),
             // App Title
             const Text(
               'Tali Silsilah',
@@ -66,11 +54,12 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 8),
             // Subtitle
             const Text(
-              'Dzurriyah',
+              'Al-usrah',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 20,
                 color: Colors.black54,
                 fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic
               ),
             ),
           ],

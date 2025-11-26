@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage> {
                     memberCount: '15 Anggota',
                     description: 'Keluarga Besar Sujadmiko',
                     imageUrl: 'assets/images/family_logo.png',
-                    onTap: () => context.goNamed('familyList'),
+                    onTap: () => context.pushNamed('familyInfo'),
                   ),
                   const SizedBox(height: 24),
                   Row(

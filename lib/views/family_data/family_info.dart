@@ -76,7 +76,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    context.goNamed('addFamilyMember');
+                    context.pushNamed('addFamilyMember');
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah'),

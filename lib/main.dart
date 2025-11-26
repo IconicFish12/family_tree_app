@@ -1,4 +1,6 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:family_tree_app/views/auth/login.dart';
 import 'package:family_tree_app/views/family_data/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
@@ -15,6 +17,7 @@ import 'package:family_tree_app/views/profile/profile_edit.dart';
 import 'package:family_tree_app/views/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class MainNavigationShell extends StatelessWidget {
   final Widget child;
@@ -187,13 +190,29 @@ class MyApp extends StatelessWidget {
       ],
     );
 
-    return MaterialApp.router(
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: config.lightTheme,
-      restorationScopeId: 'app',
-      routerConfig: router,
+    // return MaterialApp.router(
+    //   title: 'Flutter Demo',
+    //   debugShowCheckedModeBanner: false,
+    //   theme: config.lightTheme,
+    //   restorationScopeId: 'app',
+    //   routerConfig: router,
+    // );
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => UserProvider(UserRepositoryImpl()),
+        ),
+      ],
+      child: MaterialApp.router(
+        title: 'Flutter Demo',
+        debugShowCheckedModeBanner: false,
+        theme: config.lightTheme,
+        restorationScopeId: 'app',
+        routerConfig: router,
+      )
     );
+
     // return MaterialApp(
     //   title: 'Flutter Demo',
     //   debugShowCheckedModeBanner: false,

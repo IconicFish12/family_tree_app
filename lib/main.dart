@@ -1,5 +1,7 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:family_tree_app/data/repository/spouse_repository.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:family_tree_app/views/auth/login.dart';
 import 'package:family_tree_app/views/family_data/family_info.dart';
@@ -146,17 +148,31 @@ class MyApp extends StatelessWidget {
             GoRoute(
               path: '/family-info',
               name: 'familyInfo',
-              builder: (context, state) => const FamilyInfoPage(),
+              builder: (context, state) {
+                final args = state.extra as Map<String, dynamic>;
+                return FamilyInfoPage(
+                  headName: args['headName'] ?? "Unknown",
+                  spouseName: args['spouseName'],
+                  children: args['children'] ?? [],
+                  parentId: args['parentId'],
+                );
+              },
             ),
             GoRoute(
               path: '/member-info',
               name: 'memberInfo',
-              builder: (context, state) => const MemberInfoPage(),
+              builder: (context, state) {
+                final member = state.extra as ChildMember;
+                return MemberInfoPage(member: member);
+              },
               routes: [
                 GoRoute(
                   path: 'add-family-member',
                   name: 'addFamilyMember',
-                  builder: (context, state) => const AddFamilyMemberPage(),
+                  builder: (context, state) {
+                    final parentId = state.extra as int?;
+                    return AddFamilyMemberPage(parentId: parentId);
+                  },
                 ),
                 GoRoute(
                   path: 'edit-family-member',
@@ -165,6 +181,7 @@ class MyApp extends StatelessWidget {
                 ),
               ],
             ),
+            
             GoRoute(
               path: '/family-search',
               name: 'familySearch',
@@ -190,18 +207,10 @@ class MyApp extends StatelessWidget {
       ],
     );
 
-    // return MaterialApp.router(
-    //   title: 'Flutter Demo',
-    //   debugShowCheckedModeBanner: false,
-    //   theme: config.lightTheme,
-    //   restorationScopeId: 'app',
-    //   routerConfig: router,
-    // );
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => UserProvider(UserRepositoryImpl()),
+          create: (_) => UserProvider(UserRepositoryImpl(), SpouseRepository()),
         ),
       ],
       child: MaterialApp.router(

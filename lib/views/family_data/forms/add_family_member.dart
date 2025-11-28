@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
-import 'package:family_tree_app/data/models/family_member.dart';
 import 'package:family_tree_app/components/image_picker_field.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class AddFamilyMemberPage extends StatefulWidget {
-  const AddFamilyMemberPage({super.key});
+  final int? parentId; // Terima Parent ID
+  const AddFamilyMemberPage({super.key, this.parentId});
 
   @override
   State<AddFamilyMemberPage> createState() => _AddFamilyMemberPageState();
@@ -16,354 +19,184 @@ class AddFamilyMemberPage extends StatefulWidget {
 class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _nikController = TextEditingController();
-  final _dateRangeController = TextEditingController();
-  final _notesController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _birthYearController = TextEditingController();
 
-  String _selectedGender = 'Laki-Laki'; // Default gender
-  String _selectedMonth = 'Januari';
-  int _selectedYear = DateTime.now().year;
-  String? _selectedRelation;
+  String _relationType = 'Anak'; // Default: Tambah Anak
   File? memberPhoto;
-  String? _memberPhotoUrl;
-
-  final List<String> _months = [
-    'Januari',
-    'Februari',
-    'Maret',
-    'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
-    'September',
-    'Oktober',
-    'November',
-    'Desember',
-  ];
-
-  final List<String> _relations = [
-    'Kepala Keluarga',
-    'Pasangan',
-    'Anak',
-    'Cucu',
-    'Orangtua',
-    'Kakak',
-    'Adik',
-    'Paman/Bibi',
-    'Keponakan',
-    'Sepupu',
-  ];
 
   @override
   void dispose() {
     _nameController.dispose();
-    _nikController.dispose();
-    _dateRangeController.dispose();
-    _notesController.dispose();
+    _addressController.dispose();
+    _birthYearController.dispose();
     super.dispose();
   }
 
-  void _saveFamily() {
+  void _saveData() async {
     if (_formKey.currentState!.validate()) {
-      // Create FamilyMember object
-      final newMember = FamilyMember(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text,
-        nik: _nikController.text,
-        dateRange: _dateRangeController.text,
-        image: _selectedGender == 'Laki-Laki' ? '👨' : '👩',
-        year: _selectedYear,
-        month: _selectedMonth,
-        relation: _selectedRelation,
-        status: 'active',
+      if (widget.parentId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: ID Keluarga tidak ditemukan")),
+        );
+        return;
+      }
+
+      final newUser = UserData(
+        fullName: _nameController.text,
+        address: _addressController.text,
+        birthYear: _birthYearController.text,
+        // Jika Anak -> parentId diisi. Jika Pasangan -> parentId null (karena setara)
+        parentId: _relationType == 'Anak' ? widget.parentId : null, 
       );
 
-      // TODO: Save to database/API with newMember.toJson()
-      debugPrint('Saving member: ${newMember.toJson()}');
+      final provider = context.read<UserProvider>();
+      bool success = false;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_nameController.text} berhasil ditambahkan'),
-          backgroundColor: Config.primary,
-        ),
-      );
+      if (_relationType == 'Pasangan') {
+        // LOGIC TAMBAH PASANGAN
+        success = await provider.addSpouse(
+          spouseData: newUser,
+          currentUserId: widget.parentId!,
+        );
+      } else {
+        // LOGIC TAMBAH ANAK
+        success = await provider.addUser(newUser);
+      }
 
-      // Navigate back
-      context.pop();
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Berhasil menambahkan $_relationType!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage ?? 'Gagal menyimpan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isSubmitting = context.select<UserProvider, bool>(
+      (p) => p.isSubmitting,
+    );
+
     return Scaffold(
-      backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.white,
-        elevation: 0,
-        leading: CustomBackButton(
-          color: Config.textHead,
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/family-info');
-            }
-          },
-        ),
-        title: Text(
-          'Tambah Anggota Keluarga',
-          style: TextStyle(
-            color: Config.textHead,
-            fontWeight: Config.semiBold,
-            fontSize: 20,
-          ),
+        title: const Text(
+          "Tambah Anggota",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
         ),
         centerTitle: true,
+        leading: CustomBackButton(onPressed: () => context.pop()),
+        backgroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Foto Anggota Keluarga (at top, centered)
-              Center(
-                child: ImagePickerField(
-                  label: 'Foto Anggota Keluarga',
-                  initialImagePath: _memberPhotoUrl,
-                  isNetworkImage: true,
-                  onImageSelected: (file) {
-                    setState(() {
-                      memberPhoto = file;
-                      if (file != null) {
-                        _memberPhotoUrl = null;
-                      }
-                    });
-                  },
+              // DROPDOWN PILIH STATUS HUBUNGAN
+              Text(
+                "Status Hubungan",
+                style: TextStyle(
+                  color: Config.textHead,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _relationType,
+                    isExpanded: true,
+                    items: ['Anak', 'Pasangan'].map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _relationType = newValue!;
+                      });
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Nama Lengkap
+              Center(
+                child: ImagePickerField(
+                  label: 'Foto Profil',
+                  onImageSelected: (f) => memberPhoto = f,
+                ),
+              ),
+              const SizedBox(height: 24),
+
               _buildTextField(
                 label: 'Nama Lengkap',
                 controller: _nameController,
-                hint: 'Masukkan nama lengkap',
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Nama tidak boleh kosong';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
-
-              // NIK
               _buildTextField(
-                label: 'Nomor Induk Kependudukan (NIK)',
-                controller: _nikController,
-                hint: 'Masukkan NIK (16 digit)',
+                label: 'Tahun Lahir',
+                controller: _birthYearController,
                 keyboardType: TextInputType.number,
-                maxLength: 16,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'NIK tidak boleh kosong';
-                  }
-                  if (value!.length != 16) {
-                    return 'NIK harus 16 digit';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 16),
-
-              // Jenis Kelamin
-              _buildDropdown(
-                label: 'Jenis Kelamin',
-                value: _selectedGender,
-                items: ['Laki-Laki', 'Perempuan'],
-                onChanged: (value) {
-                  setState(() => _selectedGender = value!);
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Hubungan Keluarga
-              _buildDropdown(
-                label: 'Hubungan Keluarga',
-                value: _selectedRelation,
-                items: _relations,
-                onChanged: (value) {
-                  setState(() => _selectedRelation = value);
-                },
-                isRequired: false,
-              ),
-              const SizedBox(height: 16),
-
-              // Tanggal Lahir (Tanggal - Bulan - Tahun)
-              Text(
-                'Tanggal Lahir',
-                style: TextStyle(
-                  color: Config.textHead,
-                  fontWeight: Config.semiBold,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  // Tanggal
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      controller: _dateRangeController,
-                      decoration: InputDecoration(
-                        hintText: 'Tanggal',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Tanggal diperlukan';
-                        }
-                        final day = int.tryParse(value!);
-                        if (day == null || day < 1 || day > 31) {
-                          return 'Tanggal tidak valid';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Bulan
-                  Expanded(
-                    flex: 2,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedMonth,
-                      items: _months
-                          .map(
-                            (month) => DropdownMenuItem(
-                              value: month,
-                              child: Text(month),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedMonth = value!);
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 8,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Bulan diperlukan';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Tahun
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      initialValue: _selectedYear.toString(),
-                      decoration: InputDecoration(
-                        hintText: 'Tahun',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        if (value.isNotEmpty) {
-                          setState(() => _selectedYear = int.parse(value));
-                        }
-                      },
-                      validator: (value) {
-                        if (value?.isEmpty ?? true) {
-                          return 'Tahun diperlukan';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Catatan
               _buildTextField(
-                label: 'Catatan Singkat',
-                controller: _notesController,
-                hint: 'Tambahkan catatan...',
-                maxLines: 3,
+                label: 'Alamat',
+                controller: _addressController,
+                maxLines: 2,
                 isRequired: false,
               ),
+              
               const SizedBox(height: 32),
-
-              // Tombol Simpan
               SizedBox(
                 width: double.infinity,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => context.go('/family-info'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE0E0E0),
-                          foregroundColor: Config.textSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('Batal'),
-                      ),
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : _saveData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Config.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _saveFamily,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Config.primary,
-                          foregroundColor: Config.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Simpan Anggota',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
+                      : Text(
+                          "Simpan $_relationType",
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -371,15 +204,11 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     );
   }
 
-  // Helper widget untuk text field
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
-    required String hint,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
-    int? maxLength,
-    String? Function(String?)? validator,
     bool isRequired = true,
   }) {
     return Column(
@@ -387,81 +216,20 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Config.textHead,
-            fontWeight: Config.semiBold,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: Config.textHead, fontWeight: Config.semiBold),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          maxLength: maxLength,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-          ),
-          validator:
-              validator ??
-              (value) {
-                if (isRequired && (value?.isEmpty ?? true)) {
-                  return '$label tidak boleh kosong';
-                }
-                return null;
-              },
-        ),
-      ],
-    );
-  }
-
-  // Helper widget untuk dropdown
-  Widget _buildDropdown({
-    required String label,
-    required String? value,
-    required List<String> items,
-    required Function(String?) onChanged,
-    bool isRequired = true,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Config.textHead,
-            fontWeight: Config.semiBold,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: value,
-          items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-              .toList(),
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-          ),
           validator: isRequired
-              ? (value) {
-                  if (value == null) {
-                    return '$label harus dipilih';
-                  }
-                  return null;
-                }
+              ? (v) => v == null || v.isEmpty ? '$label wajib diisi' : null
               : null,
-        ),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        )
       ],
     );
   }

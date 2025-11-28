@@ -1,29 +1,24 @@
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/components/ui.dart';
+import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:family_tree_app/config/config.dart';
 
-class FamilyInfoPage extends StatefulWidget {
-  const FamilyInfoPage({super.key});
+class FamilyInfoPage extends StatelessWidget {
+  // Data yang diterima dari navigasi
+  final String headName;
+  final String? spouseName;
+  final List<ChildMember> children;
+  final int? parentId; // ID Database (untuk tambah anak)
 
-  @override
-  State<FamilyInfoPage> createState() => _FamilyInfoPageState();
-}
-
-class _FamilyInfoPageState extends State<FamilyInfoPage> {
-  final Map<String, String> kepalaKeluarga = {
-    "name": "Topan Namas",
-    "role": "Kepala Keluarga",
-  };
-  final Map<String, String> pasangan = {
-    "name": "Sinta Suke",
-    "role": "Ibu Rumah Tangga",
-  };
-  final List<Map<String, String>> anakAnak = [
-    {"name": "Tomas Alfa Edisound", "role": "Anak Ke 1"},
-    {"name": "Nana Donal", "role": "Anak Ke 2"},
-  ];
+  const FamilyInfoPage({
+    super.key,
+    required this.headName,
+    this.spouseName,
+    this.children = const [],
+    this.parentId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +33,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             } else {
-              context.pushNamed('/family-list');
+              context.goNamed('familyList'); // Ubah ke goNamed agar aman
             }
           },
         ),
@@ -51,7 +46,6 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
           ),
         ),
         centerTitle: true,
-        actions: [],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -59,7 +53,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // === 1. KARTU INFORMASI UTAMA KELUARGA ===
-            _buildFamilyHeaderCard(kepalaKeluarga, pasangan),
+            _buildFamilyHeaderCard(context),
             const SizedBox(height: 24),
 
             // === 2. JUDUL UNTUK DAFTAR ANAK ===
@@ -67,7 +61,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Anak-Anak (${anakAnak.length})',
+                  'Anak-Anak (${children.length})',
                   style: TextStyle(
                     color: Config.textHead,
                     fontSize: 18,
@@ -76,7 +70,11 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    context.pushNamed('addFamilyMember');
+                    // PASSING parentId ke form tambah anggota
+                    context.pushNamed(
+                      'addFamilyMember',
+                      extra: parentId, 
+                    );
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah'),
@@ -94,23 +92,28 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
             const SizedBox(height: 12),
 
             // === 3. DAFTAR ANAK ===
-            // Menggunakan Column karena sudah di dalam SingleChildScrollView
-            Column(
-              children: anakAnak.map((member) {
-                return _buildMemberCard(
-                  name: member['name']!,
-                  role: member['role']!,
-                  onTap: () {
-                    // Aksi saat card anggota (anak) di-tap
-                    context.pushNamed('memberInfo');
-                  },
-                );
-              }).toList(),
-            ),
+            if (children.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Center(
+                  child: Text(
+                    "Belum ada data anak.",
+                    style: TextStyle(color: Config.textSecondary),
+                  ),
+                ),
+              )
+            else
+              Column(
+                children: children.map((member) {
+                  return _buildMemberCard(
+                    context: context,
+                    member: member,
+                  );
+                }).toList(),
+              ),
           ],
         ),
       ),
-      // --- Floating Action Button dari Config ---
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.pushNamed('treeVisual'),
         backgroundColor: Config.primary,
@@ -120,11 +123,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
     );
   }
 
-  // --- WIDGET BARU: Kartu Info Utama Keluarga ---
-  Widget _buildFamilyHeaderCard(
-    Map<String, String> head,
-    Map<String, String> spouse,
-  ) {
+  Widget _buildFamilyHeaderCard(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -132,7 +131,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
+            color: Config.textHead.withOpacity(0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -141,31 +140,35 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
       child: Column(
         children: [
           _buildMemberTile(
-            name: head['name']!,
-            role: head['role']!,
-            emoji: '👨', // Ganti dengan foto jika ada
-            onTap: () => context.pushNamed('memberInfo'), // Ke info Kepala
+            context: context,
+            name: headName,
+            role: "Kepala Keluarga",
+            emoji: '👨',
+            // Kita belum punya detail object untuk kepala keluarga di sini
+            // Bisa ditambahkan nanti jika perlu
+            onTap: () {}, 
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Divider(color: Config.background, height: 1),
-          ),
-          _buildMemberTile(
-            name: spouse['name']!,
-            role: spouse['role']!,
-            emoji: '👩', // Ganti dengan foto jika ada
-            onTap: () => context.pushNamed('memberInfo'), // Ke info Pasangan
-          ),
+          if (spouseName != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Divider(color: Config.background, height: 1),
+            ),
+            _buildMemberTile(
+              context: context,
+              name: spouseName!,
+              role: "Pasangan",
+              emoji: '👩',
+              onTap: () {},
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // --- WIDGET REFAKTOR: Card Anggota (Anak) ---
   Widget _buildMemberCard({
-    required String name,
-    required String role,
-    VoidCallback? onTap,
+    required BuildContext context,
+    required ChildMember member,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -173,7 +176,7 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
+            color: Config.textHead.withOpacity(0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -181,16 +184,20 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
       ),
       margin: const EdgeInsets.only(bottom: 12.0),
       child: _buildMemberTile(
-        name: name,
-        role: role,
-        emoji: '👤',
-        onTap: onTap,
+        context: context,
+        name: member.name,
+        role: "Anak", // Bisa disesuaikan logicnya
+        emoji: member.emoji,
+        onTap: () {
+          // Passing object member ke halaman detail
+          context.pushNamed('memberInfo', extra: member);
+        },
       ),
     );
   }
 
-  // --- WIDGET HELPER: Tile Anggota (Bisa dipakai di Card Header & Anak) ---
   Widget _buildMemberTile({
+    required BuildContext context,
     required String name,
     required String role,
     required String emoji,
@@ -203,10 +210,8 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
         padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
-            // --- Avatar (Menggunakan Komponen) ---
             MemberAvatar(emoji: emoji, size: 60, borderRadius: 8.0),
             const SizedBox(width: 16),
-            // --- Info Teks (Menggunakan Config) ---
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,10 +232,9 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
                 ],
               ),
             ),
-            // --- Ikon Panah (Menggunakan Config) ---
             Icon(
               Icons.chevron_right,
-              color: Config.textSecondary.withValues(alpha: 0.5),
+              color: Config.textSecondary.withOpacity(0.5),
               size: 28,
             ),
           ],

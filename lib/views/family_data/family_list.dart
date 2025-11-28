@@ -5,6 +5,7 @@ import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
 class FamilyListPage extends StatefulWidget {
   const FamilyListPage({super.key});
 
@@ -12,9 +13,9 @@ class FamilyListPage extends StatefulWidget {
   State<FamilyListPage> createState() => _FamilyListPageState();
 }
 
-
 class _FamilyListPageState extends State<FamilyListPage> {
-  // State untuk expand/collapse
+  final ScrollController _scrollController = ScrollController();
+
   Map<String, bool> expandedUnits = {};
   Map<String, bool> expandedChildren = {};
   bool _areAllExpanded = false;
@@ -22,17 +23,28 @@ class _FamilyListPageState extends State<FamilyListPage> {
   @override
   void initState() {
     super.initState();
-    // Panggil API saat halaman dibuka
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UserProvider>().fetchData();
+      context.read<UserProvider>().fetchData(isRefresh: true);
     });
   }
 
-  // Helper reset/init state expand (disesuaikan dengan data real)
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      context.read<UserProvider>().fetchData(isRefresh: false);
+    }
+  }
+
   void _initializeExpandedState(List<FamilyUnit> units, bool isExpanded) {
-    expandedUnits.clear(); // Clear dulu biar fresh
+    expandedUnits.clear();
     expandedChildren.clear();
-    
     for (var unit in units) {
       expandedUnits[unit.nit] = isExpanded;
       _initializeChildrenState(unit.children, isExpanded);
@@ -61,7 +73,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
       appBar: AppBar(
         backgroundColor: Config.white,
         elevation: 0,
-        // leading: CustomBackButton(), // Uncomment jika ada
         title: Text(
           'List Keluarga',
           style: TextStyle(
@@ -72,7 +83,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
         ),
         centerTitle: true,
         actions: [
-          // Gunakan Consumer selector atau akses provider untuk toggle
           Consumer<UserProvider>(
             builder: (context, provider, _) {
               return IconButton(
@@ -84,46 +94,47 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 ),
                 tooltip: _areAllExpanded ? "Tutup Semua" : "Buka Semua",
               );
-            }
+            },
           ),
           const SizedBox(width: 8),
         ],
       ),
-      // BUNGKUS BODY DENGAN CONSUMER
       body: Consumer<UserProvider>(
         builder: (context, provider, child) {
-          if (provider.state == ViewState.loading) {
+          // Handle Initial Loading
+          if (provider.state == ViewState.loading &&
+              provider.familyUnits.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (provider.state == ViewState.error) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Error: ${provider.errorMessage}"),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () => provider.fetchData(),
-                    child: const Text("Coba Lagi"),
-                  ),
-                ],
-              ),
-            );
+          // Handle Error Full Page
+          if (provider.state == ViewState.error &&
+              provider.familyUnits.isEmpty) {
+            return Center(child: Text("Error: ${provider.errorMessage}"));
           }
 
           final familyUnits = provider.familyUnits;
 
           if (familyUnits.isEmpty) {
-            return const Center(child: Text("Tidak ada data keluarga"));
+            return const Center(
+              child: Text("Tidak ada data keluarga (List Kosong)"),
+            );
           }
 
+          // Gunakan ListView.builder
           return ListView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: familyUnits.length,
+            itemCount: familyUnits.length + (provider.isLoadingMore ? 1 : 0),
             itemBuilder: (context, index) {
+              if (index == familyUnits.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
               final familyUnit = familyUnits[index];
-              // Default false jika belum ada di map
               final isExpanded = expandedUnits[familyUnit.nit] ?? false;
 
               return _buildFamilyUnitCard(
@@ -154,8 +165,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
     required bool isExpanded,
     required VoidCallback onToggle,
   }) {
-    // ... (KODE WIDGET INI SAMA PERSIS SEPERTI YANG KAMU KIRIM) ...
-    // Copy paste widget _buildFamilyUnitCard dari kode lamamu ke sini
+    print(unit.children);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -178,7 +188,20 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 Expanded(
                   child: InkWell(
                     onTap: () {
-                      context.pushNamed('familyInfo');
+                      if (unit.children.isNotEmpty) {
+                        // Jika anak ini punya anak lagi, buka Family Info dia sebagai kepala
+                        context.pushNamed(
+                          'familyInfo',
+                          extra: {
+                            'headName': unit.headName,
+                            'spouseName': unit.spouseName,
+                            'children': unit.children,
+                            'parentId': unit.headId,
+                          },
+                        );
+                      } else {
+                        context.pushNamed('memberInfo', extra: unit);
+                      }
                     },
                     child: Row(
                       children: [
@@ -246,17 +269,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
     );
   }
 
-  // ... (KODE WIDGET TILE ANAK SAMA PERSIS SEPERTI YANG KAMU KIRIM) ...
-  // Copy paste widget _buildChildMemberTile dari kode lamamu ke sini
   Widget _buildChildMemberTile({
     required ChildMember member,
     required int level,
   }) {
-    final bool isExpandable =
-        (member.children != null &&
-        member
-            .children!
-            .isNotEmpty); // Logic sedikit diubah: expandable jika punya anak
+    final bool isExpandable = (member.children.isNotEmpty);
     final bool isExpanded = expandedChildren[member.nit] ?? false;
     final double indentation = 20.0 * level;
 
@@ -264,8 +281,19 @@ class _FamilyListPageState extends State<FamilyListPage> {
       children: [
         InkWell(
           onTap: () {
-            // Logic navigasi
-            context.pushNamed('memberInfo');
+            if (member.children.isNotEmpty) {
+              context.pushNamed(
+                'familyInfo',
+                extra: {
+                  'headName': member.name,
+                  'spouseName': member.spouseName,
+                  'children': member.children,
+                  'parentId': member.id,
+                },
+              );
+            } else {
+              context.pushNamed('memberInfo', extra: member);
+            }
           },
           child: Padding(
             padding: EdgeInsets.only(
@@ -332,10 +360,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
             ),
           ),
         ),
-        // Render anak-anaknya secara rekursif
-        if (isExpanded &&
-            member.children != null &&
-            member.children!.isNotEmpty)
+        if (isExpanded && member.children.isNotEmpty)
           Container(
             decoration: BoxDecoration(
               border: Border(
@@ -347,14 +372,35 @@ class _FamilyListPageState extends State<FamilyListPage> {
               color: Config.primary.withOpacity(0.03),
             ),
             child: Column(
-              children: member.children!.map((grandChild) {
+              children: member.children.map((grandChild) {
                 return _buildChildMemberTile(
                   member: grandChild,
                   level: level + 1,
                 );
               }).toList(),
             ),
-          )
+          ),
+        if (isExpanded && member.children.isNotEmpty)
+          Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: Config.primary.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              color: Config.primary.withOpacity(0.03),
+            ),
+            child: Column(
+              // PROTEKSI LOOPING DI SINI
+              children: member.children.map<Widget>((grandChild) {
+                return _buildChildMemberTile(
+                  member: grandChild,
+                  level: level + 1,
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }

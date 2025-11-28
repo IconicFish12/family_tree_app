@@ -144,6 +144,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Widget Untuk Familty Info (User Login)
   Widget _buildFamilyInfoCard({
     required BuildContext context,
     required String title,
@@ -173,7 +174,6 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Bagian Gambar
               Container(
                 height: 120,
                 width: double.infinity,

@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
-import 'package:family_tree_app/data/dummy_data.dart';
 import 'package:family_tree_app/components/image_picker_field.dart';
-import 'package:family_tree_app/components/child_selection_widget.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class AddFamilyPage extends StatefulWidget {
   const AddFamilyPage({super.key});
@@ -17,217 +18,156 @@ class AddFamilyPage extends StatefulWidget {
 class _AddFamilyPageState extends State<AddFamilyPage> {
   final _formKey = GlobalKey<FormState>();
   final _headNameController = TextEditingController();
-  final _spouseNameController = TextEditingController();
   final _locationController = TextEditingController();
+  final _birthYearController = TextEditingController(); // Tambahan
 
   File? familyPhoto;
-  String? _familyPhotoUrl;
-  List<Map<String, dynamic>> _selectedChildren = [];
-
-  final List<Map<String, TextEditingController>> _children = [];
 
   @override
   void dispose() {
     _headNameController.dispose();
-    _spouseNameController.dispose();
     _locationController.dispose();
-    for (var child in _children) {
-      child['name']?.dispose();
-      child['spouse']?.dispose();
-    }
+    _birthYearController.dispose();
     super.dispose();
   }
 
-  void _saveFamily() {
+  void _saveFamily() async {
     if (_formKey.currentState!.validate()) {
-      // Prepare family data
-      final childrenData = <Map<String, String?>>[
-        for (var child in _children)
-          {
-            'name': child['name']?.text ?? '',
-            'spouse': child['spouse']?.text.isEmpty ?? true
-                ? null
-                : child['spouse']?.text,
-          },
-      ];
-
-      final familyData = {
-        'headName': _headNameController.text,
-        'spouseName': _spouseNameController.text.isEmpty
-            ? null
-            : _spouseNameController.text,
-        'location': _locationController.text,
-        'children': childrenData,
-      };
-
-      debugPrint('Saving family: $familyData');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Keluarga ${_headNameController.text} berhasil ditambahkan',
-          ),
-          backgroundColor: Config.primary,
-        ),
+      // 1. Buat Object Kepala Keluarga
+      final newFamilyHead = UserData(
+        fullName: _headNameController.text,
+        address: _locationController.text,
+        birthYear: _birthYearController.text,
+        parentId: null, // Root Node (Tidak punya bapak di tree ini)
+        // avatar: familyPhoto (Logic upload foto skip dlu atau implement terpisah)
       );
 
-      context.pop();
+      // 2. Panggil Provider
+      final provider = context.read<UserProvider>();
+      final success = await provider.addUser(newFamilyHead);
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Keluarga ${_headNameController.text} berhasil dibuat! Silakan tambah anggota keluarga.',
+            ),
+            backgroundColor: Config.primary,
+          ),
+        );
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage ?? 'Gagal menyimpan data'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isSubmitting = context.select<UserProvider, bool>(
+      (p) => p.isSubmitting,
+    );
+
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.white,
-        elevation: 0,
-        leading: CustomBackButton(
-          color: Config.textHead,
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/family-list');
-            }
-          },
-        ),
-        title: Text(
-          'Tambah Data Keluarga',
-          style: TextStyle(
-            color: Config.textHead,
-            fontWeight: Config.semiBold,
-            fontSize: 20,
-          ),
+        title: const Text(
+          "Buat Keluarga Baru",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
         ),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        leading: CustomBackButton(onPressed: () => context.pop()),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Section: Kepala Keluarga
-              Text(
-                'Informasi Keluarga',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Config.textHead,
-                  fontWeight: Config.semiBold,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Photo Picker untuk Foto Keluarga
               ImagePickerField(
-                label: 'Foto Keluarga',
-                initialImagePath: _familyPhotoUrl,
-                isNetworkImage: true,
-                onImageSelected: (file) {
-                  setState(() {
-                    familyPhoto = file;
-                    if (file != null) {
-                      _familyPhotoUrl = null;
-                    }
-                  });
-                },
+                label: 'Foto Kepala Keluarga',
+                onImageSelected: (file) => setState(() => familyPhoto = file),
               ),
               const SizedBox(height: 24),
-
               _buildTextField(
-                label: 'Nama Kepala Keluarga',
+                label: 'Nama Kepala Keluarga', 
                 controller: _headNameController,
-                hint: 'Masukkan nama kepala keluarga',
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Nama kepala keluarga tidak boleh kosong';
-                  }
-                  return null;
-                },
+                hint: 'Contoh: Budi Santoso',
+                isRequired: true
               ),
               const SizedBox(height: 16),
-
               _buildTextField(
-                label: 'Nama Pasangan (Opsional)',
-                controller: _spouseNameController,
-                hint: 'Masukkan nama pasangan',
-                isRequired: false,
+                label: 'Tahun Lahir',
+                controller: _birthYearController,
+                hint: 'Contoh: 1980',
               ),
               const SizedBox(height: 16),
-
-              // Section: Lokasi
               _buildTextField(
-                label: 'Lokasi Tempat Tinggal',
+                label: 'Alamat', 
                 controller: _locationController,
-                hint: 'Masukkan lokasi tempat tinggal',
-                maxLines: 2,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Lokasi tidak boleh kosong';
-                  }
-                  return null;
-                },
+                hint: 'Alamat tempat tinggal',
+                maxLines: 2
               ),
-              const SizedBox(height: 24),
-
-              // Section: Pilih Anak dari List
-              ChildSelectionWidget(
-                availableChildren: DummyData.dummyAvailableChildren,
-                selectedChildren: _selectedChildren,
-                onChildrenSelected: (children) {
-                  setState(() {
-                    _selectedChildren = children;
-                  });
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Tombol Simpan
-              SizedBox(
-                width: double.infinity,
-                child: Row(
+              const SizedBox(height: 32),
+              
+              // INFO TEXT
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: const Row(
                   children: [
+                    Icon(Icons.info_outline, color: Colors.blue),
+                    SizedBox(width: 8),
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => context.go('/family-list'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE0E0E0),
-                          foregroundColor: Config.textSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('Batal'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _saveFamily,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Config.primary,
-                          foregroundColor: Config.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Simpan Data Keluarga',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                      child: Text(
+                        "Setelah menyimpan Kepala Keluarga, Anda dapat menambahkan Pasangan dan Anak melalui halaman detail.",
+                        style: TextStyle(fontSize: 13, color: Colors.black87),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : _saveFamily,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Config.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
+                      : const Text(
+                          "Simpan Keluarga",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
             ],
           ),
         ),
@@ -238,10 +178,9 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
-    required String hint,
+    String hint = '',
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
-    String? Function(String?)? validator,
     bool isRequired = true,
   }) {
     return Column(
@@ -249,34 +188,21 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Config.textHead,
-            fontWeight: Config.semiBold,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: Config.textHead, fontWeight: Config.semiBold),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          validator: isRequired
+              ? (v) => v == null || v.isEmpty ? '$label wajib diisi' : null
+              : null,
           decoration: InputDecoration(
             hintText: hint,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
           ),
-          validator:
-              validator ??
-              (value) {
-                if (isRequired && (value?.isEmpty ?? true)) {
-                  return '$label tidak boleh kosong';
-                }
-                return null;
-              },
-        ),
+        )
       ],
     );
   }

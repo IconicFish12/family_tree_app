@@ -103,7 +103,7 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                               child: CircleAvatar(
                                 radius: 20,
                                 backgroundImage: NetworkImage(child['photo']),
-                                onBackgroundImageError: (_, __) {},
+                                onBackgroundImageError: (_, _) {},
                                 child: Icon(
                                   Icons.person,
                                   color: Config.accent.withValues(alpha: 0.5),
@@ -177,7 +177,7 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                 avatar: child['photo'] != null
                     ? CircleAvatar(
                         backgroundImage: NetworkImage(child['photo']),
-                        onBackgroundImageError: (_, __) {},
+                        onBackgroundImageError: (_, _) {},
                       )
                     : null,
                 label: Text(

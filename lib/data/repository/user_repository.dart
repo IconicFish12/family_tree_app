@@ -44,7 +44,7 @@ class UserRepositoryImpl implements UserRepository {
       body.remove('updated_at');
 
       final response = await Config.dio.post(
-        'https://api-alusrah.oproject.id/api/user',
+        'https://api-alusrah.oproject.id/api/users',
         data: body,
       );
 

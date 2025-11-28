@@ -78,7 +78,14 @@ class UserProvider extends ChangeNotifier {
     _isSubmitting = true;
     notifyListeners();
 
-    final result = await _repositoryImpl.createUser(newUser);
+    String generatedId = _generateNextFamilyTreeId(newUser.parentId);
+    
+    final userToSend = newUser.copyWith(
+      familyTreeId: generatedId,
+      parentId: newUser.parentId, 
+    );
+
+    final result = await _repositoryImpl.createUser(userToSend);
 
     return result.fold(
       (failure) {
@@ -98,14 +105,13 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> addSpouse({
-    required UserData spouseData,
-    required int currentUserId, // ID Suami/Istri yang sudah ada
+   Future<bool> addSpouse({
+    required UserData spouseData, 
+    required int currentUserId 
   }) async {
     _isSubmitting = true;
     notifyListeners();
 
-    // LANGKAH 1: Buat User Pasangannya dulu (di tabel User)
     final userResult = await _repositoryImpl.createUser(spouseData);
 
     return userResult.fold(
@@ -116,12 +122,11 @@ class UserProvider extends ChangeNotifier {
         return false;
       },
       (createdSpouse) async {
-        // LANGKAH 2: Hubungkan User Baru dengan User Lama di tabel Spouse
         if (createdSpouse.userId == null) {
-          _errorMessage = "ID Pasangan tidak ditemukan dari server.";
-          _isSubmitting = false;
-          notifyListeners();
-          return false;
+           _errorMessage = "ID Pasangan tidak ditemukan dari server.";
+           _isSubmitting = false;
+           notifyListeners();
+           return false;
         }
 
         final spouseResult = await _spouseRepository.addSpouse(
@@ -132,13 +137,11 @@ class UserProvider extends ChangeNotifier {
         return spouseResult.fold(
           (failure) {
             _errorMessage = failure.message;
-            // Opsional: Hapus user yang baru dibuat jika gagal linking (Rollback manual)
             _isSubmitting = false;
             notifyListeners();
             return false;
           },
           (success) {
-            // SUKSES TOTAL
             _rawAllUsers.add(createdSpouse);
             _familyUnits = _buildFamilyTree(_rawAllUsers);
             _isSubmitting = false;
@@ -148,6 +151,56 @@ class UserProvider extends ChangeNotifier {
         );
       },
     );
+  }
+
+  String _generateNextFamilyTreeId(int? parentId) {
+    try {
+      if (parentId == null) {
+        final rootUsers = _rawAllUsers.where((u) => u.parentId == null).toList();
+        
+        if (rootUsers.isEmpty) return "1"; 
+
+        int maxId = 0;
+        for (var user in rootUsers) {
+          if (user.familyTreeId != null) {
+            int? currentId = int.tryParse(user.familyTreeId!.replaceAll(RegExp(r'[^0-9]'), ''));
+            if (currentId != null && currentId > maxId) {
+              maxId = currentId;
+            }
+          }
+        }
+        return (maxId + 1).toString();
+      } 
+      
+      else {
+        final parent = _rawAllUsers.firstWhere(
+          (u) => u.userId == parentId, 
+          orElse: () => const UserData(familyTreeId: "0")
+        );
+        
+        String parentPrefix = parent.familyTreeId ?? "0";
+
+        final siblings = _rawAllUsers.where((u) => u.parentId == parentId).toList();
+        
+        int maxSuffix = 0;
+        for (var sibling in siblings) {
+          if (sibling.familyTreeId != null && sibling.familyTreeId!.startsWith("$parentPrefix.")) {
+            List<String> parts = sibling.familyTreeId!.split('.');
+            if (parts.isNotEmpty) {
+              int? suffix = int.tryParse(parts.last);
+              if (suffix != null && suffix > maxSuffix) {
+                maxSuffix = suffix;
+              }
+            }
+          }
+        }
+        
+        return "$parentPrefix.${maxSuffix + 1}";
+      }
+    } catch (e) {
+      print("Error generating ID: $e");
+      throw Exception("Error generating ID: $e");
+    }
   }
 
   List<FamilyUnit> _buildFamilyTree(List<UserData> allUsers) {

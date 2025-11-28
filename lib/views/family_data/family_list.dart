@@ -200,7 +200,18 @@ class _FamilyListPageState extends State<FamilyListPage> {
                           },
                         );
                       } else {
-                        context.pushNamed('memberInfo', extra: unit);
+                        final headMember = ChildMember(
+                        id: unit.headId,       // Ambil ID Kepala
+                        nit: unit.nit,         // Ambil NIT
+                        name: unit.headName,   // Ambil Nama Kepala
+                        spouseName: unit.spouseName,
+                        location: unit.location,
+                        children: unit.children, // Bawa serta anak-anaknya (opsional)
+                        emoji: '👨',           // Default emoji untuk bapak
+                      );
+
+                      // 2. Kirim object 'headMember' yang baru dibuat ini
+                      context.pushNamed('memberInfo', extra: headMember);
                       }
                     },
                     child: Row(

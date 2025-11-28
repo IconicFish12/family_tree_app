@@ -4,7 +4,7 @@ class ChildMember {
   final String name;
   final String? birthYear;
   final String? spouseName;
-  final String location;
+  final String? location;
   final String? photoUrl;
   final String emoji;
   final List<ChildMember> children;

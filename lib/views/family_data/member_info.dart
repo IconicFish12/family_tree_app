@@ -111,7 +111,7 @@ class MemberInfoPage extends StatelessWidget {
         const SizedBox(height: 12),
         _buildInfoCard(
           title: "Lokasi / Alamat",
-          value: member.location,
+          value: member.location.toString(),
         ),
         const SizedBox(height: 12),
         if (member.spouseName != null)

@@ -170,8 +170,11 @@ class MyApp extends StatelessWidget {
                   path: 'add-family-member',
                   name: 'addFamilyMember',
                   builder: (context, state) {
-                    final parentId = state.extra as int?;
-                    return AddFamilyMemberPage(parentId: parentId);
+                    final extra = state.extra as Map<String, dynamic>?;
+                    return AddFamilyMemberPage(
+                      parentId: extra?['parentId'],
+                      parentName: extra?['parentName'],
+                    );
                   },
                 ),
                 GoRoute(
@@ -181,7 +184,7 @@ class MyApp extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             GoRoute(
               path: '/family-search',
               name: 'familySearch',
@@ -219,7 +222,7 @@ class MyApp extends StatelessWidget {
         theme: config.lightTheme,
         restorationScopeId: 'app',
         routerConfig: router,
-      )
+      ),
     );
 
     // return MaterialApp(

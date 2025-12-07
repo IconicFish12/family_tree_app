@@ -19,7 +19,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
   final _formKey = GlobalKey<FormState>();
   final _headNameController = TextEditingController();
   final _locationController = TextEditingController();
-  final _birthYearController = TextEditingController(); // Tambahan
+  final _birthYearController = TextEditingController();
 
   File? familyPhoto;
 
@@ -31,18 +31,40 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     super.dispose();
   }
 
+  Future<void> _selectYear(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Pilih Tahun Lahir"),
+          content: SizedBox(
+            width: 300,
+            height: 300,
+            child: YearPicker(
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now(),
+              initialDate: DateTime.now(),
+              selectedDate: DateTime.now(),
+              onChanged: (DateTime dateTime) {
+                _birthYearController.text = dateTime.year.toString();
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _saveFamily() async {
     if (_formKey.currentState!.validate()) {
-      // 1. Buat Object Kepala Keluarga
       final newFamilyHead = UserData(
         fullName: _headNameController.text,
         address: _locationController.text,
         birthYear: _birthYearController.text,
-        parentId: null, // Root Node (Tidak punya bapak di tree ini)
-        // avatar: familyPhoto (Logic upload foto skip dlu atau implement terpisah)
+        parentId: null,
       );
 
-      // 2. Panggil Provider
       final provider = context.read<UserProvider>();
       final success = await provider.addUser(newFamilyHead);
 
@@ -51,9 +73,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Keluarga ${_headNameController.text} berhasil dibuat! Silakan tambah anggota keluarga.',
-            ),
+            content: const Text('Keluarga baru berhasil dibuat!'),
             backgroundColor: Config.primary,
           ),
         );
@@ -84,6 +104,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
+        elevation: 0,
         leading: CustomBackButton(onPressed: () => context.pop()),
       ),
       body: SingleChildScrollView(
@@ -91,34 +112,46 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ImagePickerField(
-                label: 'Foto Kepala Keluarga',
-                onImageSelected: (file) => setState(() => familyPhoto = file),
+              Center(
+                child: ImagePickerField(
+                  label: 'Foto Kepala Keluarga',
+                  onImageSelected: (file) => setState(() => familyPhoto = file),
+                ),
               ),
               const SizedBox(height: 24),
+
+              _buildLabel("Nama Kepala Keluarga"),
+              const SizedBox(height: 8),
               _buildTextField(
-                label: 'Nama Kepala Keluarga', 
                 controller: _headNameController,
                 hint: 'Contoh: Budi Santoso',
-                isRequired: true
+                icon: Icons.person_outline,
               ),
               const SizedBox(height: 16),
+
+              _buildLabel("Tahun Lahir"),
+              const SizedBox(height: 8),
               _buildTextField(
-                label: 'Tahun Lahir',
                 controller: _birthYearController,
-                hint: 'Contoh: 1980',
+                hint: 'Pilih Tahun',
+                icon: Icons.calendar_today,
+                readOnly: true,
+                onTap: () => _selectYear(context),
               ),
               const SizedBox(height: 16),
+
+              _buildLabel("Alamat"),
+              const SizedBox(height: 8),
               _buildTextField(
-                label: 'Alamat', 
                 controller: _locationController,
                 hint: 'Alamat tempat tinggal',
-                maxLines: 2
+                icon: Icons.location_on_outlined,
+                maxLines: 2,
               ),
               const SizedBox(height: 32),
-              
-              // INFO TEXT
+
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -126,13 +159,18 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.blue.withOpacity(0.3)),
                 ),
-                child: const Row(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Expanded(
+                    const Icon(
+                      Icons.info_outline,
+                      color: Colors.blue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
                       child: Text(
-                        "Setelah menyimpan Kepala Keluarga, Anda dapat menambahkan Pasangan dan Anak melalui halaman detail.",
+                        "Ini akan membuat Root (Akar) baru. Gunakan fitur ini hanya jika Anda ingin membuat pohon silsilah yang benar-benar baru.",
                         style: TextStyle(fontSize: 13, color: Colors.black87),
                       ),
                     ),
@@ -151,12 +189,16 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
+                    elevation: 0,
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(color: Colors.white),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
                           "Simpan Keluarga",
@@ -175,35 +217,43 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     );
   }
 
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(color: Config.textHead, fontWeight: Config.semiBold),
+    );
+  }
+
   Widget _buildTextField({
-    required String label,
     required TextEditingController controller,
     String hint = '',
-    TextInputType keyboardType = TextInputType.text,
+    IconData? icon,
     int maxLines = 1,
-    bool isRequired = true,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(color: Config.textHead, fontWeight: Config.semiBold),
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      readOnly: readOnly,
+      onTap: onTap,
+      validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: icon != null
+            ? Icon(icon, color: Config.textSecondary)
+            : null,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          validator: isRequired
-              ? (v) => v == null || v.isEmpty ? '$label wajib diisi' : null
-              : null,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        )
-      ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
     );
   }
 }

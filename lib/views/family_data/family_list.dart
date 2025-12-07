@@ -5,6 +5,7 @@ import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 
 class FamilyListPage extends StatefulWidget {
   const FamilyListPage({super.key});
@@ -16,9 +17,8 @@ class FamilyListPage extends StatefulWidget {
 class _FamilyListPageState extends State<FamilyListPage> {
   final ScrollController _scrollController = ScrollController();
 
-  Map<String, bool> expandedUnits = {};
-  Map<String, bool> expandedChildren = {};
-  bool _areAllExpanded = false;
+  // Breadcrumb untuk navigasi folder
+  final List<dynamic> _breadcrumbs = [];
 
   @override
   void initState() {
@@ -42,377 +42,348 @@ class _FamilyListPageState extends State<FamilyListPage> {
     }
   }
 
-  void _initializeExpandedState(List<FamilyUnit> units, bool isExpanded) {
-    expandedUnits.clear();
-    expandedChildren.clear();
-    for (var unit in units) {
-      expandedUnits[unit.nit] = isExpanded;
-      _initializeChildrenState(unit.children, isExpanded);
-    }
-  }
-
-  void _initializeChildrenState(List<ChildMember>? children, bool isExpanded) {
-    if (children == null) return;
-    for (var child in children) {
-      expandedChildren[child.nit] = isExpanded;
-      _initializeChildrenState(child.children, isExpanded);
-    }
-  }
-
-  void _toggleAllDropdowns(List<FamilyUnit> units) {
+  // --- LOGIKA NAVIGASI ---
+  void _navigateToChild(dynamic item) {
     setState(() {
-      _areAllExpanded = !_areAllExpanded;
-      _initializeExpandedState(units, _areAllExpanded);
+      _breadcrumbs.add(item);
     });
+  }
+
+  void _navigateBackTo(int index) {
+    setState(() {
+      int targetLength = index + 1;
+      if (_breadcrumbs.length > targetLength) {
+        _breadcrumbs.removeRange(targetLength, _breadcrumbs.length);
+      }
+    });
+  }
+
+  void _navigateToHome() {
+    setState(() {
+      _breadcrumbs.clear();
+    });
+  }
+
+  Future<bool> _onWillPop() async {
+    if (_breadcrumbs.isNotEmpty) {
+      setState(() {
+        _breadcrumbs.removeLast();
+      });
+      return false;
+    }
+    return true;
+  }
+
+  String _getShortName(dynamic item) {
+    String fullName = "";
+    if (item is FamilyUnit) fullName = item.headName;
+    if (item is ChildMember) fullName = item.name;
+
+    List<String> parts = fullName.split(' ');
+    if (parts.length > 2) return "${parts[0]} ${parts[1]}...";
+    return fullName;
+  }
+
+  // --- LOGIKA FAB (TOMBOL TAMBAH) ---
+  void _handleFabPressed() {
+    if (_breadcrumbs.isEmpty) {
+      // 1. Jika di Root -> Tambah Keluarga Baru
+      context.pushNamed('addFamily');
+    } else {
+      // 2. Jika di dalam Folder -> Tambah Anggota untuk Parent saat ini
+      final currentParent = _breadcrumbs.last;
+      int? parentId;
+      String parentName = "";
+
+      if (currentParent is FamilyUnit) {
+        // Mengambil ID dan Nama dari FamilyUnit
+        // Pastikan model FamilyUnit memiliki properti id/headId yang valid
+        parentId = currentParent.headId;
+        parentName = currentParent.headName;
+      } else if (currentParent is ChildMember) {
+        // Mengambil ID dan Nama dari ChildMember
+        // Pastikan model ChildMember memiliki properti id yang valid
+        parentId = currentParent.id;
+        parentName = currentParent.name;
+      }
+
+      // Navigasi dengan membawa ID Parent
+      // Jika parentId null (misal karena data error), berikan fallback atau handle error
+      if (parentId != null) {
+        context.pushNamed(
+          'addFamilyMember',
+          extra: {'parentId': parentId, 'parentName': parentName},
+        );
+      } else {
+        // Tampilkan pesan error jika ID tidak ditemukan
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Gagal mengambil ID orang tua")),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Config.background,
-      appBar: AppBar(
-        backgroundColor: Config.white,
-        elevation: 0,
-        title: Text(
-          'List Keluarga',
-          style: TextStyle(
-            color: Config.textHead,
-            fontSize: 20,
-            fontWeight: Config.semiBold,
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: Config.background,
+        appBar: AppBar(
+          backgroundColor: Config.white,
+          elevation: 0,
+          leading: _breadcrumbs.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.arrow_back, color: Config.textHead),
+                  onPressed: () => setState(() => _breadcrumbs.removeLast()),
+                )
+              : null,
+          title: Text(
+            'List Keluarga',
+            style: TextStyle(
+              color: Config.textHead,
+              fontSize: 20,
+              fontWeight: Config.semiBold,
+            ),
           ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.refresh, color: Config.textSecondary),
+              onPressed: () =>
+                  context.read<UserProvider>().fetchData(isRefresh: true),
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
-        centerTitle: true,
-        actions: [
-          Consumer<UserProvider>(
-            builder: (context, provider, _) {
-              return IconButton(
-                onPressed: () => _toggleAllDropdowns(provider.familyUnits),
-                icon: Icon(
-                  _areAllExpanded ? Icons.unfold_less : Icons.unfold_more,
-                  color: Config.textSecondary,
-                  size: 28,
-                ),
-                tooltip: _areAllExpanded ? "Tutup Semua" : "Buka Semua",
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Consumer<UserProvider>(
-        builder: (context, provider, child) {
-          // Handle Initial Loading
-          if (provider.state == ViewState.loading &&
-              provider.familyUnits.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        body: Consumer<UserProvider>(
+          builder: (context, provider, child) {
+            if (provider.state == ViewState.loading &&
+                provider.familyUnits.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          // Handle Error Full Page
-          if (provider.state == ViewState.error &&
-              provider.familyUnits.isEmpty) {
-            return Center(child: Text("Error: ${provider.errorMessage}"));
-          }
-
-          final familyUnits = provider.familyUnits;
-
-          if (familyUnits.isEmpty) {
-            return const Center(
-              child: Text("Tidak ada data keluarga (List Kosong)"),
-            );
-          }
-
-          // Gunakan ListView.builder
-          return ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: familyUnits.length + (provider.isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == familyUnits.length) {
-                return const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Center(child: CircularProgressIndicator()),
-                );
+            // Tentukan Data List berdasarkan Breadcrumb
+            List<dynamic> currentList = [];
+            if (_breadcrumbs.isEmpty) {
+              currentList = provider.familyUnits;
+            } else {
+              final lastItem = _breadcrumbs.last;
+              if (lastItem is FamilyUnit) currentList = lastItem.children;
+              if (lastItem is ChildMember) {
+                currentList = lastItem.children;
               }
+            }
 
-              final familyUnit = familyUnits[index];
-              final isExpanded = expandedUnits[familyUnit.nit] ?? false;
-
-              return _buildFamilyUnitCard(
-                unit: familyUnit,
-                isExpanded: isExpanded,
-                onToggle: () {
-                  setState(() {
-                    expandedUnits[familyUnit.nit] = !isExpanded;
-                  });
-                },
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          context.pushNamed('addFamily');
-        },
-        backgroundColor: Config.primary,
-        child: const Icon(Icons.add, color: Config.white),
-      ),
-    );
-  }
-
-  Widget _buildFamilyUnitCard({
-    required FamilyUnit unit,
-    required bool isExpanded,
-    required VoidCallback onToggle,
-  }) {
-    print(unit.children);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      if (unit.children.isNotEmpty) {
-                        // Jika anak ini punya anak lagi, buka Family Info dia sebagai kepala
-                        context.pushNamed(
-                          'familyInfo',
-                          extra: {
-                            'headName': unit.headName,
-                            'spouseName': unit.spouseName,
-                            'children': unit.children,
-                            'parentId': unit.headId,
-                          },
-                        );
-                      } else {
-                        final headMember = ChildMember(
-                        id: unit.headId,       // Ambil ID Kepala
-                        nit: unit.nit,         // Ambil NIT
-                        name: unit.headName,   // Ambil Nama Kepala
-                        spouseName: unit.spouseName,
-                        location: unit.location,
-                        children: unit.children, // Bawa serta anak-anaknya (opsional)
-                        emoji: '👨',           // Default emoji untuk bapak
-                      );
-
-                      // 2. Kirim object 'headMember' yang baru dibuat ini
-                      context.pushNamed('memberInfo', extra: headMember);
-                      }
-                    },
-                    child: Row(
-                      children: [
-                        MemberAvatar(
-                          emoji: '👨‍👩‍👧‍👦',
-                          size: 50,
-                          borderRadius: 12,
+                // === BREADCRUMB ===
+                Container(
+                  width: double.infinity,
+                  color: Config.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  child: BreadCrumb(
+                    items: [
+                      BreadCrumbItem(
+                        content: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // GANTI ICON FOLDER JADI ICON HOME ATAU KELUARGA
+                            Icon(
+                              Icons.other_houses_outlined,
+                              size: 20,
+                              color: _breadcrumbs.isEmpty
+                                  ? Config.primary
+                                  : Config.textSecondary,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        onTap: _breadcrumbs.isEmpty ? null : _navigateToHome,
+                      ),
+                      ...List.generate(_breadcrumbs.length, (index) {
+                        final item = _breadcrumbs[index];
+                        final isLast = index == _breadcrumbs.length - 1;
+                        return BreadCrumbItem(
+                          content: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                "${unit.nit} ${unit.headName}${unit.spouseName != null ? " & ${unit.spouseName}" : ""}",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: Config.semiBold,
-                                  color: Config.textHead,
+                              // TAMBAHKAN ICON ORANG SEBELUM NAMA
+                              if (!isLast)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 4.0),
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 16,
+                                    color: Config.textSecondary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
                               Text(
-                                'Jumlah Anak: ${unit.children.length}',
+                                _getShortName(item),
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: Config.textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: isLast
+                                      ? Config.semiBold
+                                      : Config.regular,
+                                  color: isLast
+                                      ? Config.primary
+                                      : Config.textSecondary,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
+                          onTap: isLast ? null : () => _navigateBackTo(index),
+                        );
+                      }),
+                    ],
+                    divider: Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: Config.textSecondary,
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: Config.textSecondary,
-                  ),
-                  onPressed: onToggle,
-                  tooltip: isExpanded ? 'Tutup' : 'Buka',
+
+                // === LIST ===
+                Expanded(
+                  child: currentList.isEmpty
+                      ? Center(
+                          child: Text(
+                            "Tidak ada data",
+                            style: TextStyle(color: Config.textSecondary),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _breadcrumbs.isEmpty
+                              ? _scrollController
+                              : null,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: currentList.length,
+                          itemBuilder: (context, index) =>
+                              _buildListItem(currentList[index]),
+                        ),
                 ),
               ],
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _handleFabPressed,
+          backgroundColor: Config.primary,
+          icon: const Icon(Icons.add, color: Config.white),
+          // Label berubah dinamis agar user paham
+          label: Text(
+            _breadcrumbs.isEmpty ? "Buat Keluarga" : "Tambah Anggota",
+            style: const TextStyle(
+              color: Config.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          if (isExpanded)
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Config.background, width: 2),
-                ),
-              ),
-              child: Column(
-                children: unit.children.map((member) {
-                  return _buildChildMemberTile(member: member, level: 1);
-                }).toList(),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildChildMemberTile({
-    required ChildMember member,
-    required int level,
-  }) {
-    final bool isExpandable = (member.children.isNotEmpty);
-    final bool isExpanded = expandedChildren[member.nit] ?? false;
-    final double indentation = 20.0 * level;
+  Widget _buildListItem(dynamic item) {
+    String name = "";
+    String spouse = "";
+    bool isFolder = false;
+    String? photoUrl;
+    String emoji = "";
 
-    return Column(
-      children: [
-        InkWell(
-          onTap: () {
-            if (member.children.isNotEmpty) {
-              context.pushNamed(
-                'familyInfo',
-                extra: {
-                  'headName': member.name,
-                  'spouseName': member.spouseName,
-                  'children': member.children,
-                  'parentId': member.id,
-                },
-              );
-            } else {
-              context.pushNamed('memberInfo', extra: member);
-            }
-          },
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 16 + indentation,
-              right: 16,
-              top: 12,
-              bottom: 12,
-            ),
-            child: Row(
-              children: [
-                MemberAvatar(
-                  photoUrl: member.photoUrl,
-                  emoji: member.emoji,
-                  size: 40,
-                  borderRadius: 8,
+    if (item is FamilyUnit) {
+      name = item.headName;
+      spouse = item.spouseName ?? "";
+      isFolder = item.children.isNotEmpty;
+      emoji = "👨‍👩‍👧‍👦"; // Emoji keluarga untuk Family Unit
+    } else if (item is ChildMember) {
+      name = item.name;
+      spouse = item.spouseName ?? "";
+      isFolder = (item.children.isNotEmpty);
+      photoUrl = item.photoUrl;
+      emoji = item.emoji;
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Config.textHead.withOpacity(0.05)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          if (isFolder) {
+            _navigateToChild(item); // Masuk Folder (Explore)
+          } else {
+            // Lihat Detail
+            // context.pushNamed('memberInfo', extra: item);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: isFolder
+                      ? Config.primary.withOpacity(0.1)
+                      : Config.background,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "${member.nit} ${member.name}",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: Config.medium,
-                          color: Config.textHead,
+                child: photoUrl != null
+                    ? MemberAvatar(
+                        photoUrl: photoUrl,
+                        size: 45,
+                        borderRadius: 10,
+                      )
+                    : Container(
+                        width: 45,
+                        height: 45,
+                        alignment: Alignment.center,
+                        child: Text(
+                          emoji.isNotEmpty ? emoji : "👤",
+                          style: const TextStyle(fontSize: 24),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      if (member.spouseName != null)
-                        Text(
-                          "Pasangan: ${member.spouseName}",
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Config.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (isExpandable)
-                  IconButton(
-                    icon: Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      color: Config.textSecondary,
-                      size: 24,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      spouse.isNotEmpty ? "$name & $spouse" : name,
+                      style: TextStyle(
+                        fontWeight: Config.semiBold,
+                        fontSize: 15,
+                        color: Config.textHead,
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        expandedChildren[member.nit] = !isExpanded;
-                      });
-                    },
-                  )
-                else
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Config.textSecondary.withOpacity(0.5),
-                  ),
-              ],
-            ),
+                    if (isFolder)
+                      Text(
+                        "Klik untuk melihat turunan",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Config.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Config.textSecondary.withOpacity(0.5),
+              ),
+            ],
           ),
         ),
-        if (isExpanded && member.children.isNotEmpty)
-          Container(
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: Config.primary.withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-              color: Config.primary.withOpacity(0.03),
-            ),
-            child: Column(
-              children: member.children.map((grandChild) {
-                return _buildChildMemberTile(
-                  member: grandChild,
-                  level: level + 1,
-                );
-              }).toList(),
-            ),
-          ),
-        if (isExpanded && member.children.isNotEmpty)
-          Container(
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: Config.primary.withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-              color: Config.primary.withOpacity(0.03),
-            ),
-            child: Column(
-              // PROTEKSI LOOPING DI SINI
-              children: member.children.map<Widget>((grandChild) {
-                return _buildChildMemberTile(
-                  member: grandChild,
-                  level: level + 1,
-                );
-              }).toList(),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

@@ -24,7 +24,7 @@ class CustomBackButton extends StatelessWidget {
         size: size,
         color: canPop
             ? (color ?? Config.textHead)
-            : Config.textSecondary.withValues(alpha: 0.5),
+            : Config.textSecondary.withOpacity(0.5),
       ),
       onPressed: canPop
           ? (onPressed ?? () => Navigator.of(context).pop())

@@ -106,7 +106,7 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                                 onBackgroundImageError: (_, _) {},
                                 child: Icon(
                                   Icons.person,
-                                  color: Config.accent.withValues(alpha: 0.5),
+                                  color: Config.accent.withOpacity(0.5),
                                 ),
                               ),
                             )
@@ -115,9 +115,7 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                               padding: const EdgeInsets.only(right: 12),
                               child: CircleAvatar(
                                 radius: 20,
-                                backgroundColor: Config.accent.withValues(
-                                  alpha: 0.3,
-                                ),
+                                backgroundColor: Config.accent.withOpacity(0.3),
                                 child: Icon(Icons.person, color: Config.accent),
                               ),
                             ),
@@ -148,7 +146,7 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                       activeColor: Config.primary,
                       checkColor: Colors.white,
                       tileColor: isSelected
-                          ? Config.primary.withValues(alpha: 0.1)
+                          ? Config.primary.withOpacity(0.1)
                           : null,
                     ),
                     if (index < widget.availableChildren.length - 1)

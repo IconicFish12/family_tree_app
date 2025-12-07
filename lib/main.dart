@@ -51,6 +51,11 @@ class MainNavigationShell extends StatelessWidget {
             backgroundColor: Colors.grey[100],
           ),
           BottomNavigationBarItem(
+            icon: const Icon(Icons.people),
+            label: 'Keluarga',
+            backgroundColor: Colors.grey[100],
+          ),
+          BottomNavigationBarItem(
             icon: const Icon(Icons.account_circle_outlined),
             label: 'Profile',
             backgroundColor: Colors.grey[100],
@@ -65,9 +70,11 @@ class MainNavigationShell extends StatelessWidget {
       return 0;
     } else if (location.startsWith('/family-search')) {
       return 1;
+    } else if (location.startsWith('/family-list')) {
+      return 2;
     } else if (location.startsWith('/profile') ||
         location.startsWith('/profile-edit')) {
-      return 2;
+      return 3;
     }
     return 0;
   }
@@ -81,6 +88,9 @@ class MainNavigationShell extends StatelessWidget {
         context.goNamed('familySearch');
         break;
       case 2:
+        context.goNamed('familyList');
+        break;
+      case 3:
         context.goNamed('profile');
         break;
     }
@@ -181,7 +191,7 @@ class MyApp extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             GoRoute(
               path: '/family-search',
               name: 'familySearch',
@@ -219,7 +229,7 @@ class MyApp extends StatelessWidget {
         theme: config.lightTheme,
         restorationScopeId: 'app',
         routerConfig: router,
-      )
+      ),
     );
 
     // return MaterialApp(

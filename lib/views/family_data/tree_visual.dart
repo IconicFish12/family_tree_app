@@ -117,7 +117,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                 TreeEdgeRenderer(builder),
               ),
               paint: Paint()
-                ..color = Config.textSecondary.withValues(alpha: 0.5)
+                ..color = Config.textSecondary.withOpacity(0.5)
                 ..strokeWidth = 2
                 ..style = PaintingStyle.stroke,
               builder: (Node node) {
@@ -141,7 +141,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.1),
+            color: Config.textHead.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(0, 3),
@@ -164,7 +164,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
             child: Icon(
               Icons.person,
               size: 50,
-              color: Config.textSecondary.withValues(alpha: 0.5),
+              color: Config.textSecondary.withOpacity(0.5),
             ),
           ),
           // 2. Nama

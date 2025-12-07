@@ -7,11 +7,11 @@ class SpouseRepository {
   // Method untuk menghubungkan dua user sebagai pasangan
   Future<Either<Failure, bool>> addSpouse({
     required int primaryUserId, // ID Orang yang mau ditambahin pasangannya
-    required int spouseUserId,  // ID User baru (si pasangan)
+    required int spouseUserId, // ID User baru (si pasangan)
   }) async {
     try {
       final response = await Config.dio.post(
-        'https://api-alusrah.oproject.id/api/spouse',
+        '${Config.baseUrl}/spouse',
         data: {
           'primary_child_id': primaryUserId,
           'related_user_id': spouseUserId,
@@ -21,7 +21,9 @@ class SpouseRepository {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return const Right(true);
       } else {
-        return Left(Failure("Gagal menghubungkan pasangan: ${response.statusCode}"));
+        return Left(
+          Failure("Gagal menghubungkan pasangan: ${response.statusCode}"),
+        );
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 409) {

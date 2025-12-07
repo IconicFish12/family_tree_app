@@ -68,10 +68,7 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Config.background,
-            border: Border.all(
-              color: Config.accent.withValues(alpha: 0.3),
-              width: 2,
-            ),
+            border: Border.all(color: Config.accent.withOpacity(0.3), width: 2),
           ),
           child: _selectedImage != null
               ? ClipOval(child: Image.file(_selectedImage!, fit: BoxFit.cover))
@@ -85,7 +82,7 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
                         child: Icon(
                           Icons.person,
                           size: 80,
-                          color: Config.accent.withValues(alpha: 0.3),
+                          color: Config.accent.withOpacity(0.3),
                         ),
                       );
                     },
@@ -95,7 +92,7 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
                   child: Icon(
                     Icons.person,
                     size: 80,
-                    color: Config.accent.withValues(alpha: 0.3),
+                    color: Config.accent.withOpacity(0.3),
                   ),
                 ),
         ),

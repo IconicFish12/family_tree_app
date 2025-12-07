@@ -22,6 +22,7 @@ class UserProvider extends ChangeNotifier {
   final List<UserData> _rawAllUsers = [];
   List<FamilyUnit> _familyUnits = [];
   List<FamilyUnit> get familyUnits => _familyUnits;
+  List<UserData> get allUsers => _rawAllUsers;
 
   // --- STATE PAGINATION ---
   int _currentPage = 1;
@@ -79,10 +80,10 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     String generatedId = _generateNextFamilyTreeId(newUser.parentId);
-    
+
     final userToSend = newUser.copyWith(
       familyTreeId: generatedId,
-      parentId: newUser.parentId, 
+      parentId: newUser.parentId,
     );
 
     final result = await _repositoryImpl.createUser(userToSend);
@@ -105,9 +106,9 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
-   Future<bool> addSpouse({
-    required UserData spouseData, 
-    required int currentUserId 
+  Future<bool> addSpouse({
+    required UserData spouseData,
+    required int currentUserId,
   }) async {
     _isSubmitting = true;
     notifyListeners();
@@ -123,10 +124,10 @@ class UserProvider extends ChangeNotifier {
       },
       (createdSpouse) async {
         if (createdSpouse.userId == null) {
-           _errorMessage = "ID Pasangan tidak ditemukan dari server.";
-           _isSubmitting = false;
-           notifyListeners();
-           return false;
+          _errorMessage = "ID Pasangan tidak ditemukan dari server.";
+          _isSubmitting = false;
+          notifyListeners();
+          return false;
         }
 
         final spouseResult = await _spouseRepository.addSpouse(
@@ -153,38 +154,64 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
+  Future<bool> login(String email, String password) async {
+    _state = ViewState.loading;
+    notifyListeners();
+
+    final result = await _repositoryImpl.login(email, password);
+
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _state = ViewState.error;
+        notifyListeners();
+        return false;
+      },
+      (user) {
+        _state = ViewState.success;
+        notifyListeners();
+        return true;
+      },
+    );
+  }
+
   String _generateNextFamilyTreeId(int? parentId) {
     try {
       if (parentId == null) {
-        final rootUsers = _rawAllUsers.where((u) => u.parentId == null).toList();
-        
-        if (rootUsers.isEmpty) return "1"; 
+        final rootUsers = _rawAllUsers
+            .where((u) => u.parentId == null)
+            .toList();
+
+        if (rootUsers.isEmpty) return "1";
 
         int maxId = 0;
         for (var user in rootUsers) {
           if (user.familyTreeId != null) {
-            int? currentId = int.tryParse(user.familyTreeId!.replaceAll(RegExp(r'[^0-9]'), ''));
+            int? currentId = int.tryParse(
+              user.familyTreeId!.replaceAll(RegExp(r'[^0-9]'), ''),
+            );
             if (currentId != null && currentId > maxId) {
               maxId = currentId;
             }
           }
         }
         return (maxId + 1).toString();
-      } 
-      
-      else {
+      } else {
         final parent = _rawAllUsers.firstWhere(
-          (u) => u.userId == parentId, 
-          orElse: () => const UserData(familyTreeId: "0")
+          (u) => u.userId == parentId,
+          orElse: () => const UserData(familyTreeId: "0"),
         );
-        
+
         String parentPrefix = parent.familyTreeId ?? "0";
 
-        final siblings = _rawAllUsers.where((u) => u.parentId == parentId).toList();
-        
+        final siblings = _rawAllUsers
+            .where((u) => u.parentId == parentId)
+            .toList();
+
         int maxSuffix = 0;
         for (var sibling in siblings) {
-          if (sibling.familyTreeId != null && sibling.familyTreeId!.startsWith("$parentPrefix.")) {
+          if (sibling.familyTreeId != null &&
+              sibling.familyTreeId!.startsWith("$parentPrefix.")) {
             List<String> parts = sibling.familyTreeId!.split('.');
             if (parts.isNotEmpty) {
               int? suffix = int.tryParse(parts.last);
@@ -194,7 +221,7 @@ class UserProvider extends ChangeNotifier {
             }
           }
         }
-        
+
         return "$parentPrefix.${maxSuffix + 1}";
       }
     } catch (e) {
@@ -204,18 +231,45 @@ class UserProvider extends ChangeNotifier {
   }
 
   List<FamilyUnit> _buildFamilyTree(List<UserData> allUsers) {
-    final rootUsers = allUsers.where((u) => u.parentId == null).toList();
+    // 1. Find all potential roots (parentId == null)
+    var rootUsers = allUsers.where((u) => u.parentId == null).toList();
+
+    // 2. Sort roots by familyTreeId to find the "first" one
+    rootUsers.sort((a, b) {
+      // Try to parse as int for correct numerical sorting
+      // Remove non-numeric characters if needed, or just parse
+      int? idA = int.tryParse(
+        a.familyTreeId?.replaceAll(RegExp(r'[^0-9]'), '') ?? "",
+      );
+      int? idB = int.tryParse(
+        b.familyTreeId?.replaceAll(RegExp(r'[^0-9]'), '') ?? "",
+      );
+
+      if (idA != null && idB != null) return idA.compareTo(idB);
+      return (a.familyTreeId ?? "").compareTo(b.familyTreeId ?? "");
+    });
+
+    // 3. User request: "buat seperti sebelumnya saja" for family list
+    // This means we show ALL roots, not just the first one.
+    // if (rootUsers.isNotEmpty) {
+    //   rootUsers = [rootUsers.first];
+    // }
+
     List<FamilyUnit> units = [];
+    Set<int> visitedIds = {}; // Loop protection
+
     for (var root in rootUsers) {
       if (root.userId == null) continue;
-      final children = _findChildren(root.userId!, allUsers);
+
+      visitedIds.add(root.userId!);
+
+      final children = _findChildren(root.userId!, allUsers, visitedIds);
       units.add(
         FamilyUnit(
           headId: root.userId,
           nit: root.familyTreeId ?? "-",
           headName: root.fullName ?? "No Name",
-          spouseName:
-              null,
+          spouseName: null,
           location: root.address ?? "-",
           children: children,
         ),
@@ -224,23 +278,40 @@ class UserProvider extends ChangeNotifier {
     return units;
   }
 
-  List<ChildMember> _findChildren(int parentId, List<UserData> allUsers) {
+  List<ChildMember> _findChildren(
+    int parentId,
+    List<UserData> allUsers,
+    Set<int> visitedIds,
+  ) {
     final children = allUsers.where((u) => u.parentId == parentId).toList();
     if (children.isEmpty) return [];
-    return children.map((child) {
-      List<ChildMember> grandChildren = [];
-      if (child.userId != null) {
-        grandChildren = _findChildren(child.userId!, allUsers);
-      }
-      return ChildMember(
-        id: child.userId,
-        nit: child.familyTreeId ?? "-",
-        name: child.fullName ?? "No Name",
-        spouseName: null,
-        location: child.address ?? "-",
-        emoji: '👤',
-        children: grandChildren,
-      );
-    }).toList();
+
+    return children
+        .map((child) {
+          // Loop protection: Skip if already visited
+          if (child.userId != null && visitedIds.contains(child.userId)) {
+            return null;
+          }
+
+          if (child.userId != null) visitedIds.add(child.userId!);
+
+          List<ChildMember> grandChildren = [];
+          if (child.userId != null) {
+            grandChildren = _findChildren(child.userId!, allUsers, visitedIds);
+          }
+
+          return ChildMember(
+            id: child.userId,
+            nit: child.familyTreeId ?? "-",
+            name: child.fullName ?? "No Name",
+            spouseName: null,
+            location: child.address ?? "-",
+            emoji: '👤',
+            children: grandChildren,
+          );
+        })
+        .where((e) => e != null)
+        .cast<ChildMember>()
+        .toList();
   }
 }

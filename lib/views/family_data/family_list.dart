@@ -87,14 +87,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
     } else {
       final currentParent = _breadcrumbs.last;
       int? parentId;
-      String parentName = "";
 
       if (currentParent is FamilyUnit) {
         parentId = currentParent.headId;
-        parentName = currentParent.headName;
       } else if (currentParent is ChildMember) {
         parentId = currentParent.id;
-        parentName = currentParent.name;
       }
 
       if (parentId != null) {
@@ -322,13 +319,13 @@ class _FamilyListPageState extends State<FamilyListPage> {
         subtitle: isFolder
             ? Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  children: [
-                    Text(
-                      "Lihat Turunan Keluarga $name",
-                      style: TextStyle(fontSize: 12, color: Config.primary),
-                    ),
-                  ],
+                child: Text(
+                  "Lihat Turunan Keluarga $name",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Config.primary,
+                    overflow: TextOverflow.fade,
+                  ),
                 ),
               )
             : null,

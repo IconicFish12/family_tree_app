@@ -89,7 +89,6 @@ class MainNavigationShell extends StatelessWidget {
   }
 }
 
-// Helper function untuk cek apakah bisa pop/back
 bool canGoBack(BuildContext context) {
   return Navigator.of(context).canPop();
 }
@@ -172,10 +171,17 @@ class MyApp extends StatelessWidget {
                   path: 'add-family-member',
                   name: 'addFamilyMember',
                   builder: (context, state) {
-                    final extra = state.extra as Map<String, dynamic>?;
+                    int? parentId;
+
+                    if (state.extra is int) {
+                      parentId = state.extra as int;
+                    } else if (state.extra is Map<String, dynamic>) {
+                      parentId =
+                          (state.extra as Map<String, dynamic>)['parentId'];
+                    }
+
                     return AddFamilyMemberPage(
-                      parentId: extra?['parentId'],
-                      parentName: extra?['parentName'],
+                      parentId: parentId,
                     );
                   },
                 ),

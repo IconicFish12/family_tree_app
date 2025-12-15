@@ -63,6 +63,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
         address: _locationController.text,
         birthYear: _birthYearController.text,
         parentId: null,
+        avatar: (familyPhoto == null) ? null : familyPhoto
       );
 
       final provider = context.read<UserProvider>();

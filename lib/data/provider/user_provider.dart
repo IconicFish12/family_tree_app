@@ -16,11 +16,7 @@ class UserProvider extends ChangeNotifier {
   ViewState get state => _state;
   
   List<UserData> _rawAllUsers = []; 
-  
-  // --- INI YANG DITAMBAHKAN ---
-  // Getter publik untuk mengakses data mentah di halaman pencarian
   List<UserData> get allUsers => _rawAllUsers;
-  // ----------------------------
 
   List<FamilyUnit> _familyUnits = [];
   List<FamilyUnit> get familyUnits => _familyUnits;
@@ -42,10 +38,12 @@ class UserProvider extends ChangeNotifier {
 
     result.fold(
       (failure) {
+        print("DEBUG: Fetch Data Gagal: ${failure.message}"); // Debug log
         _errorMessage = failure.message;
         if (isRefresh) _state = ViewState.error;
       },
       (newUsers) {
+        print("DEBUG: Berhasil fetch ${newUsers.length} users."); // Debug log
         _rawAllUsers.addAll(newUsers);
         _familyUnits = _buildFamilyTree(_rawAllUsers);
         _state = ViewState.success;
@@ -54,11 +52,83 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _generateNextFamilyTreeId(int? parentId) {
+    try {
+      // Safety Check: Jika data lokal kosong, risiko duplikat ID sangat tinggi
+      if (_rawAllUsers.isEmpty) {
+        print(
+          "⚠️ WARNING: Data lokal kosong. ID yang digenerate mungkin konflik dengan server.",
+        );
+        // Kita bisa me-return '1' sebagai fallback, tapi sebaiknya user refresh dulu
+      }
+
+      if (parentId == null) {
+        final rootUsers = _rawAllUsers
+            .where((u) => u.parentId == null)
+            .toList();
+
+        if (rootUsers.isEmpty) return "1";
+
+        int maxId = 0;
+        for (var user in rootUsers) {
+          if (user.familyTreeId != null) {
+            // Hapus karakter non-angka agar "1.a" tidak crash, ambil angka utamanya
+            String cleanId = user.familyTreeId!
+                .split('.')
+                .first
+                .replaceAll(RegExp(r'[^0-9]'), '');
+            int? currentId = int.tryParse(cleanId);
+            if (currentId != null && currentId > maxId) {
+              maxId = currentId;
+            }
+          }
+        }
+        return (maxId + 1).toString();
+      } else {
+        final parent = _rawAllUsers.firstWhere(
+          (u) => u.userId == parentId,
+          orElse: () => const UserData(familyTreeId: "0"),
+        );
+
+        String parentPrefix = parent.familyTreeId ?? "0";
+
+        final siblings = _rawAllUsers
+            .where((u) => u.parentId == parentId)
+            .toList();
+
+        int maxSuffix = 0;
+        for (var sibling in siblings) {
+          if (sibling.familyTreeId != null &&
+              sibling.familyTreeId!.startsWith("$parentPrefix.")) {
+            List<String> parts = sibling.familyTreeId!.split('.');
+            if (parts.isNotEmpty) {
+              int? suffix = int.tryParse(
+                parts.last.replaceAll(RegExp(r'[^0-9]'), ''),
+              );
+              if (suffix != null && suffix > maxSuffix) {
+                maxSuffix = suffix;
+              }
+            }
+          }
+        }
+        return "$parentPrefix.${maxSuffix + 1}";
+      }
+    } catch (e) {
+      print("ERROR: Gagal generate ID: $e");
+      return "0"; // Fallback aman
+    }
+  }
+
   Future<bool> addUser(UserData newUser) async {
     _isSubmitting = true;
     notifyListeners();
 
+    // Debugging: Lihat ID apa yang akan dikirim
     String generatedId = _generateNextFamilyTreeId(newUser.parentId);
+    print(
+      "DEBUG: Menambahkan User. ParentID: ${newUser.parentId}, Generated ID: $generatedId",
+    );
+    print(newUser);
     
     final userToSend = newUser.copyWith(
       familyTreeId: generatedId,
@@ -69,14 +139,18 @@ class UserProvider extends ChangeNotifier {
 
     return result.fold(
       (failure) {
+        print(
+          "DEBUG: Gagal ke Server: ${failure.message}",
+        ); // Lihat pesan asli errornya
         _errorMessage = failure.message;
         _isSubmitting = false;
         notifyListeners();
         return false;
       },
       (createdUser) {
+        print("DEBUG: Sukses tambah user: ${createdUser.fullName}");
         _rawAllUsers.add(createdUser);
-        _familyUnits = _buildFamilyTree(_rawAllUsers);
+        _familyUnits = _buildFamilyTree(_rawAllUsers); 
         _isSubmitting = false;
         notifyListeners();
         return true;
@@ -130,52 +204,6 @@ class UserProvider extends ChangeNotifier {
         );
       },
     );
-  }
-
-  String _generateNextFamilyTreeId(int? parentId) {
-    try {
-      if (parentId == null) {
-        final rootUsers = _rawAllUsers
-            .where((u) => u.parentId == null)
-            .toList();
-        if (rootUsers.isEmpty) return "1";
-
-        int maxId = 0;
-        for (var user in rootUsers) {
-          if (user.familyTreeId != null) {
-            int? currentId = int.tryParse(
-              user.familyTreeId!.replaceAll(RegExp(r'[^0-9]'), ''),
-            );
-            if (currentId != null && currentId > maxId) maxId = currentId;
-          }
-        }
-        return (maxId + 1).toString();
-      } else {
-        final parent = _rawAllUsers.firstWhere(
-          (u) => u.userId == parentId, 
-          orElse: () => const UserData(familyTreeId: "0"),
-        );
-        String parentPrefix = parent.familyTreeId ?? "0";
-        final siblings = _rawAllUsers
-            .where((u) => u.parentId == parentId)
-            .toList();
-        
-        int maxSuffix = 0;
-        for (var sibling in siblings) {
-          if (sibling.familyTreeId != null &&
-              sibling.familyTreeId!.startsWith("$parentPrefix.")) {
-            List<String> parts = sibling.familyTreeId!.split('.');
-            if (parts.isNotEmpty) {
-              int? suffix = int.tryParse(parts.last);
-              if (suffix != null && suffix > maxSuffix) maxSuffix = suffix;
-            }
-          }
-        }
-        return "$parentPrefix.${maxSuffix + 1}";
-      }
-    } catch (e) {
-      return "0";
-    }
   }
 
   List<FamilyUnit> _buildFamilyTree(List<UserData> allUsers) {

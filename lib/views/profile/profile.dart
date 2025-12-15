@@ -1,5 +1,8 @@
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,21 +16,36 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-
-      // === AppBar ===
       appBar: _buildAppBar(context),
-
-      // === Body Halaman (Detail Profile) ===
-      body: _buildBody(context),
+      
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          final user = authProvider.currentUser;
+          if (user == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Data profil tidak ditemukan"),
+                  ElevatedButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text("Login Ulang"),
+                  ),
+                ],
+              ),
+            );
+          }
+          return _buildBody(context, user); 
+        },
+      ),
     );
   }
 
-  // --- Widget untuk AppBar ---
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
-      automaticallyImplyLeading: false, // Menyembunyikan tombol back
+      automaticallyImplyLeading: false,
       title: const Text(
         "Profile",
         style: TextStyle(
@@ -38,12 +56,10 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       centerTitle: true,
       actions: [
-        // Tombol Edit
         IconButton(
           icon: const Icon(Icons.edit_outlined, color: Colors.black87),
           tooltip: "Edit Profile",
           onPressed: () {
-            // Navigasi ke Halaman Edit Profile
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const ProfileEditPage()),
@@ -55,28 +71,24 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // --- Widget untuk Body Halaman ---
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, dynamic user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Header Profil
-          _buildProfileHeader(),
+          _buildProfileHeader(user),
           const SizedBox(height: 24),
-
-          // 2. Info Detail
-          _buildInfoSection(),
+          _buildInfoSection(user),
           const SizedBox(height: 32),
-
-          // 3. Tombol Logout
           ElevatedButton(
             onPressed: () {
-              // Aksi untuk logout
+              // context.read<AuthProvider>().logout();
+
+              context.go('/login'); 
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50), // Warna hijau
+              backgroundColor: Colors.red[400],
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -89,35 +101,38 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
-          const SizedBox(height: 20), // Padding di bawah tombol
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // --- Widget untuk Header Profil ---
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(dynamic user) {
     return Center(
       child: Column(
         children: [
           CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey[300],
-            child: Icon(Icons.person, size: 60, color: Colors.grey[600]),
+            backgroundImage: user.avatar != null
+                ? NetworkImage(user.avatar.toString())
+                : null,
+            child: user.avatar == null
+                ? Icon(Icons.person, size: 60, color: Colors.grey[600])
+                : null,
           ),
           const SizedBox(height: 12),
-          const Text(
-            "Topan Namas",
-            style: TextStyle(
+          Text(
+            user.fullName ?? "Tanpa Nama",
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
               color: Colors.black87,
             ),
           ),
           const SizedBox(height: 4),
-          // Status atau email
           Text(
-            "topan.namas@email.com", // Ganti dengan data user
+            "ID Keluarga: ${user.familyTreeId}",
             style: TextStyle(fontSize: 15, color: Colors.grey[600]),
           ),
         ],
@@ -125,8 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // --- Widget untuk Bagian Info Detail ---
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(dynamic user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -135,32 +149,30 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(
               child: _buildInfoCard(
                 title: "Nama Lengkap",
-                value: "Topan Namas",
+                value: user.fullName ?? "-",
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildInfoCard(
-                title: "Tanggal Lahir",
-                value: "30 - Desember - 2012",
+                title: "Tahun Lahir",
+                value: user.birthYear?.toString() ?? "-", 
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _buildInfoCard(title: "Jenis Kelamin", value: "Laki - Laki"),
+        _buildInfoCard(title: "Alamat", value: user.address ?? "-"),
         const SizedBox(height: 12),
-        _buildInfoCard(title: "NIK", value: "320918xxxx8923323"),
-        const SizedBox(height: 12),
+
         _buildInfoCard(
-          title: "Catatan Singkat",
-          value: "Ayah adalah seorang yang hebat tiada tara, selalu berjuang.",
+          title: "Terdaftar Sejak",
+          value: user.createdAt.toLocal().toString().split(' ')[0] 
         ),
       ],
     );
   }
 
-  // --- Widget Kustom untuk Card Info (REUSED) ---
   Widget _buildInfoCard({required String title, required String value}) {
     return Container(
       padding: const EdgeInsets.all(12.0),
@@ -169,7 +181,9 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(
+              0.1,
+            ),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),

@@ -74,6 +74,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
         address: _addressController.text,
         birthYear: _birthYearController.text,
         parentId: _relationType == 'Anak' ? widget.parentId : null,
+        avatar: (memberPhoto != null) ? memberPhoto : null
       );
 
       final provider = context.read<UserProvider>();

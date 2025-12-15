@@ -27,7 +27,7 @@ class Config {
   static const FontWeight bold = FontWeight.w700;
 
   // Dio API Fetching
-  static const String baseUrl = 'https://api-alusrah.oproject.id/api';
+  static const String baseUrl = "https://api-alusrah.oproject.id/api";
   static final Dio dio = Dio();
 
   ThemeData get lightTheme {

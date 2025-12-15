@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
@@ -36,12 +38,10 @@ abstract class UserRepository {
 class UserRepositoryImpl implements UserRepository {
   final String baseUrl = Config.baseUrl;
 
-  // Helper: Validate ID format (UUID or numeric)
   bool _isValidId(String id) {
     return RegExp(r'^[a-zA-Z0-9\-_]+$').hasMatch(id);
   }
 
-  // Helper: Safe JSON parsing for list responses
   List<dynamic> _safeParseList(dynamic data) {
     if (data is List) return data;
     if (data is Map && data.containsKey('data') && data['data'] is List) {
@@ -50,14 +50,12 @@ class UserRepositoryImpl implements UserRepository {
     return [];
   }
 
-  // Helper: Safe JSON parsing for map responses
   Map<String, dynamic>? _safeParseMap(dynamic data) {
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
     return null;
   }
 
-  // Helper: Extract user-friendly error message
   String _getErrorMessage(DioException e) {
     if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
       return "Akses ditolak. Silahkan login kembali.";
@@ -86,7 +84,6 @@ class UserRepositoryImpl implements UserRepository {
     try {
       if (page < 1) return Left(Failure("Halaman harus minimal 1"));
 
-      // FIXED: Menggunakan endpoint plural '/users' agar konsisten dengan backend
       final response = await Config.dio.get(
         '$baseUrl/user',
         queryParameters: {'page': page},
@@ -112,7 +109,7 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // GET USER BY ID - HALAMAN 5, HALAMAN 6
+  // GET USER BY ID
   @override
   Future<Either<Failure, UserData>> getById(String id) async {
     try {
@@ -138,7 +135,7 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // GET USERS BY FAMILY TREE ID - HALAMAN 4, HALAMAN 5, HALAMAN 12
+  // GET USERS BY FAMILY TREE ID 
   @override
   Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId) async {
     try {
@@ -170,7 +167,7 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // GET SINGLE USER BY SEARCH - HALAMAN 7, HALAMAN 8
+  // GET SINGLE USER BY SEARCH 
   @override
   Future<Either<Failure, UserData>> getSingleBySearch({
     String? name,
@@ -218,7 +215,7 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // COUNT FAMILY MEMBERS - HALAMAN 2, HALAMAN 3
+  // COUNT FAMILY MEMBERS
   @override
   Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers(
     String familyTreeId,
@@ -250,32 +247,42 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, UserData>> createUser(UserData data) async {
     try {
-      final body = data.toJson();
+      dynamic payload;
 
-      body.remove('user_id');
-      body.remove('created_at');
-      body.remove('updated_at');
+      if (data.avatar is File) {
+        final Map<String, dynamic> mapData = data.toJson();
 
-      if (body.isEmpty) {
-        return Left(Failure("Data tidak boleh kosong"));
+        mapData.remove('user_id');
+        mapData.remove('created_at');
+        mapData.remove('updated_at');
+        mapData.remove('avatar');
+
+        // Konversi ke FormData
+        payload = FormData.fromMap(mapData);
+
+        final File imageFile = data.avatar as File;
+        payload.files.add(
+          MapEntry('avatar', await MultipartFile.fromFile(imageFile.path)),
+        );
+      } else {
+        final body = data.toJson();
+        body.remove('user_id');
+        body.remove('created_at');
+        body.remove('updated_at');
+        payload = body;
       }
 
-      // Pastikan endpoint menggunakan 'users' (jamak)
-      final response = await Config.dio.post('$baseUrl/users', data: body);
+      final response = await Config.dio.post('$baseUrl/users', data: payload);
 
-      if (response.statusCode == 201 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data respons tidak sesuai"));
-        }
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return Right(UserData.fromJson(response.data));
       } else {
-        return Left(Failure("Gagal menyimpan data pengguna"));
+        return Left(Failure("Gagal menyimpan data"));
       }
     } on DioException catch (e) {
       return Left(Failure(_getErrorMessage(e)));
     } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal menyimpan data"));
+      return Left(Failure(e.toString()));
     }
   }
 

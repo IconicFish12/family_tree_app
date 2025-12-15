@@ -1,10 +1,12 @@
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:family_tree_app/data/repository/auth_repository.dart';
 import 'package:family_tree_app/data/repository/spouse_repository.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:family_tree_app/views/auth/login.dart';
-import 'package:family_tree_app/views/family_data/family_info.dart';
+import 'package:family_tree_app/views/family_data/forms/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
@@ -51,11 +53,6 @@ class MainNavigationShell extends StatelessWidget {
             backgroundColor: Colors.grey[100],
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.people),
-            label: 'Keluarga',
-            backgroundColor: Colors.grey[100],
-          ),
-          BottomNavigationBarItem(
             icon: const Icon(Icons.account_circle_outlined),
             label: 'Profile',
             backgroundColor: Colors.grey[100],
@@ -70,11 +67,9 @@ class MainNavigationShell extends StatelessWidget {
       return 0;
     } else if (location.startsWith('/family-search')) {
       return 1;
-    } else if (location.startsWith('/family-list')) {
-      return 2;
     } else if (location.startsWith('/profile') ||
         location.startsWith('/profile-edit')) {
-      return 3;
+      return 2;
     }
     return 0;
   }
@@ -88,9 +83,6 @@ class MainNavigationShell extends StatelessWidget {
         context.goNamed('familySearch');
         break;
       case 2:
-        context.goNamed('familyList');
-        break;
-      case 3:
         context.goNamed('profile');
         break;
     }
@@ -225,6 +217,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => UserProvider(UserRepositoryImpl(), SpouseRepository()),
         ),
+        ChangeNotifierProvider(create: (_) => AuthProvider(AuthRepository())),
       ],
       child: MaterialApp.router(
         title: 'Flutter Demo',

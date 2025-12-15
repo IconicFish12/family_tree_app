@@ -16,8 +16,6 @@ class FamilyListPage extends StatefulWidget {
 
 class _FamilyListPageState extends State<FamilyListPage> {
   final ScrollController _scrollController = ScrollController();
-
-  // Breadcrumb untuk navigasi folder
   final List<dynamic> _breadcrumbs = [];
 
   @override
@@ -42,7 +40,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
     }
   }
 
-  // --- LOGIKA NAVIGASI ---
   void _navigateToChild(dynamic item) {
     setState(() {
       _breadcrumbs.add(item);
@@ -84,38 +81,25 @@ class _FamilyListPageState extends State<FamilyListPage> {
     return fullName;
   }
 
-  // --- LOGIKA FAB (TOMBOL TAMBAH) ---
   void _handleFabPressed() {
     if (_breadcrumbs.isEmpty) {
-      // 1. Jika di Root -> Tambah Keluarga Baru
       context.pushNamed('addFamily');
     } else {
-      // 2. Jika di dalam Folder -> Tambah Anggota untuk Parent saat ini
       final currentParent = _breadcrumbs.last;
       int? parentId;
       String parentName = "";
 
       if (currentParent is FamilyUnit) {
-        // Mengambil ID dan Nama dari FamilyUnit
-        // Pastikan model FamilyUnit memiliki properti id/headId yang valid
         parentId = currentParent.headId;
         parentName = currentParent.headName;
       } else if (currentParent is ChildMember) {
-        // Mengambil ID dan Nama dari ChildMember
-        // Pastikan model ChildMember memiliki properti id yang valid
         parentId = currentParent.id;
         parentName = currentParent.name;
       }
 
-      // Navigasi dengan membawa ID Parent
-      // Jika parentId null (misal karena data error), berikan fallback atau handle error
       if (parentId != null) {
-        context.pushNamed(
-          'addFamilyMember',
-          extra: {'parentId': parentId, 'parentName': parentName},
-        );
+        context.pushNamed('addFamilyMember', extra: parentId);
       } else {
-        // Tampilkan pesan error jika ID tidak ditemukan
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Gagal mengambil ID orang tua")),
         );
@@ -163,22 +147,18 @@ class _FamilyListPageState extends State<FamilyListPage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // Tentukan Data List berdasarkan Breadcrumb
             List<dynamic> currentList = [];
             if (_breadcrumbs.isEmpty) {
               currentList = provider.familyUnits;
             } else {
               final lastItem = _breadcrumbs.last;
               if (lastItem is FamilyUnit) currentList = lastItem.children;
-              if (lastItem is ChildMember) {
-                currentList = lastItem.children;
-              }
+              if (lastItem is ChildMember) currentList = lastItem.children;
             }
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // === BREADCRUMB ===
                 Container(
                   width: double.infinity,
                   color: Config.white,
@@ -192,7 +172,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
                         content: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // GANTI ICON FOLDER JADI ICON HOME ATAU KELUARGA
                             Icon(
                               Icons.other_houses_outlined,
                               size: 20,
@@ -211,7 +190,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
                           content: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // TAMBAHKAN ICON ORANG SEBELUM NAMA
                               if (!isLast)
                                 Padding(
                                   padding: const EdgeInsets.only(right: 4.0),
@@ -247,7 +225,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
                   ),
                 ),
 
-                // === LIST ===
                 Expanded(
                   child: currentList.isEmpty
                       ? Center(
@@ -274,7 +251,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
           onPressed: _handleFabPressed,
           backgroundColor: Config.primary,
           icon: const Icon(Icons.add, color: Config.white),
-          // Label berubah dinamis agar user paham
           label: Text(
             _breadcrumbs.isEmpty ? "Buat Keluarga" : "Tambah Anggota",
             style: const TextStyle(
@@ -298,7 +274,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
       name = item.headName;
       spouse = item.spouseName ?? "";
       isFolder = item.children.isNotEmpty;
-      emoji = "👨‍👩‍👧‍👦"; // Emoji keluarga untuk Family Unit
+      emoji = "👨‍👩‍👧‍👦";
     } else if (item is ChildMember) {
       name = item.name;
       spouse = item.spouseName ?? "";
@@ -314,75 +290,82 @@ class _FamilyListPageState extends State<FamilyListPage> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Config.textHead.withOpacity(0.05)),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          if (isFolder) {
-            _navigateToChild(item); // Masuk Folder (Explore)
-          } else {
-            // Lihat Detail
-            // context.pushNamed('memberInfo', extra: item);
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: isFolder
-                      ? Config.primary.withOpacity(0.1)
-                      : Config.background,
-                  borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 48,
+          height: 48,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: isFolder
+                ? Config.primary.withOpacity(0.1)
+                : Config.background,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: photoUrl != null
+              ? MemberAvatar(photoUrl: photoUrl, size: 44, borderRadius: 8)
+              : Center(
+                  child: Text(
+                    emoji.isNotEmpty ? emoji : "👤",
+                    style: const TextStyle(fontSize: 22),
+                  ),
                 ),
-                child: photoUrl != null
-                    ? MemberAvatar(
-                        photoUrl: photoUrl,
-                        size: 45,
-                        borderRadius: 10,
-                      )
-                    : Container(
-                        width: 45,
-                        height: 45,
-                        alignment: Alignment.center,
-                        child: Text(
-                          emoji.isNotEmpty ? emoji : "👤",
-                          style: const TextStyle(fontSize: 24),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      spouse.isNotEmpty ? "$name & $spouse" : name,
-                      style: TextStyle(
-                        fontWeight: Config.semiBold,
-                        fontSize: 15,
-                        color: Config.textHead,
-                      ),
-                    ),
-                    if (isFolder)
-                      Text(
-                        "Klik untuk melihat turunan",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Config.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: Config.textSecondary.withOpacity(0.5),
-              ),
-            ],
+        ),
+        title: Text(
+          spouse.isNotEmpty ? "$name & $spouse" : name,
+          style: TextStyle(
+            fontWeight: Config.semiBold,
+            fontSize: 15,
+            color: Config.textHead,
           ),
         ),
+        subtitle: isFolder
+            ? Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Text(
+                      "Lihat Turunan Keluarga $name",
+                      style: TextStyle(fontSize: 12, color: Config.primary),
+                    ),
+                  ],
+                ),
+              )
+            : null,
+        onTap: () {
+          ChildMember memberData;
+          if (item is FamilyUnit) {
+            memberData = ChildMember(
+              id: item.headId,
+              nit: item.nit,
+              name: item.headName,
+              spouseName: item.spouseName,
+              location: item.location,
+              children: item.children,
+              emoji: "👨",
+            );
+          } else if (item is ChildMember) {
+            memberData = item;
+          } else {
+            return;
+          }
+          context.pushNamed('memberInfo', extra: memberData);
+        },
+        trailing: isFolder
+            ? IconButton(
+                onPressed: () => _navigateToChild(item),
+                icon: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 18,
+                  color: Config.textSecondary,
+                ),
+                tooltip: "Buka Folder",
+              )
+            : Icon(
+                Icons.info_outline,
+                size: 20,
+                color: Config.textSecondary.withOpacity(0.5),
+              ),
       ),
     );
   }

@@ -41,7 +41,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     super.initState();
     _searchController = TextEditingController();
 
-    // Fetch data saat inisialisasi
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserProvider>().fetchData(isRefresh: true);
     });
@@ -57,14 +56,12 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     final query = _searchController.text.toLowerCase();
 
     return allUsers.where((user) {
-      // Text filter (Nama atau Family Tree ID)
       final name = user.fullName?.toLowerCase() ?? '';
       final treeId = user.familyTreeId?.toLowerCase() ?? '';
 
       final textMatch =
           query.isEmpty || name.contains(query) || treeId.contains(query);
 
-      // Year filter (Parse birthYear string to int if possible)
       bool yearMatch = true;
       if (selectedYear != null) {
         if (user.birthYear != null) {
@@ -75,12 +72,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         }
       }
 
-      // Month filter - Saat ini data birthYear hanya tahun,
-      // jadi kita skip filter bulan jika data tidak mendukung,
-      // atau bisa kita implementasi jika ada field tanggal lahir lengkap.
-      // Untuk sekarang kita anggap match jika selectedMonth null.
-      // Jika user ingin filter bulan, kita butuh data tanggal lengkap.
-      // Asumsi: birthYear hanya string tahun "1990".
       final monthMatch = selectedMonth == null;
 
       return textMatch && yearMatch && monthMatch;
@@ -154,17 +145,12 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                             child: Text(year.toString()),
                           ),
                       ],
-                      onChanged: (value) {
-                        sheetSetState(() {
-                          tempYear = value;
-                        });
-                      },
+                      onChanged: (value) =>
+                          sheetSetState(() => tempYear = value),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Note: Filter bulan mungkin tidak efektif jika data hanya tahun
                 const Text(
                   'Bulan Kelahiran',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -184,17 +170,11 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                       underline: const SizedBox(),
                       items: months
                           .map(
-                            (month) => DropdownMenuItem(
-                              value: month,
-                              child: Text(month),
-                            ),
+                            (m) => DropdownMenuItem(value: m, child: Text(m)),
                           )
                           .toList(),
-                      onChanged: (value) {
-                        sheetSetState(() {
-                          tempMonth = value;
-                        });
-                      },
+                      onChanged: (value) =>
+                          sheetSetState(() => tempMonth = value),
                     ),
                   ),
                 ),
@@ -262,15 +242,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: CircleAvatar(
-              backgroundColor: Colors.grey[300],
-              child: const Icon(Icons.person, color: Colors.grey),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -279,7 +250,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Search Bar & Filter Button
                 Row(
                   children: [
                     Expanded(
@@ -293,8 +263,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                           controller: _searchController,
                           onChanged: (value) => setState(() {}),
                           decoration: InputDecoration(
-                            hintText:
-                                'Cari berdasarkan nama, nik atau hal lainnya.',
+                            hintText: 'Cari berdasarkan nama, nik...',
                             hintStyle: TextStyle(
                               color: Config.textSecondary,
                               fontSize: 12,
@@ -328,8 +297,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // Active Filters
                 if (selectedYear != null || selectedMonth != null)
                   Wrap(
                     spacing: 8,
@@ -349,8 +316,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
               ],
             ),
           ),
-
-          // Content List
           Expanded(
             child: Consumer<UserProvider>(
               builder: (context, provider, child) {
@@ -381,59 +346,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                   );
                 }
 
-                // Kita ambil raw data dari provider (jika ada getter public)
-                // Tapi provider hanya expose familyUnits dan _rawAllUsers (private).
-                // Kita perlu akses _rawAllUsers atau getter yang setara.
-                // Mari kita cek UserProvider lagi.
-                // Ternyata _rawAllUsers private. Tapi familyUnits dibuat dari _rawAllUsers.
-                // Kita bisa flatten familyUnits atau tambahkan getter di provider.
-                // Untuk amannya, kita tambahkan getter di provider dulu atau gunakan familyUnits.
-                // Tapi search ini mencari INDIVIDUAL, bukan unit.
-                // Sebaiknya kita tambahkan getter `allUsers` di UserProvider.
-
-                // SEMENTARA: Kita asumsikan ada getter 'allUsers' atau kita modifikasi provider sebentar lagi.
-                // Saya akan gunakan getter `allUsers` yang akan saya tambahkan.
-
-                // Wait, I cannot modify provider inside this tool call.
-                // I will assume I will add `List<UserData> get allUsers => _rawAllUsers;` to UserProvider.
-                // For now, I'll use a placeholder empty list if getter missing, but I will fix provider next.
-
-                // Correction: I can't access private _rawAllUsers.
-                // I will assume I will add the getter.
-
-                // Let's check if I can use familyUnits to reconstruct users?
-                // It's recursive, hard to flatten efficiently here.
-                // Better to add getter.
-
-                // For this step, I will write the code assuming `provider.allUsers` exists.
-                // If it errors, I will fix it in the next step immediately.
-
-                // Actually, looking at the provider file I read earlier:
-                // `final List<UserData> _rawAllUsers = [];` is private.
-                // I MUST add the getter first or simultaneously.
-                // Since I can't do simultaneous edits to different files in one step easily without risk,
-                // I will add the getter to UserProvider FIRST in a separate step?
-                // No, I'll do it in the NEXT step.
-                // But this file will fail to compile.
-
-                // Alternative: Use `provider.familyUnits` and flatten it temporarily?
-                // No, that's messy.
-
-                // I'll use `dynamic` cast or just comment it out? No.
-                // I will add the getter to UserProvider in the NEXT step.
-                // So I will write `provider.allUsers` here and expect an error, then fix it.
-                // OR, I can use `provider.familyUnits` for now to avoid error?
-                // No, `allUsers` is better.
-
-                // Let's try to be smart. I'll add the getter to UserProvider FIRST.
-                // I'll abort this tool call and do the provider update first.
-                // Wait, I am in the middle of generating the replacement content.
-                // I will proceed with this replacement, but I will comment out the line causing error
-                // and put a TODO, then immediately fix provider and uncomment.
-                // Actually, I can just write `provider.allUsers` and fix it immediately.
-
-                // Let's assume I will fix provider.
-
+                // FIXED: Menggunakan getter allUsers yang sudah ditambahkan di Provider
                 final allUsers = provider.allUsers;
                 final filtered = _filterMembers(allUsers);
 
@@ -523,10 +436,10 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             id: member.userId,
             nit: member.familyTreeId ?? "-",
             name: member.fullName ?? "No Name",
-            spouseName: null, // UserData doesn't have spouse info directly
+            spouseName: null, 
             location: member.address ?? "-",
             emoji: '👤',
-            children: [], // We don't need children for profile view
+            children: [], 
             photoUrl: member.avatar?.toString(),
           );
 
@@ -538,8 +451,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
           child: Row(
             children: [
               MemberAvatar(
-                photoUrl: member.avatar
-                    ?.toString(), // Asumsi avatar adalah URL string
+                photoUrl: member.avatar?.toString(),
                 emoji: '👤',
                 size: 50,
               ),

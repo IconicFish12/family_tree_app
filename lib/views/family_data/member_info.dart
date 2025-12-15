@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class MemberInfoPage extends StatelessWidget {
-  final ChildMember member; // Menerima data member
+  final ChildMember member; 
 
   const MemberInfoPage({super.key, required this.member});
 
@@ -39,7 +39,7 @@ class MemberInfoPage extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.black87, size: 24),
           onPressed: () {
-            context.pushNamed('editFamilyMember', extra: member); // Pass member to edit
+            context.pushNamed('editFamilyMember', extra: member); 
           },
           tooltip: 'Edit Anggota',
         ),
@@ -58,7 +58,6 @@ class MemberInfoPage extends StatelessWidget {
           const SizedBox(height: 24),
           _buildInfoSection(),
           const SizedBox(height: 24),
-          // _buildHubunganSection(), // Bisa diaktifkan jika data relasi lengkap
         ],
       ),
     );
@@ -89,7 +88,7 @@ class MemberInfoPage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            member.nit, // Menampilkan ID/NIT
+            member.nit, 
             style: const TextStyle(
               fontSize: 15,
               color: Color(0xFF4AB97A),

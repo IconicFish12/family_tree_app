@@ -1,5 +1,7 @@
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -9,47 +11,61 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  late TextEditingController _emailController;
+  // Ganti nama controller agar sesuai konteks
+  late TextEditingController _idController; 
   late TextEditingController _passwordController;
   bool _obscurePassword = true;
-  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController();
+    _idController = TextEditingController(); // Untuk Family Tree ID / User ID
     _passwordController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _idController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
-    // Demo login - accept any input
-    if (_emailController.text.isNotEmpty &&
-        _passwordController.text.isNotEmpty) {
-      setState(() {
-        _isLoading = true;
-      });
+  void _handleLogin() async {
+    if (_idController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+      
+      // Panggil Provider
+      final authProvider = context.read<AuthProvider>();
 
-      // Simulate network delay
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          // Navigate to home
-          context.goNamed('home');
-        }
-      });
+      // Proses Login
+      final success = await authProvider.login(
+        _idController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        // Login Berhasil -> Pindah ke Home
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login Berhasil!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.goNamed('home');
+      } else {
+        // Login Gagal -> Tampilkan Error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage ?? 'Login Gagal'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Silakan isi semua field'),
+          content: Text('Silakan isi ID dan Password'),
           backgroundColor: Colors.red,
         ),
       );
@@ -58,6 +74,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Ambil loading state dari AuthProvider
+    final isLoading = context.select<AuthProvider, bool>(
+      (p) => p.state == ViewState.loading,
+    );
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -67,15 +88,15 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 100),
               ClipRRect(
-                borderRadius: BorderRadiusGeometry.circular(40),
+                borderRadius: BorderRadius.circular(40),
                 child: Image.asset(
                   'assets/images/logo_aplikasi_silsilah_keluarga.png',
-                  cacheWidth: 200,
-                  alignment: AlignmentGeometry.center,
+                  width:
+                      120, // Beri ukuran agar tidak overflow jika gambar besar
+                  fit: BoxFit.cover,
                 ),
               ),
               const SizedBox(height: 18),
-              // Welcome Text
               const Text(
                 'Selamat Datang',
                 style: TextStyle(
@@ -85,18 +106,17 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Subtitle
               RichText(
                 textAlign: TextAlign.center,
-                text: TextSpan(
+                text: const TextSpan(
                   children: [
-                    const TextSpan(
+                    TextSpan(
                       text: 'Masuk untuk melanjutkan ke ',
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     TextSpan(
                       text: 'silsilah anda',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: Color(0xFF4CAF50),
                         fontWeight: FontWeight.w600,
@@ -106,11 +126,12 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 40),
-              // Email/Username Field
+              
+              // === INPUT ID / FAMILY TREE ID ===
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
-                  'Email atau Username',
+                  'ID Keluarga / User ID', // Sesuaikan label
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -120,9 +141,9 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 10),
               TextField(
-                controller: _emailController,
+                controller: _idController,
                 decoration: InputDecoration(
-                  hintText: 'Masukan Email atau Username',
+                  hintText: 'Masukan ID',
                   hintStyle: TextStyle(color: Colors.grey[400]),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -148,7 +169,8 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              // Password Field
+              
+              // === INPUT PASSWORD ===
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
@@ -204,6 +226,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 8),
+              
               // Forgot Password Link
               Align(
                 alignment: Alignment.centerRight,
@@ -227,11 +250,14 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              // Login Button
+              
+              // === LOGIN BUTTON ===
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
+                  onPressed: isLoading
+                      ? null
+                      : _handleLogin, // Disable saat loading
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     disabledBackgroundColor: Colors.grey[400],
@@ -240,7 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isLoading
+                  child: isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,

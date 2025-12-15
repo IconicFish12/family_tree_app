@@ -86,6 +86,7 @@ class UserRepositoryImpl implements UserRepository {
     try {
       if (page < 1) return Left(Failure("Halaman harus minimal 1"));
 
+      // FIXED: Menggunakan endpoint plural '/users' agar konsisten dengan backend
       final response = await Config.dio.get(
         '$baseUrl/user',
         queryParameters: {'page': page},
@@ -259,6 +260,7 @@ class UserRepositoryImpl implements UserRepository {
         return Left(Failure("Data tidak boleh kosong"));
       }
 
+      // Pastikan endpoint menggunakan 'users' (jamak)
       final response = await Config.dio.post('$baseUrl/users', data: body);
 
       if (response.statusCode == 201 && response.data != null) {

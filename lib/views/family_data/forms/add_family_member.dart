@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/components/image_picker_field.dart';
@@ -6,6 +5,7 @@ import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class AddFamilyMemberPage extends StatefulWidget {
@@ -25,7 +25,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _birthYearController = TextEditingController();
 
   String _relationType = 'Anak'; 
-  File? memberPhoto;
+  XFile? memberPhoto;
 
   @override
   void dispose() {

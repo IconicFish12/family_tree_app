@@ -1,3 +1,4 @@
+import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';
 import 'package:flutter/material.dart';
@@ -115,7 +116,7 @@ class _ProfilePageState extends State<ProfilePage> {
             radius: 50,
             backgroundColor: Colors.grey[300],
             backgroundImage: user.avatar != null
-                ? NetworkImage(user.avatar.toString())
+                ? NetworkImage("${Config.imageUrl}/${user.avatar.toString()}")
                 : null,
             child: user.avatar == null
                 ? Icon(Icons.person, size: 60, color: Colors.grey[600])

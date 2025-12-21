@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/dummy_data.dart';
@@ -6,6 +5,7 @@ import 'package:family_tree_app/components/image_picker_field.dart';
 import 'package:family_tree_app/components/child_selection_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditFamilyPage extends StatefulWidget {
   final Map<String, dynamic> familyData;
@@ -28,7 +28,7 @@ class _EditFamilyPageState extends State<EditFamilyPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late List<Map<String, TextEditingController>> _childrenControllers;
 
-  File? familyPhoto;
+  XFile? familyPhoto;
   String? _familyPhotoUrl;
   List<Map<String, dynamic>> _selectedChildren = [];
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart'; 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:family_tree_app/config/config.dart';
@@ -6,7 +7,7 @@ import 'package:family_tree_app/config/config.dart';
 class ImagePickerField extends StatefulWidget {
   final String label;
   final String? initialImagePath;
-  final Function(File?) onImageSelected;
+  final Function(XFile?) onImageSelected; 
   final bool isNetworkImage;
 
   const ImagePickerField({
@@ -22,7 +23,8 @@ class ImagePickerField extends StatefulWidget {
 }
 
 class _ImagePickerFieldState extends State<ImagePickerField> {
-  File? _selectedImage;
+  // Ganti File? menjadi XFile?
+  XFile? _pickedFile; 
   String? _networkImageUrl;
 
   @override
@@ -32,7 +34,8 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
       if (widget.isNetworkImage) {
         _networkImageUrl = widget.initialImagePath;
       } else {
-        _selectedImage = File(widget.initialImagePath!);
+        // Untuk initial local image, kita biarkan null dulu atau handle logic khusus
+        // Biasanya initial image itu dari Network (Edit Profile)
       }
     }
   }
@@ -40,19 +43,25 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: source);
+      final XFile? image = await picker.pickImage(
+        source: source,
+        // Tips: Kompres gambar agar upload lebih cepat & hemat kuota
+        imageQuality: 50,
+        maxWidth: 800,
+      );
 
       if (image != null) {
         setState(() {
-          _selectedImage = File(image.path);
+          _pickedFile = image;
           _networkImageUrl = null;
         });
-        widget.onImageSelected(_selectedImage);
+        // Kirim XFile ke parent
+        widget.onImageSelected(_pickedFile);
       }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+      ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));
     }
   }
 
@@ -61,7 +70,6 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Large Profile Avatar (centered)
         Container(
           width: 150,
           height: 150,
@@ -70,76 +78,78 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
             color: Config.background,
             border: Border.all(color: Config.accent.withOpacity(0.3), width: 2),
           ),
-          child: _selectedImage != null
-              ? ClipOval(child: Image.file(_selectedImage!, fit: BoxFit.cover))
-              : _networkImageUrl != null
-              ? ClipOval(
-                  child: Image.network(
-                    _networkImageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Center(
-                        child: Icon(
-                          Icons.person,
-                          size: 80,
-                          color: Config.accent.withOpacity(0.3),
-                        ),
-                      );
-                    },
-                  ),
-                )
-              : Center(
-                  child: Icon(
-                    Icons.person,
-                    size: 80,
-                    color: Config.accent.withOpacity(0.3),
-                  ),
-                ),
+          child: ClipOval(child: _buildImageContent()),
         ),
         const SizedBox(height: 20),
-        // Buttons Row - Now properly spaced
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton.icon(
-                onPressed: () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Galeri'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Config.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
+              _buildButton(Icons.photo_library, 'Galeri', ImageSource.gallery),
               const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Kamera'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Config.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
+              _buildButton(Icons.camera_alt, 'Kamera', ImageSource.camera),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildImageContent() {
+    // 1. Jika ada gambar baru yang dipilih user
+    if (_pickedFile != null) {
+      if (kIsWeb) {
+        // WEB: Gunakan Image.network karena XFile.path di web adalah Blob URL
+        return Image.network(
+          _pickedFile!.path,
+          fit: BoxFit.cover,
+          errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image),
+        );
+      } else {
+        return Image.file(File(_pickedFile!.path), fit: BoxFit.cover);
+      }
+    }
+
+    if (_networkImageUrl != null) {
+      return Image.network(
+        _networkImageUrl!,
+        fit: BoxFit.cover,
+        loadingBuilder: (ctx, child, progress) {
+          if (progress == null) return child;
+          return const Center(child: CircularProgressIndicator());
+        },
+        errorBuilder: (ctx, err, stack) => Center(
+          child: Icon(
+            Icons.person,
+            size: 80,
+            color: Config.accent.withOpacity(0.3),
+          ),
+        ),
+      );
+    }
+
+    // 3. Default Placeholder
+    return Center(
+      child: Icon(
+        Icons.person,
+        size: 80,
+        color: Config.accent.withOpacity(0.3),
+      ),
+    );
+  }
+
+  Widget _buildButton(IconData icon, String label, ImageSource source) {
+    return ElevatedButton.icon(
+      onPressed: () => _pickImage(source),
+      icon: Icon(icon),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Config.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 }

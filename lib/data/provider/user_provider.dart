@@ -38,12 +38,10 @@ class UserProvider extends ChangeNotifier {
 
     result.fold(
       (failure) {
-        print("DEBUG: Fetch Data Gagal: ${failure.message}"); // Debug log
         _errorMessage = failure.message;
         if (isRefresh) _state = ViewState.error;
       },
       (newUsers) {
-        print("DEBUG: Berhasil fetch ${newUsers.length} users."); // Debug log
         _rawAllUsers.addAll(newUsers);
         _familyUnits = _buildFamilyTree(_rawAllUsers);
         _state = ViewState.success;
@@ -54,12 +52,10 @@ class UserProvider extends ChangeNotifier {
 
   String _generateNextFamilyTreeId(int? parentId) {
     try {
-      // Safety Check: Jika data lokal kosong, risiko duplikat ID sangat tinggi
       if (_rawAllUsers.isEmpty) {
         print(
           "⚠️ WARNING: Data lokal kosong. ID yang digenerate mungkin konflik dengan server.",
         );
-        // Kita bisa me-return '1' sebagai fallback, tapi sebaiknya user refresh dulu
       }
 
       if (parentId == null) {
@@ -72,7 +68,6 @@ class UserProvider extends ChangeNotifier {
         int maxId = 0;
         for (var user in rootUsers) {
           if (user.familyTreeId != null) {
-            // Hapus karakter non-angka agar "1.a" tidak crash, ambil angka utamanya
             String cleanId = user.familyTreeId!
                 .split('.')
                 .first
@@ -115,7 +110,7 @@ class UserProvider extends ChangeNotifier {
       }
     } catch (e) {
       print("ERROR: Gagal generate ID: $e");
-      return "0"; // Fallback aman
+      return "0";
     }
   }
 
@@ -123,7 +118,6 @@ class UserProvider extends ChangeNotifier {
     _isSubmitting = true;
     notifyListeners();
 
-    // Debugging: Lihat ID apa yang akan dikirim
     String generatedId = _generateNextFamilyTreeId(newUser.parentId);
     print(
       "DEBUG: Menambahkan User. ParentID: ${newUser.parentId}, Generated ID: $generatedId",
@@ -244,5 +238,38 @@ class UserProvider extends ChangeNotifier {
         children: grandChildren,
       );
     }).toList();
+  }
+
+  Future<UserData?> updateProfile({
+    required String id,
+    required UserData data,
+  }) async {
+    _isSubmitting = true;
+    notifyListeners();
+
+    final result = await _repositoryImpl.updateProfile(id, data);
+
+    return result.fold(
+      (failure) {
+        print(
+          "DEBUG: Gagal ke Server: ${failure.message}",
+        ); 
+        _errorMessage = failure.message;
+        _isSubmitting = false;
+        notifyListeners();
+        return null;
+      },
+      (updatedUser) {
+        final index = _rawAllUsers.indexWhere((u) => u.userId.toString() == id);
+        if (index != -1) {
+          _rawAllUsers[index] = updatedUser;
+          _familyUnits = _buildFamilyTree(_rawAllUsers);
+        }
+
+        _isSubmitting = false;
+        notifyListeners();
+        return updatedUser;
+      },
+    );
   }
 }

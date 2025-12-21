@@ -48,6 +48,7 @@ dependencies:
   fpdart: ^1.1.0
   provider: ^6.1.5+1
   flutter_breadcrumb: ^1.0.1
+  http_parser: ^4.1.2
 
 dev_dependencies:   
   flutter_test:

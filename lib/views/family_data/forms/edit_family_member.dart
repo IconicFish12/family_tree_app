@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/family_member.dart';
@@ -6,6 +5,7 @@ import 'package:family_tree_app/data/dummy_data.dart';
 import 'package:family_tree_app/components/image_picker_field.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 class UpdateFamilyMemberPage extends StatefulWidget {
   const UpdateFamilyMemberPage({super.key});
@@ -25,7 +25,7 @@ class _UpdateFamilyMemberPageState extends State<UpdateFamilyMemberPage> {
   String _selectedMonth = 'Januari';
   int _selectedYear = DateTime.now().year;
   String? _selectedRelation;
-  File? memberPhoto;
+  XFile? memberPhoto; 
   String? _memberPhotoUrl;
 
   final List<String> _months = [

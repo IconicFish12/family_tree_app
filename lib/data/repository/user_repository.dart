@@ -5,6 +5,8 @@ import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/failure.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 
 abstract class UserRepository {
   // GET routes
@@ -85,7 +87,7 @@ class UserRepositoryImpl implements UserRepository {
       if (page < 1) return Left(Failure("Halaman harus minimal 1"));
 
       final response = await Config.dio.get(
-        '$baseUrl/user',
+        '$baseUrl/users',
         queryParameters: {'page': page},
       );
 
@@ -135,7 +137,7 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // GET USERS BY FAMILY TREE ID 
+  // GET USERS BY FAMILY TREE ID
   @override
   Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId) async {
     try {
@@ -167,7 +169,7 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // GET SINGLE USER BY SEARCH 
+  // GET SINGLE USER BY SEARCH
   @override
   Future<Either<Failure, UserData>> getSingleBySearch({
     String? name,
@@ -247,42 +249,61 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, UserData>> createUser(UserData data) async {
     try {
-      dynamic payload;
+      final Map<String, dynamic> mapData = data.toJson();
 
-      if (data.avatar is File) {
-        final Map<String, dynamic> mapData = data.toJson();
+      mapData.remove('user_id');
+      mapData.remove('created_at');
+      mapData.remove('updated_at');
+      mapData.remove('avatar');
 
-        mapData.remove('user_id');
-        mapData.remove('created_at');
-        mapData.remove('updated_at');
-        mapData.remove('avatar');
+      final formData = FormData.fromMap(mapData);
 
-        // Konversi ke FormData
-        payload = FormData.fromMap(mapData);
+      if (data.avatar != null) {
+        String? filePath;
 
-        final File imageFile = data.avatar as File;
-        payload.files.add(
-          MapEntry('avatar', await MultipartFile.fromFile(imageFile.path)),
-        );
-      } else {
-        final body = data.toJson();
-        body.remove('user_id');
-        body.remove('created_at');
-        body.remove('updated_at');
-        payload = body;
-      }
+        if (data.avatar is XFile) {
+          filePath = (data.avatar as XFile).path;
+        }
 
-      final response = await Config.dio.post('$baseUrl/users', data: payload);
+        // Jika path ditemukan, proses upload
+        if (filePath != null && filePath.isNotEmpty) {
+          final String fileName = filePath.split('/').last;
+
+          // Deteksi Mime Type sederhana
+          final String mimeType = fileName.toLowerCase().endsWith('png')
+              ? 'image/png'
+              : 'image/jpeg';
+          final MediaType mediaType = MediaType.parse(mimeType);
+
+          formData.files.add(
+            MapEntry(
+              'avatar',
+              await MultipartFile.fromFile(
+                filePath,
+                filename: fileName,
+                contentType: mediaType,
+              ),
+            ),
+          );
+        }
+      };
+
+      final response = await Config.dio.post('$baseUrl/users', data: formData);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return Right(UserData.fromJson(response.data));
       } else {
-        return Left(Failure("Gagal menyimpan data"));
+        return Left(
+          Failure("Gagal menyimpan data (Status: ${response.statusCode})"),
+        );
       }
     } on DioException catch (e) {
+      if (e.response?.statusCode == 422) {
+        print("Validation Error Detail: ${e.response?.data}");
+      }
       return Left(Failure(_getErrorMessage(e)));
     } catch (e) {
-      return Left(Failure(e.toString()));
+      return Left(Failure("Terjadi kesalahan: $e"));
     }
   }
 
@@ -433,35 +454,58 @@ class UserRepositoryImpl implements UserRepository {
       if (id.isEmpty || !_isValidId(id)) {
         return Left(Failure("ID pengguna tidak valid"));
       }
+      
+      final Map<String, dynamic> mapData = data.toJson();
+      mapData.remove('user_id');
+      mapData.remove('created_at');
+      mapData.remove('updated_at');
+      mapData.remove('avatar');
 
-      final body = data.toJson();
+      final formData = FormData.fromMap(mapData);
 
-      body.remove('user_id');
-      body.remove('created_at');
-      body.remove('updated_at');
+      if (data.avatar != null) {
+        String? filePath;
 
-      if (body.isEmpty) {
-        return Left(Failure("Data tidak boleh kosong"));
+        if (data.avatar is XFile) {
+          filePath = (data.avatar as XFile).path;
+        } else if (data.avatar is File) {
+          filePath = (data.avatar as File).path;
+        }
+         
+        if (filePath != null && filePath.isNotEmpty) {
+          final String fileName = filePath.split('/').last;
+          final String mimeType = fileName.toLowerCase().endsWith('png')
+              ? 'image/png'
+              : 'image/jpeg';
+          final MediaType mediaType = MediaType.parse(mimeType);
+
+          formData.files.add(
+            MapEntry(
+              'avatar',
+              await MultipartFile.fromFile(
+                filePath,
+                filename: fileName,
+                contentType: mediaType,
+              ),
+            ),
+          );
+        }
       }
 
-      final response = await Config.dio.put(
+      final response = await Config.dio.post(
         '$baseUrl/user/update/$id',
-        data: body,
+        data: formData,
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data respons tidak sesuai"));
-        }
+        return Right(UserData.fromJson(response.data));
       } else {
         return Left(Failure("Gagal memperbarui profil"));
       }
     } on DioException catch (e) {
       return Left(Failure(_getErrorMessage(e)));
     } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memperbarui profil"));
+      return Left(Failure(e.toString()));
     }
   }
 

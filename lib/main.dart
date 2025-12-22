@@ -10,8 +10,6 @@ import 'package:family_tree_app/views/family_data/forms/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
-import 'package:family_tree_app/views/family_data/forms/edit_family.dart';
-import 'package:family_tree_app/views/family_data/forms/edit_family_member.dart';
 import 'package:family_tree_app/views/family_data/member_info.dart';
 import 'package:family_tree_app/views/family_data/search_family.dart';
 import 'package:family_tree_app/views/family_data/tree_visual.dart';
@@ -139,14 +137,6 @@ class MyApp extends StatelessWidget {
               builder: (context, state) => const AddFamilyPage(),
             ),
             GoRoute(
-              path: '/edit-family',
-              name: 'editFamily',
-              builder: (context, state) => EditFamilyPage(
-                familyData: state.extra as Map<String, dynamic>? ?? {},
-                familyId: state.uri.queryParameters['id'] ?? '',
-              ),
-            ),
-            GoRoute(
               path: '/family-info',
               name: 'familyInfo',
               builder: (context, state) {
@@ -184,11 +174,6 @@ class MyApp extends StatelessWidget {
                       parentId: parentId,
                     );
                   },
-                ),
-                GoRoute(
-                  path: 'edit-family-member',
-                  name: 'editFamilyMember',
-                  builder: (context, state) => const UpdateFamilyMemberPage(),
                 ),
               ],
             ),

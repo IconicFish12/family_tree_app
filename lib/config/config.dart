@@ -28,8 +28,14 @@ class Config {
 
   // Dio API Fetching
   static const String baseUrl = "https://api-alusrah.oproject.id/api";
-  static const imageUrl = "https://api-alusrah.oproject.id/storage";
+  static const baseStorageUrl = "https://api-alusrah.oproject.id/storage/";
   static final Dio dio = Dio();
+
+  static String? getFullImageUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http')) return path;
+    return "$baseStorageUrl$path";
+  }
 
   ThemeData get lightTheme {
     return ThemeData(

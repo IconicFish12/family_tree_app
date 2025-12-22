@@ -1,14 +1,12 @@
 import 'package:family_tree_app/config/config.dart';
 import 'package:flutter/material.dart';
 
-/// Widget untuk menampilkan foto member dengan fallback
-/// Bisa handle asset lokal maupun network image
 class MemberAvatar extends StatelessWidget {
   final String? photoUrl;
   final String emoji;
   final double size;
   final double? borderRadius;
-  final bool isAsset; // true jika photoUrl adalah asset path
+  final bool isAsset;
 
   const MemberAvatar({
     super.key,
@@ -30,7 +28,7 @@ class MemberAvatar extends StatelessWidget {
         color: Config.background,
         borderRadius: BorderRadius.circular(radius),
       ),
-      child: photoUrl != null && photoUrl!.isNotEmpty
+      child: (photoUrl != null && photoUrl!.isNotEmpty)
           ? ClipRRect(
               borderRadius: BorderRadius.circular(radius),
               child: isAsset

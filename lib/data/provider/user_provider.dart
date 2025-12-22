@@ -50,68 +50,34 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _generateNextFamilyTreeId(int? parentId) {
-    try {
-      if (_rawAllUsers.isEmpty) {
-        print(
-          "⚠️ WARNING: Data lokal kosong. ID yang digenerate mungkin konflik dengan server.",
-        );
-      }
+  Future<UserData?> updateProfile({
+    required String id,
+    required UserData data,
+  }) async {
+    _isSubmitting = true;
+    notifyListeners();
 
-      if (parentId == null) {
-        final rootUsers = _rawAllUsers
-            .where((u) => u.parentId == null)
-            .toList();
+    final result = await _repositoryImpl.updateProfile(id, data);
 
-        if (rootUsers.isEmpty) return "1";
-
-        int maxId = 0;
-        for (var user in rootUsers) {
-          if (user.familyTreeId != null) {
-            String cleanId = user.familyTreeId!
-                .split('.')
-                .first
-                .replaceAll(RegExp(r'[^0-9]'), '');
-            int? currentId = int.tryParse(cleanId);
-            if (currentId != null && currentId > maxId) {
-              maxId = currentId;
-            }
-          }
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _isSubmitting = false;
+        notifyListeners();
+        return null;
+      },
+      (updatedUser) {
+        final index = _rawAllUsers.indexWhere((u) => u.userId.toString() == id);
+        if (index != -1) {
+          _rawAllUsers[index] = updatedUser;
+          _familyUnits = _buildFamilyTree(_rawAllUsers);
         }
-        return (maxId + 1).toString();
-      } else {
-        final parent = _rawAllUsers.firstWhere(
-          (u) => u.userId == parentId,
-          orElse: () => const UserData(familyTreeId: "0"),
-        );
-
-        String parentPrefix = parent.familyTreeId ?? "0";
-
-        final siblings = _rawAllUsers
-            .where((u) => u.parentId == parentId)
-            .toList();
-
-        int maxSuffix = 0;
-        for (var sibling in siblings) {
-          if (sibling.familyTreeId != null &&
-              sibling.familyTreeId!.startsWith("$parentPrefix.")) {
-            List<String> parts = sibling.familyTreeId!.split('.');
-            if (parts.isNotEmpty) {
-              int? suffix = int.tryParse(
-                parts.last.replaceAll(RegExp(r'[^0-9]'), ''),
-              );
-              if (suffix != null && suffix > maxSuffix) {
-                maxSuffix = suffix;
-              }
-            }
-          }
-        }
-        return "$parentPrefix.${maxSuffix + 1}";
-      }
-    } catch (e) {
-      print("ERROR: Gagal generate ID: $e");
-      return "0";
-    }
+        
+        _isSubmitting = false;
+        notifyListeners();
+        return updatedUser;
+      },
+    );
   }
 
   Future<bool> addUser(UserData newUser) async {
@@ -119,10 +85,6 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     String generatedId = _generateNextFamilyTreeId(newUser.parentId);
-    print(
-      "DEBUG: Menambahkan User. ParentID: ${newUser.parentId}, Generated ID: $generatedId",
-    );
-    print(newUser);
     
     final userToSend = newUser.copyWith(
       familyTreeId: generatedId,
@@ -133,16 +95,12 @@ class UserProvider extends ChangeNotifier {
 
     return result.fold(
       (failure) {
-        print(
-          "DEBUG: Gagal ke Server: ${failure.message}",
-        ); // Lihat pesan asli errornya
         _errorMessage = failure.message;
         _isSubmitting = false;
         notifyListeners();
         return false;
       },
       (createdUser) {
-        print("DEBUG: Sukses tambah user: ${createdUser.fullName}");
         _rawAllUsers.add(createdUser);
         _familyUnits = _buildFamilyTree(_rawAllUsers); 
         _isSubmitting = false;
@@ -200,6 +158,61 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
+  String _generateNextFamilyTreeId(int? parentId) {
+    try {
+      if (parentId == null) {
+        final rootUsers = _rawAllUsers
+            .where((u) => u.parentId == null)
+            .toList();
+
+        if (rootUsers.isEmpty) return "1";
+
+        int maxId = 0;
+        for (var user in rootUsers) {
+          if (user.familyTreeId != null) {
+            int? currentId = int.tryParse(
+              user.familyTreeId!.replaceAll(RegExp(r'[^0-9]'), ''),
+            );
+            if (currentId != null && currentId > maxId) {
+              maxId = currentId;
+            }
+          }
+        }
+        return (maxId + 1).toString();
+      } else {
+        final parent = _rawAllUsers.firstWhere(
+          (u) => u.userId == parentId,
+          orElse: () => const UserData(familyTreeId: "0"),
+        );
+
+        String parentPrefix = parent.familyTreeId ?? "0";
+
+        final siblings = _rawAllUsers
+            .where((u) => u.parentId == parentId)
+            .toList();
+
+        int maxSuffix = 0;
+        for (var sibling in siblings) {
+          if (sibling.familyTreeId != null &&
+              sibling.familyTreeId!.startsWith("$parentPrefix.")) {
+            List<String> parts = sibling.familyTreeId!.split('.');
+            if (parts.isNotEmpty) {
+              int? suffix = int.tryParse(
+                parts.last.replaceAll(RegExp(r'[^0-9]'), ''),
+              );
+              if (suffix != null && suffix > maxSuffix) {
+                maxSuffix = suffix;
+              }
+            }
+          }
+        }
+        return "$parentPrefix.${maxSuffix + 1}";
+      }
+    } catch (e) {
+      return "0";
+    }
+  }
+
   List<FamilyUnit> _buildFamilyTree(List<UserData> allUsers) {
     final rootUsers = allUsers.where((u) => u.parentId == null).toList();
     List<FamilyUnit> units = [];
@@ -213,6 +226,8 @@ class UserProvider extends ChangeNotifier {
           headName: root.fullName ?? "No Name",
           spouseName: null, 
           location: root.address ?? "-",
+          avatar: root.avatar is String ? root.avatar : null,
+          birthYear: root.birthYear,
           children: children,
         ),
       );
@@ -235,41 +250,10 @@ class UserProvider extends ChangeNotifier {
         spouseName: null,
         location: child.address ?? "-",
         emoji: '👤',
+        photoUrl: child.avatar is String ? child.avatar : null,
+        birthYear: child.birthYear,
         children: grandChildren,
       );
     }).toList();
-  }
-
-  Future<UserData?> updateProfile({
-    required String id,
-    required UserData data,
-  }) async {
-    _isSubmitting = true;
-    notifyListeners();
-
-    final result = await _repositoryImpl.updateProfile(id, data);
-
-    return result.fold(
-      (failure) {
-        print(
-          "DEBUG: Gagal ke Server: ${failure.message}",
-        ); 
-        _errorMessage = failure.message;
-        _isSubmitting = false;
-        notifyListeners();
-        return null;
-      },
-      (updatedUser) {
-        final index = _rawAllUsers.indexWhere((u) => u.userId.toString() == id);
-        if (index != -1) {
-          _rawAllUsers[index] = updatedUser;
-          _familyUnits = _buildFamilyTree(_rawAllUsers);
-        }
-
-        _isSubmitting = false;
-        notifyListeners();
-        return updatedUser;
-      },
-    );
   }
 }

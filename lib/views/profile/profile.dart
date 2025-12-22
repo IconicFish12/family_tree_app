@@ -18,7 +18,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: _buildAppBar(context),
-      
+
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           final user = authProvider.currentUser;
@@ -36,7 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             );
           }
-          return _buildBody(context, user); 
+          return _buildBody(context, user);
         },
       ),
     );
@@ -86,7 +86,7 @@ class _ProfilePageState extends State<ProfilePage> {
             onPressed: () {
               // context.read<AuthProvider>().logout();
 
-              context.go('/login'); 
+              context.go('/login');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[400],
@@ -116,7 +116,9 @@ class _ProfilePageState extends State<ProfilePage> {
             radius: 50,
             backgroundColor: Colors.grey[300],
             backgroundImage: user.avatar != null
-                ? NetworkImage("${Config.imageUrl}/${user.avatar.toString()}")
+                ? NetworkImage(
+                    Config.getFullImageUrl(user.avatar.toString()) as String,
+                  )
                 : null,
             child: user.avatar == null
                 ? Icon(Icons.person, size: 60, color: Colors.grey[600])
@@ -157,7 +159,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(
               child: _buildInfoCard(
                 title: "Tahun Lahir",
-                value: user.birthYear?.toString() ?? "-", 
+                value: user.birthYear?.toString() ?? "-",
               ),
             ),
           ],
@@ -168,7 +170,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
         _buildInfoCard(
           title: "Terdaftar Sejak",
-          value: user.createdAt.toLocal().toString().split(' ')[0] 
+          value: user.createdAt.toLocal().toString().split(' ')[0],
         ),
       ],
     );
@@ -182,9 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(
-              0.1,
-            ),
+            color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),

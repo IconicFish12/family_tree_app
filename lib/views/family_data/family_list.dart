@@ -83,24 +83,35 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
   void _handleFabPressed() {
     if (_breadcrumbs.isEmpty) {
-      context.pushNamed('addFamily');
+      context.pushNamed('treeVisual');
+      return;
+    }
+
+    final currentParent = _breadcrumbs.last;
+    int? parentId;
+    String parentName = "";
+
+    if (currentParent is FamilyUnit) {
+      parentId = currentParent.headId;
+      parentName = currentParent.headName;
+    } else if (currentParent is ChildMember) {
+      parentId = currentParent.id;
+      parentName = currentParent.name;
+    }
+
+    if (parentId != null) {
+      context.pushNamed(
+        'addFamilyMember',
+        extra: {'parentId': parentId, 'parentName': parentName},
+      );
     } else {
-      final currentParent = _breadcrumbs.last;
-      int? parentId;
-
-      if (currentParent is FamilyUnit) {
-        parentId = currentParent.headId;
-      } else if (currentParent is ChildMember) {
-        parentId = currentParent.id;
-      }
-
-      if (parentId != null) {
-        context.pushNamed('addFamilyMember', extra: parentId);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Gagal mengambil ID orang tua")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Gagal mengambil ID orang tua. Tidak bisa menambah anggota di sini.",
+          ),
+        ),
+      );
     }
   }
 
@@ -221,7 +232,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
                     ),
                   ),
                 ),
-
                 Expanded(
                   child: currentList.isEmpty
                       ? Center(
@@ -244,12 +254,19 @@ class _FamilyListPageState extends State<FamilyListPage> {
             );
           },
         ),
+
+        // --- UPDATE FAB SESUAI PERMINTAAN ---
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _handleFabPressed,
-          backgroundColor: Config.primary,
-          icon: const Icon(Icons.add, color: Config.white),
+          backgroundColor: _breadcrumbs.isEmpty
+              ? Config.accent
+              : Config.primary, // Beda warna biar jelas
+          icon: Icon(
+            _breadcrumbs.isEmpty ? Icons.account_tree : Icons.person_add,
+            color: Config.white,
+          ),
           label: Text(
-            _breadcrumbs.isEmpty ? "Buat Keluarga" : "Tambah Anggota",
+            _breadcrumbs.isEmpty ? "Visualisasi Tree" : "Tambah Anggota",
             style: const TextStyle(
               color: Config.white,
               fontWeight: FontWeight.bold,
@@ -272,6 +289,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
       spouse = item.spouseName ?? "";
       isFolder = item.children.isNotEmpty;
       emoji = "👨‍👩‍👧‍👦";
+      photoUrl = item.avatar;
     } else if (item is ChildMember) {
       name = item.name;
       spouse = item.spouseName ?? "";
@@ -299,14 +317,12 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 : Config.background,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: photoUrl != null
-              ? MemberAvatar(photoUrl: photoUrl, size: 44, borderRadius: 8)
-              : Center(
-                  child: Text(
-                    emoji.isNotEmpty ? emoji : "👤",
-                    style: const TextStyle(fontSize: 22),
-                  ),
-                ),
+          child: MemberAvatar(
+            photoUrl: Config.getFullImageUrl(photoUrl),
+            emoji: emoji.isNotEmpty ? emoji : "👤",
+            size: 44,
+            borderRadius: 8,
+          ),
         ),
         title: Text(
           spouse.isNotEmpty ? "$name & $spouse" : name,
@@ -339,6 +355,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
               spouseName: item.spouseName,
               location: item.location,
               children: item.children,
+              photoUrl: item.avatar,
+              birthYear: item.birthYear,
               emoji: "👨",
             );
           } else if (item is ChildMember) {

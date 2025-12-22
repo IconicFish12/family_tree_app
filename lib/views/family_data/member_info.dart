@@ -1,23 +1,68 @@
 import 'package:family_tree_app/components/ui.dart';
+import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class MemberInfoPage extends StatelessWidget {
-  final ChildMember member; 
+  final ChildMember member;
 
   const MemberInfoPage({super.key, required this.member});
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final currentUser = authProvider.currentUser;
+
+    bool isOwner = false;
+    if (currentUser != null) {
+      isOwner = currentUser.familyTreeId == member.nit;
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-      appBar: _buildAppBar(context),
+      appBar: _buildAppBar(
+        context,
+        isOwner,
+      ), // Pass status owner ke AppBar jika ingin restrict Edit juga
       body: _buildBody(),
+
+      floatingActionButton: isOwner
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                if (member.id != null) {
+                  context.pushNamed(
+                    'addFamilyMember',
+                    extra: {
+                      'parentId': member.id,
+                      'parentName': member.name,
+                    },
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Error: ID Anggota tidak valid"),
+                    ),
+                  );
+                }
+              },
+              backgroundColor: Config.primary,
+              icon: const Icon(Icons.person_add, color: Colors.white),
+              label: const Text(
+                "Tambah Keluarga",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          : null,
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isOwner) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
@@ -36,13 +81,14 @@ class MemberInfoPage extends StatelessWidget {
       ),
       centerTitle: true,
       actions: [
-        IconButton(
-          icon: const Icon(Icons.edit, color: Colors.black87, size: 24),
-          onPressed: () {
-            context.pushNamed('editFamilyMember', extra: member); 
-          },
-          tooltip: 'Edit Anggota',
-        ),
+        if (isOwner)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.black87, size: 24),
+            onPressed: () {
+              context.pushNamed('editFamilyMember', extra: member);
+            },
+            tooltip: 'Edit Anggota',
+          ),
         const SizedBox(width: 8),
       ],
     );
@@ -70,8 +116,8 @@ class MemberInfoPage extends StatelessWidget {
           CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey[300],
-            backgroundImage: member.photoUrl != null 
-                ? NetworkImage(member.photoUrl!) 
+            backgroundImage: member.photoUrl != null
+                ? NetworkImage(Config.getFullImageUrl(member.photoUrl) ?? "")
                 : null,
             child: member.photoUrl == null
                 ? Text(member.emoji, style: const TextStyle(fontSize: 40))
@@ -88,11 +134,8 @@ class MemberInfoPage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            member.nit, 
-            style: const TextStyle(
-              fontSize: 15,
-              color: Color(0xFF4AB97A),
-            ),
+            member.nit,
+            style: const TextStyle(fontSize: 15, color: Color(0xFF4AB97A)),
           ),
         ],
       ),
@@ -103,21 +146,12 @@ class MemberInfoPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildInfoCard(
-          title: "Nama Lengkap",
-          value: member.name,
-        ),
+        _buildInfoCard(title: "Nama Lengkap", value: member.name),
         const SizedBox(height: 12),
-        _buildInfoCard(
-          title: "Lokasi / Alamat",
-          value: member.location.toString(),
-        ),
+        _buildInfoCard(title: "Lokasi / Alamat", value: member.location ?? "-"),
         const SizedBox(height: 12),
         if (member.spouseName != null)
-          _buildInfoCard(
-            title: "Pasangan",
-            value: member.spouseName!,
-          ),
+          _buildInfoCard(title: "Pasangan", value: member.spouseName!),
       ],
     );
   }

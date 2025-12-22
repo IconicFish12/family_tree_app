@@ -1,5 +1,7 @@
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../config/config.dart';
 
 class HomePage extends StatefulWidget {
@@ -34,77 +36,97 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 180,
-                  child: Image.asset(
-                    'assets/images/family_logo.png',
-                    fit: BoxFit.cover,
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          final user = authProvider.currentUser;
+          if (user == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Data user tidak ditemukan"),
+                  ElevatedButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text("Login Ulang"),
                   ),
+                ],
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: 180,
+                      child: Image.asset(
+                        'assets/images/family_logo.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -25,
+                      left: 20,
+                      right: 20,
+                      child: _buildSearchBar(),
+                    ),
+                  ],
                 ),
-                Positioned(
-                  bottom: -25,
-                  left: 20,
-                  right: 20,
-                  child: _buildSearchBar(),
+                const SizedBox(height: 45),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Selamat Datang, ${user.fullName}!",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: Config.semiBold,
+                          color: Config.textHead,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildFamilyInfoCard(
+                        context: context,
+                        title: 'Keluarga Utama',
+                        memberCount: '15 Anggota',
+                        description: 'Keluarga Besar Sujadmiko',
+                        imageUrl: 'assets/images/family_logo.png',
+                        onTap: () => context.pushNamed('familyInfo'),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildOutlinedButton(
+                              text: 'Tambah Anggota Baru',
+                              onPressed: () =>
+                                  context.pushNamed('addFamilyMember'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildElevatedButton(
+                              text: 'Lihat List Keluarga',
+                              onPressed: () => context.pushNamed('familyList'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 45),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Selamat Datang, Deva!',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: Config.semiBold,
-                      color: Config.textHead,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildFamilyInfoCard(
-                    context: context,
-                    title: 'Keluarga Utama',
-                    memberCount: '15 Anggota',
-                    description: 'Keluarga Besar Sujadmiko',
-                    imageUrl: 'assets/images/family_logo.png',
-                    onTap: () => context.pushNamed('familyInfo'),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildOutlinedButton(
-                          text: 'Tambah Anggota Baru',
-                          onPressed: () => context.pushNamed('addFamilyMember'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildElevatedButton(
-                          text: 'Lihat List Keluarga',
-                          onPressed: () => context.pushNamed('familyList'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

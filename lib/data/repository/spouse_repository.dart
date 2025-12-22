@@ -4,10 +4,9 @@ import 'package:family_tree_app/data/repository/failure.dart';
 import 'package:fpdart/fpdart.dart';
 
 class SpouseRepository {
-  // Method untuk menghubungkan dua user sebagai pasangan
   Future<Either<Failure, bool>> addSpouse({
-    required int primaryUserId, // ID Orang yang mau ditambahin pasangannya
-    required int spouseUserId, // ID User baru (si pasangan)
+    required int primaryUserId,
+    required int spouseUserId,
   }) async {
     try {
       final response = await Config.dio.post(

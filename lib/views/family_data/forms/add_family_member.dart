@@ -24,7 +24,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _addressController = TextEditingController();
   final _birthYearController = TextEditingController();
 
-  String _relationType = 'Anak'; 
+  String _relationType = 'Anak';
   XFile? memberPhoto;
 
   @override
@@ -74,7 +74,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
         address: _addressController.text,
         birthYear: _birthYearController.text,
         parentId: _relationType == 'Anak' ? widget.parentId : null,
-        avatar: (memberPhoto != null) ? memberPhoto : null
+        avatar: (memberPhoto != null) ? memberPhoto : null,
       );
 
       final provider = context.read<UserProvider>();
@@ -229,7 +229,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                 label: 'Alamat',
                 controller: _addressController,
                 icon: Icons.location_on_outlined,
-                maxLines: 2,
+                maxLines: 1,
                 isRequired: false,
               ),
               const SizedBox(height: 32),

@@ -4,6 +4,7 @@ import 'package:family_tree_app/views/profile/profile_edit.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -72,6 +73,31 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _handleExport() async {
+    final exportUrl = Uri.parse('${Config.baseUrl}/export-users');
+
+    try {
+      if (await canLaunchUrl(exportUrl)) {
+        await launchUrl(exportUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak dapat membuka link export'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildBody(BuildContext context, dynamic user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -82,10 +108,30 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
           _buildInfoSection(user),
           const SizedBox(height: 32),
+
+          // Export Button
+          ElevatedButton.icon(
+            onPressed: _handleExport,
+            icon: const Icon(Icons.download),
+            label: const Text(
+              "Export Data Keluarga",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Config.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              elevation: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Logout Button
           ElevatedButton(
             onPressed: () {
-              // context.read<AuthProvider>().logout();
-
               context.go('/login');
             },
             style: ElevatedButton.styleFrom(

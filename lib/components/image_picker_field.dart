@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:family_tree_app/config/config.dart';
@@ -7,7 +7,7 @@ import 'package:family_tree_app/config/config.dart';
 class ImagePickerField extends StatefulWidget {
   final String label;
   final String? initialImagePath;
-  final Function(XFile?) onImageSelected; 
+  final Function(XFile?) onImageSelected;
   final bool isNetworkImage;
 
   const ImagePickerField({
@@ -24,7 +24,7 @@ class ImagePickerField extends StatefulWidget {
 
 class _ImagePickerFieldState extends State<ImagePickerField> {
   // Ganti File? menjadi XFile?
-  XFile? _pickedFile; 
+  XFile? _pickedFile;
   String? _networkImageUrl;
 
   @override
@@ -59,6 +59,7 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
         widget.onImageSelected(_pickedFile);
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));

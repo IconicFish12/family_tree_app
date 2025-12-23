@@ -38,7 +38,7 @@ class FamilyInfoPage extends StatelessWidget {
           },
         ),
         title: Text(
-          "Keluarga Utama",
+          "Keluarga Saya",
           style: TextStyle(
             color: Config.textHead,
             fontWeight: Config.semiBold,
@@ -71,10 +71,7 @@ class FamilyInfoPage extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () {
                     // PASSING parentId ke form tambah anggota
-                    context.pushNamed(
-                      'addFamilyMember',
-                      extra: parentId, 
-                    );
+                    context.pushNamed('addFamilyMember', extra: parentId);
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah'),
@@ -105,10 +102,7 @@ class FamilyInfoPage extends StatelessWidget {
             else
               Column(
                 children: children.map((member) {
-                  return _buildMemberCard(
-                    context: context,
-                    member: member,
-                  );
+                  return _buildMemberCard(context: context, member: member);
                 }).toList(),
               ),
           ],
@@ -146,7 +140,7 @@ class FamilyInfoPage extends StatelessWidget {
             emoji: '👨',
             // Kita belum punya detail object untuk kepala keluarga di sini
             // Bisa ditambahkan nanti jika perlu
-            onTap: () {}, 
+            onTap: () {},
           ),
           if (spouseName != null) ...[
             Padding(

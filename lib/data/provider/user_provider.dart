@@ -14,27 +14,62 @@ class UserProvider extends ChangeNotifier {
 
   ViewState _state = ViewState.initial;
   ViewState get state => _state;
-  
-  List<UserData> _rawAllUsers = []; 
+
+  List<UserData> _rawAllUsers = [];
   List<UserData> get allUsers => _rawAllUsers;
 
   List<FamilyUnit> _familyUnits = [];
   List<FamilyUnit> get familyUnits => _familyUnits;
-  
+
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
-  
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  DateTime? _lastFetchTime;
+  static const _minRefreshInterval = Duration(seconds: 30);
+
+  /// Force refresh - refresh tanpa debounce (untuk setelah create/update)
+  Future<void> forceRefresh() async {
+    debugPrint('[UserProvider] Force refresh triggered');
+    final result = await _repositoryImpl.getData(page: 1);
+
+    result.fold(
+      (failure) {
+        debugPrint('[UserProvider] Force refresh failed: ${failure.message}');
+      },
+      (newUsers) {
+        _rawAllUsers = newUsers;
+        _familyUnits = _buildFamilyTree(_rawAllUsers);
+        _lastFetchTime = DateTime.now();
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Silent refresh - refresh dengan debounce 30 detik (untuk app resume)
+  Future<void> silentRefresh() async {
+    if (_lastFetchTime != null) {
+      final timeSinceLastFetch = DateTime.now().difference(_lastFetchTime!);
+      if (timeSinceLastFetch < _minRefreshInterval) {
+        debugPrint(
+          '[UserProvider] Skipped refresh - last fetch ${timeSinceLastFetch.inSeconds}s ago',
+        );
+        return;
+      }
+    }
+    await forceRefresh();
+  }
 
   Future<void> fetchData({bool isRefresh = false}) async {
     if (isRefresh) {
       _rawAllUsers.clear();
       _state = ViewState.loading;
       notifyListeners();
-    } 
+    }
 
-    final result = await _repositoryImpl.getData(page: 1); 
+    final result = await _repositoryImpl.getData(page: 1);
 
     result.fold(
       (failure) {
@@ -44,6 +79,7 @@ class UserProvider extends ChangeNotifier {
       (newUsers) {
         _rawAllUsers.addAll(newUsers);
         _familyUnits = _buildFamilyTree(_rawAllUsers);
+        _lastFetchTime = DateTime.now();
         _state = ViewState.success;
       },
     );
@@ -54,6 +90,9 @@ class UserProvider extends ChangeNotifier {
     required String id,
     required UserData data,
   }) async {
+    debugPrint('[UserProvider] updateProfile called with id: $id');
+    debugPrint('[UserProvider] updateProfile data: ${data.toJson()}');
+
     _isSubmitting = true;
     notifyListeners();
 
@@ -61,18 +100,18 @@ class UserProvider extends ChangeNotifier {
 
     return result.fold(
       (failure) {
+        debugPrint('[UserProvider] updateProfile FAILED: ${failure.message}');
         _errorMessage = failure.message;
         _isSubmitting = false;
         notifyListeners();
         return null;
       },
-      (updatedUser) {
-        final index = _rawAllUsers.indexWhere((u) => u.userId.toString() == id);
-        if (index != -1) {
-          _rawAllUsers[index] = updatedUser;
-          _familyUnits = _buildFamilyTree(_rawAllUsers);
-        }
-        
+      (updatedUser) async {
+        debugPrint(
+          '[UserProvider] updateProfile SUCCESS: ${updatedUser.toJson()}',
+        );
+        // Refresh dari server untuk memastikan data lengkap dan sinkron
+        await forceRefresh();
         _isSubmitting = false;
         notifyListeners();
         return updatedUser;
@@ -85,10 +124,10 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     String generatedId = _generateNextFamilyTreeId(newUser.parentId);
-    
+
     final userToSend = newUser.copyWith(
       familyTreeId: generatedId,
-      parentId: newUser.parentId, 
+      parentId: newUser.parentId,
     );
 
     final result = await _repositoryImpl.createUser(userToSend);
@@ -100,9 +139,9 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
         return false;
       },
-      (createdUser) {
-        _rawAllUsers.add(createdUser);
-        _familyUnits = _buildFamilyTree(_rawAllUsers); 
+      (createdUser) async {
+        // Refresh dari server untuk memastikan data lengkap dan sinkron
+        await forceRefresh();
         _isSubmitting = false;
         notifyListeners();
         return true;
@@ -111,16 +150,24 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<bool> addSpouse({
-    required UserData spouseData, 
-    required int currentUserId 
+    required UserData spouseData,
+    required int currentUserId,
   }) async {
     _isSubmitting = true;
     notifyListeners();
+
+    debugPrint(
+      '[UserProvider] addSpouse called - currentUserId: $currentUserId',
+    );
+    debugPrint('[UserProvider] spouseData: ${spouseData.toJson()}');
 
     final userResult = await _repositoryImpl.createUser(spouseData);
 
     return userResult.fold(
       (failure) {
+        debugPrint(
+          '[UserProvider] addSpouse createUser FAILED: ${failure.message}',
+        );
         _errorMessage = "Gagal membuat user pasangan: ${failure.message}";
         _isSubmitting = false;
         notifyListeners();
@@ -146,9 +193,9 @@ class UserProvider extends ChangeNotifier {
             notifyListeners();
             return false;
           },
-          (success) {
-            _rawAllUsers.add(createdSpouse);
-            _familyUnits = _buildFamilyTree(_rawAllUsers);
+          (success) async {
+            // Refresh dari server untuk memastikan data lengkap dan sinkron
+            await forceRefresh();
             _isSubmitting = false;
             notifyListeners();
             return true;
@@ -224,7 +271,7 @@ class UserProvider extends ChangeNotifier {
           headId: root.userId,
           nit: root.familyTreeId ?? "-",
           headName: root.fullName ?? "No Name",
-          spouseName: null, 
+          spouseName: null,
           location: root.address ?? "-",
           avatar: root.avatar is String ? root.avatar : null,
           birthYear: root.birthYear,

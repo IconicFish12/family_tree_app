@@ -18,7 +18,7 @@ class ProfileEditPage extends StatefulWidget {
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _namaController;
   late TextEditingController _tahunLahirController;
   late TextEditingController _alamatController;
@@ -37,9 +37,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
     _alamatController = TextEditingController(text: user?.address ?? "");
 
-    // Handle Avatar URL
+    // Handle Avatar URL - convert to full URL
     if (user?.avatar != null && user!.avatar is String) {
-      _currentPhotoUrl = user.avatar as String;
+      _currentPhotoUrl = Config.getFullImageUrl(user.avatar as String);
     }
   }
 
@@ -153,7 +153,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 icon: Icons.person_outline,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _tahunLahirController,
                 label: "Tahun Lahir",
@@ -162,13 +162,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _alamatController,
                 label: "Alamat Tempat Tinggal",
                 hint: "Masukan alamat lengkap",
                 icon: Icons.location_on_outlined,
-                maxLines: 3,
+                minLines: 1,
+                maxLines: 6,
               ),
               const SizedBox(height: 32),
 
@@ -216,8 +217,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     required String hint,
     IconData? icon,
     int maxLines = 1,
+    int minLines = 1,
     TextInputType keyboardType = TextInputType.text,
   }) {
+    final isMultiline = maxLines > 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -233,7 +237,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         TextFormField(
           controller: controller,
           maxLines: maxLines,
-          keyboardType: keyboardType,
+          minLines: minLines,
+          keyboardType: isMultiline ? TextInputType.multiline : keyboardType,
+          textAlignVertical: isMultiline
+              ? TextAlignVertical.top
+              : TextAlignVertical.center,
           validator: (v) =>
               v == null || v.isEmpty ? '$label wajib diisi' : null,
           decoration: InputDecoration(
@@ -244,9 +252,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             prefixIcon: icon != null
                 ? Icon(icon, color: Colors.grey[600])
                 : null,
-            contentPadding: const EdgeInsets.symmetric(
+            contentPadding: EdgeInsets.symmetric(
               horizontal: 16,
-              vertical: 14,
+              vertical: isMultiline ? 16 : 14,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.0),

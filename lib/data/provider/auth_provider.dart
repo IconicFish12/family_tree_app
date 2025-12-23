@@ -16,19 +16,31 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // Menyimpan data user yang sedang login
   Data? _currentUser;
   Data? get currentUser => _currentUser;
 
   void updateUser(UserData updatedUser) {
     if (_currentUser == null) return;
 
+    debugPrint('[AuthProvider] Updating user with: ${updatedUser.toJson()}');
+
+    // Pastikan avatar diambil sebagai String jika tersedia
+    dynamic newAvatar = _currentUser!.avatar;
+    if (updatedUser.avatar != null) {
+      if (updatedUser.avatar is String) {
+        newAvatar = updatedUser.avatar;
+      }
+    }
+
     _currentUser = _currentUser!.copyWith(
       fullName: updatedUser.fullName ?? _currentUser!.fullName,
       address: updatedUser.address ?? _currentUser!.address,
       birthYear: updatedUser.birthYear ?? _currentUser!.birthYear,
-      avatar: updatedUser.avatar ?? _currentUser!.avatar,
-      // Field lain yang relevan
+      avatar: newAvatar,
+    );
+
+    debugPrint(
+      '[AuthProvider] Updated currentUser: fullName=${_currentUser!.fullName}, avatar=${_currentUser!.avatar}',
     );
     notifyListeners();
   }
@@ -49,7 +61,7 @@ class AuthProvider extends ChangeNotifier {
       },
       (loginModel) {
         _currentUser = loginModel.data;
-        
+
         _state = ViewState.success;
         notifyListeners();
         return true;

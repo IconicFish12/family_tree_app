@@ -2,7 +2,6 @@
 // File ini berisi data-data dummy yang dapat diakses di seluruh aplikasi
 
 class DummyData {
-  // Dummy Family Data (untuk EditFamilyPage)
   static final Map<String, dynamic> dummyFamilyData = {
     'id': 'family-001',
     'headName': 'Roisah',

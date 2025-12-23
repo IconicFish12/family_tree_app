@@ -94,9 +94,9 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 20),
                       _buildFamilyInfoCard(
                         context: context,
-                        title: 'Keluarga Utama',
-                        memberCount: '15 Anggota',
-                        description: 'Keluarga Besar Sujadmiko',
+                        title: 'Keluarga Saya',
+                        memberCount: 'NIK: ${user.familyTreeId}',
+                        description: user.fullName,
                         imageUrl: 'assets/images/family_logo.png',
                         onTap: () => context.pushNamed('familyInfo'),
                       ),
@@ -106,8 +106,10 @@ class _HomePageState extends State<HomePage> {
                           Expanded(
                             child: _buildOutlinedButton(
                               text: 'Tambah Anggota Baru',
-                              onPressed: () =>
-                                  context.pushNamed('addFamilyMember'),
+                              onPressed: () => context.pushNamed(
+                                'addFamilyMember',
+                                extra: user.userId, // Pass userId as parentId
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),

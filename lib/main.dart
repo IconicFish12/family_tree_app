@@ -1,4 +1,5 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/core/app_lifecycle_handler.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
@@ -170,9 +171,7 @@ class MyApp extends StatelessWidget {
                           (state.extra as Map<String, dynamic>)['parentId'];
                     }
 
-                    return AddFamilyMemberPage(
-                      parentId: parentId,
-                    );
+                    return AddFamilyMemberPage(parentId: parentId);
                   },
                 ),
               ],
@@ -210,12 +209,21 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => AuthProvider(AuthRepository())),
       ],
-      child: MaterialApp.router(
-        title: 'Flutter Demo',
-        debugShowCheckedModeBanner: false,
-        theme: config.lightTheme,
-        restorationScopeId: 'app',
-        routerConfig: router,
+      child: Builder(
+        builder: (context) {
+          return AppLifecycleHandler(
+            onResume: () {
+              context.read<UserProvider>().silentRefresh();
+            },
+            child: MaterialApp.router(
+              title: 'Flutter Demo',
+              debugShowCheckedModeBanner: false,
+              theme: config.lightTheme,
+              restorationScopeId: 'app',
+              routerConfig: router,
+            ),
+          );
+        },
       ),
     );
 

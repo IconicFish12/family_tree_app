@@ -58,6 +58,23 @@ class UserRepositoryImpl implements UserRepository {
     return null;
   }
 
+  /// Sanitize numeric fields yang mungkin datang sebagai String dari API
+  Map<String, dynamic> _sanitizeUserData(Map<String, dynamic> data) {
+    final sanitized = Map<String, dynamic>.from(data);
+
+    // Convert user_id jika String
+    if (sanitized['user_id'] is String) {
+      sanitized['user_id'] = int.tryParse(sanitized['user_id']);
+    }
+
+    // Convert parent_id jika String
+    if (sanitized['parent_id'] is String) {
+      sanitized['parent_id'] = int.tryParse(sanitized['parent_id']);
+    }
+
+    return sanitized;
+  }
+
   String _getErrorMessage(DioException e) {
     if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
       return "Akses ditolak. Silahkan login kembali.";
@@ -96,7 +113,13 @@ class UserRepositoryImpl implements UserRepository {
         if (rawList.isEmpty) return Right([]);
 
         try {
-          final result = rawList.map((e) => UserData.fromJson(e)).toList();
+          final result = rawList
+              .map(
+                (e) => UserData.fromJson(
+                  _sanitizeUserData(Map<String, dynamic>.from(e)),
+                ),
+              )
+              .toList();
           return Right(result);
         } catch (e) {
           return Left(Failure("Format data tidak sesuai"));
@@ -286,12 +309,27 @@ class UserRepositoryImpl implements UserRepository {
             ),
           );
         }
-      };
+      }
+      ;
 
       final response = await Config.dio.post('$baseUrl/users', data: formData);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return Right(UserData.fromJson(response.data));
+        // API mungkin mengembalikan {message, data}, jadi handle kedua format
+        final responseData = response.data;
+        Map<String, dynamic>? userData;
+
+        if (responseData is Map && responseData.containsKey('data')) {
+          userData = responseData['data'];
+        } else if (responseData is Map<String, dynamic>) {
+          userData = responseData;
+        }
+
+        if (userData != null) {
+          return Right(UserData.fromJson(_sanitizeUserData(userData)));
+        } else {
+          return Left(Failure("Format response tidak sesuai"));
+        }
       } else {
         return Left(
           Failure("Gagal menyimpan data (Status: ${response.statusCode})"),
@@ -454,12 +492,16 @@ class UserRepositoryImpl implements UserRepository {
       if (id.isEmpty || !_isValidId(id)) {
         return Left(Failure("ID pengguna tidak valid"));
       }
-      
+
+      print('[Repository] updateProfile called - id: $id');
+
       final Map<String, dynamic> mapData = data.toJson();
       mapData.remove('user_id');
       mapData.remove('created_at');
       mapData.remove('updated_at');
       mapData.remove('avatar');
+
+      print('[Repository] Form data fields: $mapData');
 
       final formData = FormData.fromMap(mapData);
 
@@ -471,7 +513,9 @@ class UserRepositoryImpl implements UserRepository {
         } else if (data.avatar is File) {
           filePath = (data.avatar as File).path;
         }
-         
+
+        print('[Repository] Avatar path: $filePath');
+
         if (filePath != null && filePath.isNotEmpty) {
           final String fileName = filePath.split('/').last;
           final String mimeType = fileName.toLowerCase().endsWith('png')
@@ -489,22 +533,47 @@ class UserRepositoryImpl implements UserRepository {
               ),
             ),
           );
+          print('[Repository] Avatar file added to form');
         }
       }
+
+      print('[Repository] Calling POST $baseUrl/user/update/$id');
 
       final response = await Config.dio.post(
         '$baseUrl/user/update/$id',
         data: formData,
       );
 
+      print('[Repository] Response status: ${response.statusCode}');
+      print('[Repository] Response data: ${response.data}');
+
       if (response.statusCode == 200 && response.data != null) {
-        return Right(UserData.fromJson(response.data));
+        // API mengembalikan {message, data}, jadi ambil data['data']
+        final responseData = response.data;
+        Map<String, dynamic>? userData;
+
+        if (responseData is Map && responseData.containsKey('data')) {
+          userData = responseData['data'];
+        } else if (responseData is Map<String, dynamic>) {
+          userData = responseData;
+        }
+
+        if (userData != null) {
+          final parsedUser = UserData.fromJson(_sanitizeUserData(userData));
+          print('[Repository] Parsed UserData: ${parsedUser.toJson()}');
+          return Right(parsedUser);
+        } else {
+          return Left(Failure("Format response tidak sesuai"));
+        }
       } else {
         return Left(Failure("Gagal memperbarui profil"));
       }
     } on DioException catch (e) {
+      print('[Repository] DioException: ${e.message}');
+      print('[Repository] DioException response: ${e.response?.data}');
       return Left(Failure(_getErrorMessage(e)));
     } catch (e) {
+      print('[Repository] Error: $e');
       return Left(Failure(e.toString()));
     }
   }

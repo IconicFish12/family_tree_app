@@ -61,16 +61,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
     });
   }
 
-  Future<bool> _onWillPop() async {
-    if (_breadcrumbs.isNotEmpty) {
-      setState(() {
-        _breadcrumbs.removeLast();
-      });
-      return false;
-    }
-    return true;
-  }
-
   String _getShortName(dynamic item) {
     String fullName = "";
     if (item is FamilyUnit) fullName = item.headName;
@@ -117,8 +107,13 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: _breadcrumbs.isEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _breadcrumbs.isNotEmpty) {
+          setState(() => _breadcrumbs.removeLast());
+        }
+      },
       child: Scaffold(
         backgroundColor: Config.background,
         appBar: AppBar(
@@ -233,22 +228,41 @@ class _FamilyListPageState extends State<FamilyListPage> {
                   ),
                 ),
                 Expanded(
-                  child: currentList.isEmpty
-                      ? Center(
-                          child: Text(
-                            "Tidak ada data",
-                            style: TextStyle(color: Config.textSecondary),
+                  child: RefreshIndicator(
+                    onRefresh: () =>
+                        context.read<UserProvider>().fetchData(isRefresh: true),
+                    color: Config.primary,
+                    child: currentList.isEmpty
+                        ? ListView(
+                            // ListView diperlukan agar RefreshIndicator bisa bekerja
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.5,
+                                child: Center(
+                                  child: Text(
+                                    "Tidak ada data\nTarik ke bawah untuk refresh",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Config.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            controller: _breadcrumbs.isEmpty
+                                ? _scrollController
+                                : null,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: currentList.length,
+                            itemBuilder: (context, index) =>
+                                _buildListItem(currentList[index]),
                           ),
-                        )
-                      : ListView.builder(
-                          controller: _breadcrumbs.isEmpty
-                              ? _scrollController
-                              : null,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: currentList.length,
-                          itemBuilder: (context, index) =>
-                              _buildListItem(currentList[index]),
-                        ),
+                  ),
                 ),
               ],
             );
@@ -303,7 +317,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Config.textHead.withOpacity(0.05)),
+        side: BorderSide(color: Config.textHead.withValues(alpha: 0.05)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -313,7 +327,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: isFolder
-                ? Config.primary.withOpacity(0.1)
+                ? Config.primary.withValues(alpha: 0.1)
                 : Config.background,
             borderRadius: BorderRadius.circular(10),
           ),
@@ -379,7 +393,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
             : Icon(
                 Icons.info_outline,
                 size: 20,
-                color: Config.textSecondary.withOpacity(0.5),
+                color: Config.textSecondary.withValues(alpha: 0.5),
               ),
       ),
     );

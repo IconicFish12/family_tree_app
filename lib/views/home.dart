@@ -1,3 +1,5 @@
+import 'package:family_tree_app/components/family_info_card.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -53,6 +55,17 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           }
+
+          // Convert Data to UserData
+          final userData = UserData(
+            userId: user.userId,
+            familyTreeId: user.familyTreeId,
+            fullName: user.fullName,
+            address: user.address,
+            birthYear: user.birthYear?.toString(),
+            avatar: user.avatar,
+          );
+
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,6 +81,10 @@ class _HomePageState extends State<HomePage> {
                         'assets/images/family_logo.png',
                         fit: BoxFit.cover,
                       ),
+                    ),
+                    Container(
+                      height: 180,
+                      color: Colors.black.withValues(alpha: 0.2),
                     ),
                     Positioned(
                       bottom: -25,
@@ -92,14 +109,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _buildFamilyInfoCard(
-                        context: context,
-                        title: 'Keluarga Saya',
-                        memberCount: 'NIK: ${user.familyTreeId}',
-                        description: user.fullName,
-                        imageUrl: 'assets/images/family_logo.png',
-                        onTap: () => context.pushNamed('familyInfo'),
-                      ),
+                      FamilyInfoCard(user: userData),
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -143,7 +153,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -154,7 +164,7 @@ class _HomePageState extends State<HomePage> {
         decoration: InputDecoration(
           hintText: 'Cari berdasarkan nama, nik atau hal lainnya..',
           hintStyle: TextStyle(
-            color: Config.textSecondary.withOpacity(0.7),
+            color: Config.textSecondary.withValues(alpha: 0.7),
             fontSize: 14,
           ),
           suffixIcon: Icon(Icons.search, color: Config.textSecondary),
@@ -162,90 +172,6 @@ class _HomePageState extends State<HomePage> {
           contentPadding: const EdgeInsets.symmetric(
             vertical: 15,
             horizontal: 20,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget Untuk Familty Info (User Login)
-  Widget _buildFamilyInfoCard({
-    required BuildContext context,
-    required String title,
-    required String memberCount,
-    required String description,
-    required String imageUrl,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 120,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage(imageUrl),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: Container(color: Colors.black.withOpacity(0.2)),
-              ),
-              Container(
-                width: double.infinity,
-                color: Config.primary,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: Config.semiBold,
-                        color: Config.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      memberCount,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: Config.regular,
-                        color: Config.white.withOpacity(0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: Config.regular,
-                        color: Config.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
       ),

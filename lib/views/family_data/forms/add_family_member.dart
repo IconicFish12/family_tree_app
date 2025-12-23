@@ -11,8 +11,14 @@ import 'package:provider/provider.dart';
 class AddFamilyMemberPage extends StatefulWidget {
   final int? parentId;
   final String? parentName; // Tambahan untuk UI
+  final bool isSpouseOnly; // New parameter
 
-  const AddFamilyMemberPage({super.key, this.parentId, this.parentName});
+  const AddFamilyMemberPage({
+    super.key,
+    this.parentId,
+    this.parentName,
+    this.isSpouseOnly = false, // Default false
+  });
 
   @override
   State<AddFamilyMemberPage> createState() => _AddFamilyMemberPageState();
@@ -24,8 +30,15 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _addressController = TextEditingController();
   final _birthYearController = TextEditingController();
 
-  String _relationType = 'Anak';
+  late String _relationType; // Change to late
   XFile? memberPhoto;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize based on isSpouseOnly
+    _relationType = widget.isSpouseOnly ? 'Pasangan' : 'Anak';
+  }
 
   @override
   void dispose() {
@@ -110,53 +123,80 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isSubmitting = context.select<UserProvider, bool>(
-      (p) => p.isSubmitting,
-    );
+    final userProvider = context.watch<UserProvider>();
+
+    // Logic to check if user already has a spouse
+    bool hasSpouse = false;
+    String? spouseName;
+
+    if (widget.parentId != null) {
+      final currentUser = userProvider.allUsers.firstWhere(
+        (u) => u.userId == widget.parentId,
+        orElse: () => const UserData(),
+      );
+
+      if (currentUser.familyTreeId != null) {
+        final spouses = userProvider.allUsers.where((u) {
+          // Spouse is another root user (parentId == null) with same family_tree_id
+          // And different userId
+          return u.familyTreeId == currentUser.familyTreeId &&
+              u.parentId == null &&
+              u.userId != widget.parentId;
+        }).toList();
+
+        if (spouses.isNotEmpty) {
+          hasSpouse = true;
+          spouseName = spouses.first.fullName;
+        }
+      }
+    }
+
+    final isSubmitting = userProvider.isSubmitting;
 
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Tambah Anggota",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+          style: TextStyle(color: Config.textHead, fontWeight: Config.semiBold),
         ),
         centerTitle: true,
-        leading: CustomBackButton(onPressed: () => context.pop()),
-        backgroundColor: Colors.white,
+        leading: CustomBackButton(
+          color: Config.textHead,
+          onPressed: () => context.pop(),
+        ),
+        backgroundColor: Config.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (widget.parentName != null)
+              if (widget.parentName != null) ...[
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Config.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Config.primary.withOpacity(0.3)),
+                    color: Config.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Config.primary.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.person_add_alt_1,
-                        color: Config.primary,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 16),
+                      Icon(Icons.family_restroom, color: Config.primary),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Menambahkan hubungan ke:",
+                              "Menambahkan keluarga untuk:",
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Config.textSecondary,
@@ -165,12 +205,39 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                             Text(
                               widget.parentName!,
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: Config.bold,
                                 color: Config.textHead,
+                                fontSize: 16,
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+              if (widget.isSpouseOnly)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Config.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Config.primary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.favorite, color: Config.primary),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          "Menambahkan Pasangan (Suami/Istri)",
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -183,33 +250,73 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildLabel("Status Hubungan"),
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Anak'),
-                      value: 'Anak',
-                      groupValue: _relationType,
-                      activeColor: Config.primary,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (value) =>
-                          setState(() => _relationType = value!),
-                    ),
+
+              if (hasSpouse && _relationType == 'Pasangan') ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
                   ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Pasangan'),
-                      value: 'Pasangan',
-                      groupValue: _relationType,
-                      activeColor: Config.primary,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (value) =>
-                          setState(() => _relationType = value!),
-                    ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "Anda sudah memiliki pasangan: $spouseName. Tidak bisa menambah lagi.",
+                          style: TextStyle(
+                            color: Colors.orange[900],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
+
+              if (!widget.isSpouseOnly) ...[
+                _buildLabel("Status Hubungan"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Anak'),
+                        value: 'Anak',
+                        groupValue: _relationType,
+                        activeColor: Config.primary,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (value) =>
+                            setState(() => _relationType = value!),
+                      ),
+                    ),
+                    Expanded(
+                      child: Opacity(
+                        opacity: hasSpouse ? 0.5 : 1.0,
+                        child: RadioListTile<String>(
+                          title: const Text('Pasangan'),
+                          value: 'Pasangan',
+                          groupValue: hasSpouse
+                              ? null
+                              : _relationType, // Reset if hasSpouse
+                          activeColor: Config.primary,
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: hasSpouse
+                              ? null
+                              : (value) =>
+                                    setState(() => _relationType = value!),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               _buildTextField(
                 label: 'Nama Lengkap',

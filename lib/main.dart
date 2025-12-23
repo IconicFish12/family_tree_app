@@ -143,10 +143,8 @@ class MyApp extends StatelessWidget {
               builder: (context, state) {
                 final args = state.extra as Map<String, dynamic>;
                 return FamilyInfoPage(
-                  headName: args['headName'] ?? "Unknown",
-                  spouseName: args['spouseName'],
-                  children: args['children'] ?? [],
                   parentId: args['parentId'],
+                  initialHeadName: args['headName'], // Fallback name
                 );
               },
             ),
@@ -159,19 +157,27 @@ class MyApp extends StatelessWidget {
               },
               routes: [
                 GoRoute(
-                  path: 'add-family-member',
+                  path: 'add',
                   name: 'addFamilyMember',
                   builder: (context, state) {
+                    final extra = state.extra;
                     int? parentId;
+                    String? parentName;
+                    bool isSpouseOnly = false;
 
-                    if (state.extra is int) {
-                      parentId = state.extra as int;
-                    } else if (state.extra is Map<String, dynamic>) {
-                      parentId =
-                          (state.extra as Map<String, dynamic>)['parentId'];
+                    if (extra is int) {
+                      parentId = extra;
+                    } else if (extra is Map) {
+                      parentId = extra['parentId'] as int?;
+                      parentName = extra['parentName'] as String?;
+                      isSpouseOnly = extra['isSpouseOnly'] as bool? ?? false;
                     }
 
-                    return AddFamilyMemberPage(parentId: parentId);
+                    return AddFamilyMemberPage(
+                      parentId: parentId,
+                      parentName: parentName,
+                      isSpouseOnly: isSpouseOnly,
+                    );
                   },
                 ),
               ],

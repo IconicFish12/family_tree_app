@@ -1,27 +1,85 @@
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:provider/provider.dart';
 
 class FamilyInfoPage extends StatelessWidget {
-  // Data yang diterima dari navigasi
-  final String headName;
-  final String? spouseName;
-  final List<ChildMember> children;
-  final int? parentId; // ID Database (untuk tambah anak)
+  // Hanya parentId yang krusial untuk fetching data
+  final int? parentId;
+  // Parameter lain opsional/fallback
+  final String? initialHeadName;
 
   const FamilyInfoPage({
     super.key,
-    required this.headName,
-    this.spouseName,
-    this.children = const [],
     this.parentId,
+    this.initialHeadName,
+    // Parameter lain diabaikan karena kita fetch realtime
+    String? spouseName,
+    List<ChildMember>? children,
   });
 
   @override
   Widget build(BuildContext context) {
+    // 1. Listen ke UserProvider
+    final userProvider = context.watch<UserProvider>();
+    final allUsers = userProvider.allUsers;
+
+    // 2. Cari data Kepala Keluarga (Head)
+    UserData? headUser;
+    if (parentId != null) {
+      try {
+        headUser = allUsers.firstWhere((u) => u.userId == parentId);
+      } catch (e) {
+        // User not found
+      }
+    }
+
+    // 3. Cari Data Pasangan & Anak secara Realtime
+    String headName = headUser?.fullName ?? initialHeadName ?? "Loading...";
+    String? spouseNameStr;
+    List<ChildMember> childrenList = [];
+
+    if (headUser != null && headUser.familyTreeId != null) {
+      final myFamilyTreeId = headUser.familyTreeId!;
+
+      // Cari Pasangan (Root user dengan familyTreeId sama, tapi userId beda)
+      try {
+        final spouse = allUsers.firstWhere((u) {
+          return u.familyTreeId == myFamilyTreeId &&
+              u.parentId == null &&
+              u.userId != headUser!.userId;
+        });
+        spouseNameStr = spouse.fullName;
+      } catch (_) {}
+
+      // Cari Anak (FamilyTreeId startsWith myFamilyTreeId. dan userId beda)
+      // Note: Logic filter sesuaikan dengan FamilyInfoCard
+      final familyMembers = allUsers.where((u) {
+        if (u.familyTreeId == null) return false;
+        return u.familyTreeId!.startsWith('$myFamilyTreeId.') &&
+            u.userId != headUser!.userId;
+      }).toList();
+
+      childrenList = familyMembers
+          .map(
+            (u) => ChildMember(
+              id: u.userId,
+              nit: u.familyTreeId ?? '',
+              name: u.fullName ?? 'Unknown',
+              location: u.address ?? '',
+              birthYear: u.birthYear ?? '',
+              emoji: '👤',
+              photoUrl: u.avatar is String ? u.avatar : null,
+            ),
+          )
+          .toList();
+    }
+
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
@@ -53,7 +111,7 @@ class FamilyInfoPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // === 1. KARTU INFORMASI UTAMA KELUARGA ===
-            _buildFamilyHeaderCard(context),
+            _buildFamilyHeaderCard(context, headName, spouseNameStr),
             const SizedBox(height: 24),
 
             // === 2. JUDUL UNTUK DAFTAR ANAK ===
@@ -61,7 +119,7 @@ class FamilyInfoPage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Anak-Anak (${children.length})',
+                  'Anak-Anak (${childrenList.length})',
                   style: TextStyle(
                     color: Config.textHead,
                     fontSize: 18,
@@ -89,7 +147,7 @@ class FamilyInfoPage extends StatelessWidget {
             const SizedBox(height: 12),
 
             // === 3. DAFTAR ANAK ===
-            if (children.isEmpty)
+            if (childrenList.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Center(
@@ -101,7 +159,7 @@ class FamilyInfoPage extends StatelessWidget {
               )
             else
               Column(
-                children: children.map((member) {
+                children: childrenList.map((member) {
                   return _buildMemberCard(context: context, member: member);
                 }).toList(),
               ),
@@ -117,7 +175,11 @@ class FamilyInfoPage extends StatelessWidget {
     );
   }
 
-  Widget _buildFamilyHeaderCard(BuildContext context) {
+  Widget _buildFamilyHeaderCard(
+    BuildContext context,
+    String headName,
+    String? spouseName,
+  ) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -138,23 +200,49 @@ class FamilyInfoPage extends StatelessWidget {
             name: headName,
             role: "Kepala Keluarga",
             emoji: '👨',
-            // Kita belum punya detail object untuk kepala keluarga di sini
-            // Bisa ditambahkan nanti jika perlu
             onTap: () {},
           ),
-          if (spouseName != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Divider(color: Config.background, height: 1),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Divider(color: Config.background, height: 1),
+          ),
+          if (spouseName != null)
             _buildMemberTile(
               context: context,
-              name: spouseName!,
+              name: spouseName,
               role: "Pasangan",
               emoji: '👩',
               onTap: () {},
+            )
+          else
+            InkWell(
+              onTap: () {
+                // Navigasi ke tambah anggota khusus untuk pasangan
+                // Kita pass parentId (ID user saat ini)
+                // Dan di form nanti otomatis set relationType ke 'Pasangan'
+                context.pushNamed(
+                  'addFamilyMember',
+                  extra: {'parentId': parentId, 'isSpouseOnly': true},
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person_add_alt_1, color: Config.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Tambah Pasangan",
+                      style: TextStyle(
+                        color: Config.primary,
+                        fontWeight: Config.semiBold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
         ],
       ),
     );

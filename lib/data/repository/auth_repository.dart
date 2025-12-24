@@ -12,7 +12,7 @@ class AuthRepository {
   Future<Either<Failure, LoginModel>> login(String familyTreeId, String password) async {
     try {
       final response = await Config.dio.post(
-        "$baseUrl/users/login", // Base URL sudah ada di Config.dio
+        "$baseUrl/users/login", 
         data: {
           'family_tree_id': familyTreeId,
           'password': password,
@@ -20,7 +20,6 @@ class AuthRepository {
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        // Mapping JSON ke Model
         try {
           final loginData = LoginModel.fromJson(response.data);
           return Right(loginData);

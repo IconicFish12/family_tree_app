@@ -31,22 +31,17 @@ class FamilyInfoCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Get all users from UserProvider
             final userProvider = context.read<UserProvider>();
             final allUsers = userProvider.allUsers;
             final myFamilyTreeId = user.familyTreeId;
-
-            // Filter users with matching family_tree_id (children/family members)
             final familyMembers = allUsers.where((u) {
-              if (u.familyTreeId == null || myFamilyTreeId == null)
+              if (u.familyTreeId == null || myFamilyTreeId == null) {
                 return false;
-              // Match if family_tree_id starts with user's family_tree_id
-              // And make sure it's not the user themselves
+              }
               return u.familyTreeId!.startsWith('$myFamilyTreeId.') &&
                   u.userId != user.userId;
             }).toList();
 
-            // Convert to ChildMember list for FamilyInfoPage
             final children = familyMembers
                 .map(
                   (u) => ChildMember(
@@ -65,7 +60,7 @@ class FamilyInfoCard extends StatelessWidget {
               'familyInfo',
               extra: {
                 'headName': user.fullName ?? 'Unknown',
-                'spouseName': null, // TODO: Logic to find spouse name if needed
+                'spouseName': null,
                 'children': children,
                 'parentId': user.userId,
               },

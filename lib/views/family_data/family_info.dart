@@ -9,27 +9,22 @@ import 'package:family_tree_app/config/config.dart';
 import 'package:provider/provider.dart';
 
 class FamilyInfoPage extends StatelessWidget {
-  // Hanya parentId yang krusial untuk fetching data
   final int? parentId;
-  // Parameter lain opsional/fallback
   final String? initialHeadName;
 
   const FamilyInfoPage({
     super.key,
     this.parentId,
     this.initialHeadName,
-    // Parameter lain diabaikan karena kita fetch realtime
     String? spouseName,
     List<ChildMember>? children,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 1. Listen ke UserProvider
     final userProvider = context.watch<UserProvider>();
     final allUsers = userProvider.allUsers;
 
-    // 2. Cari data Kepala Keluarga (Head)
     UserData? headUser;
     if (parentId != null) {
       try {
@@ -39,7 +34,6 @@ class FamilyInfoPage extends StatelessWidget {
       }
     }
 
-    // 3. Cari Data Pasangan & Anak secara Realtime
     String headName = headUser?.fullName ?? initialHeadName ?? "Loading...";
     String? spouseNameStr;
     List<ChildMember> childrenList = [];
@@ -47,7 +41,6 @@ class FamilyInfoPage extends StatelessWidget {
     if (headUser != null && headUser.familyTreeId != null) {
       final myFamilyTreeId = headUser.familyTreeId!;
 
-      // Cari Pasangan (Root user dengan familyTreeId sama, tapi userId beda)
       try {
         final spouse = allUsers.firstWhere((u) {
           return u.familyTreeId == myFamilyTreeId &&
@@ -57,8 +50,6 @@ class FamilyInfoPage extends StatelessWidget {
         spouseNameStr = spouse.fullName;
       } catch (_) {}
 
-      // Cari Anak (FamilyTreeId startsWith myFamilyTreeId. dan userId beda)
-      // Note: Logic filter sesuaikan dengan FamilyInfoCard
       final familyMembers = allUsers.where((u) {
         if (u.familyTreeId == null) return false;
         return u.familyTreeId!.startsWith('$myFamilyTreeId.') &&
@@ -91,7 +82,7 @@ class FamilyInfoPage extends StatelessWidget {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             } else {
-              context.goNamed('familyList'); // Ubah ke goNamed agar aman
+              context.goNamed('familyList');
             }
           },
         ),
@@ -110,11 +101,8 @@ class FamilyInfoPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // === 1. KARTU INFORMASI UTAMA KELUARGA ===
             _buildFamilyHeaderCard(context, headName, spouseNameStr),
             const SizedBox(height: 24),
-
-            // === 2. JUDUL UNTUK DAFTAR ANAK ===
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -128,7 +116,6 @@ class FamilyInfoPage extends StatelessWidget {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    // PASSING parentId ke form tambah anggota
                     context.pushNamed('addFamilyMember', extra: parentId);
                   },
                   icon: const Icon(Icons.add),
@@ -145,8 +132,6 @@ class FamilyInfoPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-
-            // === 3. DAFTAR ANAK ===
             if (childrenList.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -217,9 +202,6 @@ class FamilyInfoPage extends StatelessWidget {
           else
             InkWell(
               onTap: () {
-                // Navigasi ke tambah anggota khusus untuk pasangan
-                // Kita pass parentId (ID user saat ini)
-                // Dan di form nanti otomatis set relationType ke 'Pasangan'
                 context.pushNamed(
                   'addFamilyMember',
                   extra: {'parentId': parentId, 'isSpouseOnly': true},
@@ -268,10 +250,9 @@ class FamilyInfoPage extends StatelessWidget {
       child: _buildMemberTile(
         context: context,
         name: member.name,
-        role: "Anak", // Bisa disesuaikan logicnya
+        role: "Anak",
         emoji: member.emoji,
         onTap: () {
-          // Passing object member ke halaman detail
           context.pushNamed('memberInfo', extra: member);
         },
       ),

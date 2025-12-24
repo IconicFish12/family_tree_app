@@ -55,7 +55,6 @@ class Config {
 
       textTheme: GoogleFonts.albertSansTextTheme(
         TextTheme(
-          // Contoh kustomisasi (jika diperlukan)
           // Judul Halaman Besar
           headlineMedium: TextStyle(
             color: Config.textHead,
@@ -65,7 +64,7 @@ class Config {
           bodyLarge: TextStyle(
             color: Config.textHead,
             fontWeight: Config.regular,
-            height: 1.5, // Spasi baris agar mudah dibaca
+            height: 1.5,
           ),
           // Teks Body Sekunder
           bodyMedium: TextStyle(
@@ -80,7 +79,7 @@ class Config {
       // Atur Tema AppBar
       appBarTheme: AppBarTheme(
         backgroundColor: Config.primary,
-        foregroundColor: Config.white, // Warna ikon dan tombol back
+        foregroundColor: Config.white, 
         elevation: 0,
         titleTextStyle: GoogleFonts.albertSans(
           fontSize: 20,

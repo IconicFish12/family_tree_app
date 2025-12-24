@@ -33,10 +33,7 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
     if (widget.initialImagePath != null) {
       if (widget.isNetworkImage) {
         _networkImageUrl = widget.initialImagePath;
-      } else {
-        // Untuk initial local image, kita biarkan null dulu atau handle logic khusus
-        // Biasanya initial image itu dari Network (Edit Profile)
-      }
+      } 
     }
   }
 
@@ -45,7 +42,6 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: source,
-        // Tips: Kompres gambar agar upload lebih cepat & hemat kuota
         imageQuality: 50,
         maxWidth: 800,
       );
@@ -55,7 +51,6 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
           _pickedFile = image;
           _networkImageUrl = null;
         });
-        // Kirim XFile ke parent
         widget.onImageSelected(_pickedFile);
       }
     } catch (e) {
@@ -98,10 +93,8 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
   }
 
   Widget _buildImageContent() {
-    // 1. Jika ada gambar baru yang dipilih user
     if (_pickedFile != null) {
       if (kIsWeb) {
-        // WEB: Gunakan Image.network karena XFile.path di web adalah Blob URL
         return Image.network(
           _pickedFile!.path,
           fit: BoxFit.cover,
@@ -129,8 +122,6 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
         ),
       );
     }
-
-    // 3. Default Placeholder
     return Center(
       child: Icon(
         Icons.person,

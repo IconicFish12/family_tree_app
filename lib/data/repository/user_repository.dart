@@ -1,3 +1,4 @@
+// import 'dart:io';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -9,7 +10,6 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 abstract class UserRepository {
-  // GET routes
   Future<Either<Failure, List<UserData>>> getData({int page = 1});
   Future<Either<Failure, UserData>> getById(String id);
   Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId);
@@ -20,21 +20,9 @@ abstract class UserRepository {
   Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers(
     String familyTreeId,
   );
-
-  // POST routes
   Future<Either<Failure, UserData>> createUser(UserData data);
-  Future<Either<Failure, UserData>> createUserWithoutTree(UserData data);
-  Future<Either<Failure, UserData>> addChild(Map<String, dynamic> childData);
-  Future<Either<Failure, dynamic>> createSpouse(
-    Map<String, dynamic> spouseData,
-  );
   Future<Either<Failure, UserData>> login(String email, String password);
-
-  // PUT routes
   Future<Either<Failure, UserData>> updateProfile(String id, UserData data);
-  Future<Either<Failure, dynamic>> updateChildrenByFamilyTree(
-    Map<String, dynamic> updateData,
-  );
 }
 
 class UserRepositoryImpl implements UserRepository {
@@ -58,16 +46,12 @@ class UserRepositoryImpl implements UserRepository {
     return null;
   }
 
-  /// Sanitize numeric fields yang mungkin datang sebagai String dari API
   Map<String, dynamic> _sanitizeUserData(Map<String, dynamic> data) {
     final sanitized = Map<String, dynamic>.from(data);
 
-    // Convert user_id jika String
     if (sanitized['user_id'] is String) {
       sanitized['user_id'] = int.tryParse(sanitized['user_id']);
     }
-
-    // Convert parent_id jika String
     if (sanitized['parent_id'] is String) {
       sanitized['parent_id'] = int.tryParse(sanitized['parent_id']);
     }
@@ -268,12 +252,11 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  // CREATE USER WITH TREE
   @override
   Future<Either<Failure, UserData>> createUser(UserData data) async {
     try {
-      final Map<String, dynamic> mapData = data.toJson();
 
+      final Map<String, dynamic> mapData = data.toJson();
       mapData.remove('user_id');
       mapData.remove('created_at');
       mapData.remove('updated_at');
@@ -282,17 +265,17 @@ class UserRepositoryImpl implements UserRepository {
       final formData = FormData.fromMap(mapData);
 
       if (data.avatar != null) {
+
         String? filePath;
 
         if (data.avatar is XFile) {
           filePath = (data.avatar as XFile).path;
+        } else if (data.avatar is File) {
+          filePath = (data.avatar as File).path;
         }
 
-        // Jika path ditemukan, proses upload
         if (filePath != null && filePath.isNotEmpty) {
           final String fileName = filePath.split('/').last;
-
-          // Deteksi Mime Type sederhana
           final String mimeType = fileName.toLowerCase().endsWith('png')
               ? 'image/png'
               : 'image/jpeg';
@@ -308,133 +291,61 @@ class UserRepositoryImpl implements UserRepository {
               ),
             ),
           );
-        }
-      }
-      ;
+        } 
+      } 
 
-      final response = await Config.dio.post('$baseUrl/users', data: formData);
+      final response = await Config.dio.post(
+        '$baseUrl/users',
+        data: formData,
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+          },
+          followRedirects: false,
+          validateStatus: (status) {
+            return status! < 500;
+          },
+        ),
+      );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // API mungkin mengembalikan {message, data}, jadi handle kedua format
         final responseData = response.data;
-        Map<String, dynamic>? userData;
 
-        if (responseData is Map && responseData.containsKey('data')) {
-          userData = responseData['data'];
-        } else if (responseData is Map<String, dynamic>) {
-          userData = responseData;
-        }
+        if (responseData != null) {
+          final userJson =
+              responseData is Map && responseData.containsKey('data')
+              ? responseData['data']
+              : responseData;
 
-        if (userData != null) {
-          return Right(UserData.fromJson(_sanitizeUserData(userData)));
-        } else {
-          return Left(Failure("Format response tidak sesuai"));
+          return Right(UserData.fromJson(_sanitizeUserData(userJson)));
         }
+        return Left(Failure("Data kosong"));
       } else {
-        return Left(
-          Failure("Gagal menyimpan data (Status: ${response.statusCode})"),
-        );
+        String errorMsg =
+            "Gagal menyimpan data (Status: ${response.statusCode})";
+        if (response.data is Map && response.data['message'] != null) {
+          errorMsg = response.data['message'];
+        }
+        return Left(Failure(errorMsg));
       }
     } on DioException catch (e) {
+      print('--- [DEBUG] DIO EXCEPTION ---');
+      print('Type: ${e.type}');
+      print('Message: ${e.message}');
+      print('Response Status: ${e.response?.statusCode}');
+      print('Response Data: ${e.response?.data}');
+
       if (e.response?.statusCode == 422) {
         print("Validation Error Detail: ${e.response?.data}");
       }
       return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('--- [DEBUG] GENERAL EXCEPTION ---');
+      print('Error: $e');
+      print('Stack Trace: $stackTrace');
       return Left(Failure("Terjadi kesalahan: $e"));
-    }
-  }
-
-  // CREATE USER WITHOUT TREE
-  @override
-  Future<Either<Failure, UserData>> createUserWithoutTree(UserData data) async {
-    try {
-      final body = data.toJson();
-
-      body.remove('user_id');
-      body.remove('created_at');
-      body.remove('updated_at');
-
-      if (body.isEmpty) {
-        return Left(Failure("Data tidak boleh kosong"));
-      }
-
-      final response = await Config.dio.post(
-        '$baseUrl/users/no-tree',
-        data: body,
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data respons tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Gagal menyimpan data pengguna"));
-      }
-    } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal menyimpan data"));
-    }
-  }
-
-  // ADD CHILD - HALAMAN 9
-  @override
-  Future<Either<Failure, UserData>> addChild(
-    Map<String, dynamic> childData,
-  ) async {
-    try {
-      if (childData.isEmpty) {
-        return Left(Failure("Data anak tidak boleh kosong"));
-      }
-
-      final response = await Config.dio.post(
-        '$baseUrl/users/add-child',
-        data: childData,
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data respons tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Gagal menambahkan anak"));
-      }
-    } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal menambahkan anak"));
-    }
-  }
-
-  // CREATE SPOUSE - HALAMAN 9
-  @override
-  Future<Either<Failure, dynamic>> createSpouse(
-    Map<String, dynamic> spouseData,
-  ) async {
-    try {
-      if (spouseData.isEmpty) {
-        return Left(Failure("Data pasangan tidak boleh kosong"));
-      }
-
-      final response = await Config.dio.post(
-        '$baseUrl/spouse',
-        data: spouseData,
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        return Right(response.data);
-      } else {
-        return Left(Failure("Gagal menambahkan pasangan"));
-      }
-    } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal menambahkan pasangan"));
+    } finally {
+      print('--- [DEBUG] END createUser ---');
     }
   }
 
@@ -442,7 +353,6 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, UserData>> login(String email, String password) async {
     try {
-      // Validate email format
       if (email.isEmpty || !email.contains('@')) {
         return Left(Failure("Email tidak valid"));
       }
@@ -450,7 +360,6 @@ class UserRepositoryImpl implements UserRepository {
         return Left(Failure("Email terlalu panjang"));
       }
 
-      // Validate password
       if (password.isEmpty || password.length < 6) {
         return Left(Failure("Password minimal 6 karakter"));
       }
@@ -493,15 +402,11 @@ class UserRepositoryImpl implements UserRepository {
         return Left(Failure("ID pengguna tidak valid"));
       }
 
-      print('[Repository] updateProfile called - id: $id');
-
       final Map<String, dynamic> mapData = data.toJson();
       mapData.remove('user_id');
       mapData.remove('created_at');
       mapData.remove('updated_at');
       mapData.remove('avatar');
-
-      print('[Repository] Form data fields: $mapData');
 
       final formData = FormData.fromMap(mapData);
 
@@ -510,14 +415,13 @@ class UserRepositoryImpl implements UserRepository {
 
         if (data.avatar is XFile) {
           filePath = (data.avatar as XFile).path;
-        } else if (data.avatar is File) {
-          filePath = (data.avatar as File).path;
         }
 
-        print('[Repository] Avatar path: $filePath');
-
+        // Jika path ditemukan, proses upload
         if (filePath != null && filePath.isNotEmpty) {
           final String fileName = filePath.split('/').last;
+
+          // Deteksi Mime Type sederhana
           final String mimeType = fileName.toLowerCase().endsWith('png')
               ? 'image/png'
               : 'image/jpeg';
@@ -533,22 +437,15 @@ class UserRepositoryImpl implements UserRepository {
               ),
             ),
           );
-          print('[Repository] Avatar file added to form');
         }
       }
-
-      print('[Repository] Calling POST $baseUrl/user/update/$id');
 
       final response = await Config.dio.post(
         '$baseUrl/user/update/$id',
         data: formData,
       );
 
-      print('[Repository] Response status: ${response.statusCode}');
-      print('[Repository] Response data: ${response.data}');
-
       if (response.statusCode == 200 && response.data != null) {
-        // API mengembalikan {message, data}, jadi ambil data['data']
         final responseData = response.data;
         Map<String, dynamic>? userData;
 
@@ -560,7 +457,6 @@ class UserRepositoryImpl implements UserRepository {
 
         if (userData != null) {
           final parsedUser = UserData.fromJson(_sanitizeUserData(userData));
-          print('[Repository] Parsed UserData: ${parsedUser.toJson()}');
           return Right(parsedUser);
         } else {
           return Left(Failure("Format response tidak sesuai"));
@@ -569,39 +465,9 @@ class UserRepositoryImpl implements UserRepository {
         return Left(Failure("Gagal memperbarui profil"));
       }
     } on DioException catch (e) {
-      print('[Repository] DioException: ${e.message}');
-      print('[Repository] DioException response: ${e.response?.data}');
       return Left(Failure(_getErrorMessage(e)));
     } catch (e) {
-      print('[Repository] Error: $e');
       return Left(Failure(e.toString()));
-    }
-  }
-
-  // UPDATE CHILDREN BY FAMILY TREE - HALAMAN 11
-  @override
-  Future<Either<Failure, dynamic>> updateChildrenByFamilyTree(
-    Map<String, dynamic> updateData,
-  ) async {
-    try {
-      if (updateData.isEmpty) {
-        return Left(Failure("Data update tidak boleh kosong"));
-      }
-
-      final response = await Config.dio.put(
-        '$baseUrl/family/update-children',
-        data: updateData,
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        return Right(response.data);
-      } else {
-        return Left(Failure("Gagal memperbarui data anak"));
-      }
-    } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memperbarui data"));
     }
   }
 }

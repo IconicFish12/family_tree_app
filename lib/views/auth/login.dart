@@ -11,15 +11,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Ganti nama controller agar sesuai konteks
-  late TextEditingController _idController; 
+  late TextEditingController _idController;
   late TextEditingController _passwordController;
   bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
-    _idController = TextEditingController(); // Untuk Family Tree ID / User ID
+    _idController = TextEditingController();
     _passwordController = TextEditingController();
   }
 
@@ -32,11 +31,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _handleLogin() async {
     if (_idController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-      
-      // Panggil Provider
       final authProvider = context.read<AuthProvider>();
-
-      // Proses Login
       final success = await authProvider.login(
         _idController.text.trim(),
         _passwordController.text.trim(),
@@ -45,7 +40,6 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (success) {
-        // Login Berhasil -> Pindah ke Home
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login Berhasil!'),
@@ -54,7 +48,6 @@ class _LoginPageState extends State<LoginPage> {
         );
         context.goNamed('home');
       } else {
-        // Login Gagal -> Tampilkan Error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.errorMessage ?? 'Login Gagal'),
@@ -74,7 +67,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Ambil loading state dari AuthProvider
     final isLoading = context.select<AuthProvider, bool>(
       (p) => p.state == ViewState.loading,
     );
@@ -91,8 +83,7 @@ class _LoginPageState extends State<LoginPage> {
                 borderRadius: BorderRadius.circular(40),
                 child: Image.asset(
                   'assets/images/logo_aplikasi_silsilah_keluarga.png',
-                  width:
-                      120, // Beri ukuran agar tidak overflow jika gambar besar
+                  width: 120,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -126,12 +117,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 40),
-              
-              // === INPUT ID / FAMILY TREE ID ===
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
-                  'ID Keluarga / User ID', // Sesuaikan label
+                  'ID Keluarga / User ID',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -169,8 +158,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              
-              // === INPUT PASSWORD ===
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
@@ -226,14 +213,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              
-              // Forgot Password Link
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    // Handle forgot password
-                  },
+                  onPressed: () {},
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
@@ -250,14 +233,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              
-              // === LOGIN BUTTON ===
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : _handleLogin, // Disable saat loading
+                  onPressed: isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     disabledBackgroundColor: Colors.grey[400],

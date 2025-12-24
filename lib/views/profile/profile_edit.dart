@@ -18,7 +18,6 @@ class ProfileEditPage extends StatefulWidget {
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
   final _formKey = GlobalKey<FormState>();
-
   late TextEditingController _namaController;
   late TextEditingController _tahunLahirController;
   late TextEditingController _alamatController;
@@ -37,7 +36,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
     _alamatController = TextEditingController(text: user?.address ?? "");
 
-    // Handle Avatar URL - convert to full URL
     if (user?.avatar != null && user!.avatar is String) {
       _currentPhotoUrl = Config.getFullImageUrl(user.avatar as String);
     }
@@ -51,7 +49,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     super.dispose();
   }
 
-  // LOGIC UPDATE PROFILE
   void _handleUpdate() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -61,15 +58,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     if (currentUser == null) return;
 
-    // 1. Siapkan Data Update
     final updatedData = UserData(
       fullName: _namaController.text,
       address: _alamatController.text,
       birthYear: _tahunLahirController.text,
-      avatar: _newProfilePhoto, // Kirim XFile jika ada foto baru
+      avatar: _newProfilePhoto,
     );
 
-    // 2. Panggil API Update via UserProvider
     final result = await userProvider.updateProfile(
       id: currentUser.userId.toString(),
       data: updatedData,
@@ -79,16 +74,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     // 3. Handle Hasil
     if (result != null) {
-      // SUKSES: Update data lokal di AuthProvider
       authProvider.updateUser(result);
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Profil berhasil diperbarui!"),
           backgroundColor: Config.primary,
         ),
       );
-      context.pop(); // Kembali ke halaman profile
+      context.pop();
     } else {
       // GAGAL
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,7 +95,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen loading state dari UserProvider
     final isSubmitting = context.select<UserProvider, bool>(
       (p) => p.isSubmitting,
     );
@@ -130,7 +122,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Bagian Foto Profil (Pakai ImagePickerField)
               Center(
                 child: ImagePickerField(
                   label: "Foto Profil",
@@ -145,7 +136,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
               const SizedBox(height: 32),
 
-              // 2. Form Input
               _buildTextField(
                 controller: _namaController,
                 label: "Nama Lengkap",
@@ -173,7 +163,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
               const SizedBox(height: 32),
 
-              // 3. Tombol Update
               SizedBox(
                 height: 50,
                 child: ElevatedButton(

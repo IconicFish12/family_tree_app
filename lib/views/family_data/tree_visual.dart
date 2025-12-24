@@ -18,9 +18,6 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
   @override
   void initState() {
     super.initState();
-
-    // --- MEMBUAT NODE (ANGGOTA KELUARGA) ---
-
     // Generasi 1
     final nodeSuherman = Node.Id("Bpk Hj. Suherman");
     final nodeSuliani = Node.Id("Ibu Hj. Suliani");
@@ -35,26 +32,17 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
     final nodeAli = Node.Id("Ibnu Ali Mulawarman");
     final nodeRaka = Node.Id("Raka Sudrajat");
 
-    // --- MENGHUBUNGKAN NODE (GARIS KELUARGA) ---
-    // Di graphview, edge hanya bisa 1-ke-1.
-    // Kita buat "Node Pernikahan" fiktif untuk Suherman & Suliani
-    // Ini adalah cara yang lebih tepat secara struktur pohon
     final marriageNodeSuherman = Node.Id("Pernikahan Suherman-Suliani");
+
     graph.addEdge(marriageNodeSuherman, nodeSuherman);
     graph.addEdge(marriageNodeSuherman, nodeSuliani);
-
-    // Hubungkan anak-anak ke node pernikahan
     graph.addEdge(marriageNodeSuherman, nodeAndre);
     graph.addEdge(marriageNodeSuherman, nodeAsep);
     graph.addEdge(marriageNodeSuherman, nodeBudi);
-
-    // Buat node pernikahan fiktif untuk Asep (jika dia punya pasangan)
-    // Asumsi Asep adalah parent tunggal untuk contoh ini
     graph.addEdge(nodeAsep, nodeSiti);
     graph.addEdge(nodeAsep, nodeAli);
     graph.addEdge(nodeAsep, nodeRaka);
 
-    // --- KONFIGURASI LAYOUT ---
     builder = BuchheimWalkerConfiguration()
       ..siblingSeparation =
           (50) // Jarak antar saudara
@@ -68,9 +56,9 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Config.background, // Sesuai Config
+      backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.white, // Sesuai Config
+        backgroundColor: Config.white,
         elevation: 0,
         leading: CustomBackButton(
           color: Config.textHead,
@@ -79,13 +67,12 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
         title: Text(
           "Pohon Keluarga",
           style: TextStyle(
-            color: Config.textHead, // Sesuai Config
-            fontWeight: Config.semiBold, // Sesuai Config
+            color: Config.textHead,
+            fontWeight: Config.semiBold,
             fontSize: 20,
           ),
         ),
         centerTitle: true,
-        // Judul dipindahkan ke 'bottom' agar lebih rapi
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50.0),
           child: Container(
@@ -97,16 +84,14 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: Config.medium, // Sesuai Config
-                color: Config.textSecondary, // Sesuai Config
+                fontWeight: Config.medium,
+                color: Config.textSecondary,
               ),
             ),
           ),
         ),
       ),
       body:
-          // === VISUALISASI POHON ===
-          // Hapus Column & Expanded, biarkan InteractiveViewer mengisi body
           InteractiveViewer(
             minScale: 0.1,
             maxScale: 2.0,
@@ -132,7 +117,6 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
     );
   }
 
-  // --- Widget Node Kustom (Sudah disesuaikan dengan Config) ---
   Widget _buildNodeWidget(String name) {
     return Container(
       width: 150,
@@ -150,7 +134,6 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
       ),
       child: Column(
         children: [
-          // 1. Placeholder Foto
           Container(
             width: double.infinity,
             height: 80,
@@ -167,7 +150,6 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
               color: Config.textSecondary.withOpacity(0.5),
             ),
           ),
-          // 2. Nama
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
             decoration: const BoxDecoration(

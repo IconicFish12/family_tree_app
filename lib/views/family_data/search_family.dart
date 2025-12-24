@@ -345,8 +345,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                     ),
                   );
                 }
-
-                // FIXED: Menggunakan getter allUsers yang sudah ditambahkan di Provider
+                
                 final allUsers = provider.allUsers;
                 final filtered = _filterMembers(allUsers);
 

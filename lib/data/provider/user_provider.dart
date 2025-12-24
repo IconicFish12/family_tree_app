@@ -30,7 +30,6 @@ class UserProvider extends ChangeNotifier {
   DateTime? _lastFetchTime;
   static const _minRefreshInterval = Duration(seconds: 30);
 
-  /// Force refresh - refresh tanpa debounce (untuk setelah create/update)
   Future<void> forceRefresh() async {
     debugPrint('[UserProvider] Force refresh triggered');
     final result = await _repositoryImpl.getData(page: 1);
@@ -48,7 +47,6 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
-  /// Silent refresh - refresh dengan debounce 30 detik (untuk app resume)
   Future<void> silentRefresh() async {
     if (_lastFetchTime != null) {
       final timeSinceLastFetch = DateTime.now().difference(_lastFetchTime!);
@@ -110,7 +108,6 @@ class UserProvider extends ChangeNotifier {
         debugPrint(
           '[UserProvider] updateProfile SUCCESS: ${updatedUser.toJson()}',
         );
-        // Refresh dari server untuk memastikan data lengkap dan sinkron
         await forceRefresh();
         _isSubmitting = false;
         notifyListeners();
@@ -140,7 +137,6 @@ class UserProvider extends ChangeNotifier {
         return false;
       },
       (createdUser) async {
-        // Refresh dari server untuk memastikan data lengkap dan sinkron
         await forceRefresh();
         _isSubmitting = false;
         notifyListeners();
@@ -156,18 +152,19 @@ class UserProvider extends ChangeNotifier {
     _isSubmitting = true;
     notifyListeners();
 
-    debugPrint(
-      '[UserProvider] addSpouse called - currentUserId: $currentUserId',
-    );
-    debugPrint('[UserProvider] spouseData: ${spouseData.toJson()}');
+    await fetchData(isRefresh: true);
 
-    final userResult = await _repositoryImpl.createUser(spouseData);
+    String spouseTreeId = _generateNextFamilyTreeId(currentUserId);
+
+    final spouseToSend = spouseData.copyWith(
+      familyTreeId: spouseTreeId, // Satu grup
+      parentId: currentUserId,
+    );
+
+    final userResult = await _repositoryImpl.createUser(spouseToSend);
 
     return userResult.fold(
       (failure) {
-        debugPrint(
-          '[UserProvider] addSpouse createUser FAILED: ${failure.message}',
-        );
         _errorMessage = "Gagal membuat user pasangan: ${failure.message}";
         _isSubmitting = false;
         notifyListeners();
@@ -175,7 +172,7 @@ class UserProvider extends ChangeNotifier {
       },
       (createdSpouse) async {
         if (createdSpouse.userId == null) {
-          _errorMessage = "ID Pasangan tidak ditemukan dari server.";
+          _errorMessage = "ID Pasangan tidak ditemukan.";
           _isSubmitting = false;
           notifyListeners();
           return false;
@@ -194,13 +191,39 @@ class UserProvider extends ChangeNotifier {
             return false;
           },
           (success) async {
-            // Refresh dari server untuk memastikan data lengkap dan sinkron
-            await forceRefresh();
+            await fetchData(isRefresh: true);
             _isSubmitting = false;
             notifyListeners();
             return true;
           },
         );
+      },
+    );
+  }
+
+  Future<bool> addChild(UserData childData) async {
+    _isSubmitting = true;
+    notifyListeners();
+
+    // Generate ID Anak based on Parent
+    String generatedId = _generateNextFamilyTreeId(childData.parentId);
+
+    final userToSend = childData.copyWith(familyTreeId: generatedId);
+
+    final result = await _repositoryImpl.createUser(userToSend);
+
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _isSubmitting = false;
+        notifyListeners();
+        return false;
+      },
+      (createdUser) async {
+        await fetchData(isRefresh: true);
+        _isSubmitting = false;
+        notifyListeners();
+        return true;
       },
     );
   }

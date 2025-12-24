@@ -24,7 +24,6 @@ class AuthProvider extends ChangeNotifier {
 
     debugPrint('[AuthProvider] Updating user with: ${updatedUser.toJson()}');
 
-    // Pastikan avatar diambil sebagai String jika tersedia
     dynamic newAvatar = _currentUser!.avatar;
     if (updatedUser.avatar != null) {
       if (updatedUser.avatar is String) {

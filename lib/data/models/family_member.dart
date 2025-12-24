@@ -4,12 +4,12 @@ class FamilyMember {
   final String name;
   final String nik;
   final String dateRange;
-  final String image; // Emoji placeholder sementara
+  final String image;
   final int year;
   final String month;
-  final String? photoUrl; // URL foto (bisa dari network atau local)
-  final String? relation; // Hubungan keluarga
-  final String? status; // Status: active, inactive, etc
+  final String? photoUrl;
+  final String? relation;
+  final String? status;
 
   FamilyMember({
     required this.id,

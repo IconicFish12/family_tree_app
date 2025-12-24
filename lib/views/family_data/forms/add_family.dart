@@ -2,6 +2,7 @@ import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/components/image_picker_field.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,15 +18,14 @@ class AddFamilyPage extends StatefulWidget {
 
 class _AddFamilyPageState extends State<AddFamilyPage> {
   final _formKey = GlobalKey<FormState>();
-  final _headNameController = TextEditingController();
+  final _spouseNameController = TextEditingController();
   final _locationController = TextEditingController();
   final _birthYearController = TextEditingController();
-
-  XFile? familyPhoto;
+  XFile? _spousePhoto;
 
   @override
   void dispose() {
-    _headNameController.dispose();
+    _spouseNameController.dispose();
     _locationController.dispose();
     _birthYearController.dispose();
     super.dispose();
@@ -58,23 +58,37 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
 
   void _saveFamily() async {
     if (_formKey.currentState!.validate()) {
-      final newFamilyHead = UserData(
-        fullName: _headNameController.text,
+      final authProvider = context.read<AuthProvider>();
+      final currentUser = authProvider.currentUser;
+
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: Sesi login tidak valid")),
+        );
+        return;
+      }
+
+      final spouseData = UserData(
+        fullName: _spouseNameController.text,
         address: _locationController.text,
         birthYear: _birthYearController.text,
         parentId: null,
-        avatar: (familyPhoto == null) ? null : familyPhoto
+        avatar: _spousePhoto,
       );
 
-      final provider = context.read<UserProvider>();
-      final success = await provider.addUser(newFamilyHead);
+      final userProvider = context.read<UserProvider>();
+
+      final success = await userProvider.addSpouse(
+        spouseData: spouseData,
+        currentUserId: currentUser.userId,
+      );
 
       if (!mounted) return;
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Keluarga baru berhasil dibuat!'),
+          const SnackBar(
+            content: Text('Pasangan berhasil ditambahkan! Keluarga terbentuk.'),
             backgroundColor: Config.primary,
           ),
         );
@@ -82,7 +96,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Gagal menyimpan data'),
+            content: Text(userProvider.errorMessage ?? 'Gagal menyimpan data'),
             backgroundColor: Colors.red,
           ),
         );
@@ -95,12 +109,15 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     final isSubmitting = context.select<UserProvider, bool>(
       (p) => p.isSubmitting,
     );
+    final currentUser = context.select<AuthProvider, dynamic>(
+      (p) => p.currentUser,
+    );
 
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
         title: const Text(
-          "Buat Keluarga Baru",
+          "Buat Keluarga (Pasangan)",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
         ),
         centerTitle: true,
@@ -115,19 +132,60 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Info Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.blue),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: "Menambahkan pasangan untuk: \n",
+                            ),
+                            TextSpan(
+                              text: currentUser?.fullName ?? "Anda",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               Center(
                 child: ImagePickerField(
-                  label: 'Foto Kepala Keluarga',
-                  onImageSelected: (file) => setState(() => familyPhoto = file),
+                  label: 'Foto Pasangan',
+                  onImageSelected: (file) =>
+                      setState(() => _spousePhoto = file),
                 ),
               ),
               const SizedBox(height: 24),
 
-              _buildLabel("Nama Kepala Keluarga"),
+              _buildLabel("Nama Pasangan"),
               const SizedBox(height: 8),
               _buildTextField(
-                controller: _headNameController,
-                hint: 'Contoh: Budi Santoso',
+                controller: _spouseNameController,
+                hint: 'Nama Suami / Istri',
                 icon: Icons.person_outline,
               ),
               const SizedBox(height: 16),
@@ -153,33 +211,6 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
               ),
               const SizedBox(height: 32),
 
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.blue,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        "Ini akan membuat Root (Akar) baru. Gunakan fitur ini hanya jika Anda ingin membuat pohon silsilah yang benar-benar baru.",
-                        style: TextStyle(fontSize: 13, color: Colors.black87),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -202,7 +233,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
                           ),
                         )
                       : const Text(
-                          "Simpan Keluarga",
+                          "Simpan Pasangan",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,

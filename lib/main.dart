@@ -7,7 +7,7 @@ import 'package:family_tree_app/data/repository/auth_repository.dart';
 import 'package:family_tree_app/data/repository/spouse_repository.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:family_tree_app/views/auth/login.dart';
-import 'package:family_tree_app/views/family_data/forms/family_info.dart';
+import 'package:family_tree_app/views/family_data/family_info.dart';
 import 'package:family_tree_app/views/family_data/family_list.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
@@ -163,20 +163,17 @@ class MyApp extends StatelessWidget {
                     final extra = state.extra;
                     int? parentId;
                     String? parentName;
-                    bool isSpouseOnly = false;
 
                     if (extra is int) {
                       parentId = extra;
                     } else if (extra is Map) {
                       parentId = extra['parentId'] as int?;
                       parentName = extra['parentName'] as String?;
-                      isSpouseOnly = extra['isSpouseOnly'] as bool? ?? false;
                     }
 
                     return AddFamilyMemberPage(
                       parentId: parentId,
                       parentName: parentName,
-                      isSpouseOnly: isSpouseOnly,
                     );
                   },
                 ),

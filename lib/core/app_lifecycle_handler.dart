@@ -28,7 +28,6 @@ class _AppLifecycleHandlerState extends State<AppLifecycleHandler>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    // Trigger refresh saat app kembali dari background
     if (state == AppLifecycleState.resumed) {
       widget.onResume?.call();
     }

@@ -21,24 +21,19 @@ class MemberInfoPage extends StatelessWidget {
       isOwner = currentUser.familyTreeId == member.nit;
     }
 
+    final bool hasChildren = member.children.isNotEmpty;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-      appBar: _buildAppBar(
-        context,
-        isOwner,
-      ), // Pass status owner ke AppBar jika ingin restrict Edit juga
+      appBar: _buildAppBar(context, isOwner),
       body: _buildBody(),
-
-      floatingActionButton: isOwner
+      
+      floatingActionButton: isOwner && !hasChildren
           ? FloatingActionButton.extended(
               onPressed: () {
                 if (member.id != null) {
                   context.pushNamed(
-                    'addFamilyMember',
-                    extra: {
-                      'parentId': member.id,
-                      'parentName': member.name,
-                    },
+                    'addFamily',
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -80,17 +75,6 @@ class MemberInfoPage extends StatelessWidget {
         ),
       ),
       centerTitle: true,
-      actions: [
-        if (isOwner)
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.black87, size: 24),
-            onPressed: () {
-              context.pushNamed('editFamilyMember', extra: member);
-            },
-            tooltip: 'Edit Anggota',
-          ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 

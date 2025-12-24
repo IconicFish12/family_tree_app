@@ -118,7 +118,7 @@ class _HomePageState extends State<HomePage> {
                               text: 'Tambah Anggota Baru',
                               onPressed: () => context.pushNamed(
                                 'addFamilyMember',
-                                extra: user.userId, // Pass userId as parentId
+                                extra: user.userId,
                               ),
                             ),
                           ),

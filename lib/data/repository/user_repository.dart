@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_tree_node.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/failure.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,6 +15,7 @@ abstract class UserRepository {
   Future<Either<Failure, List<UserData>>> getData({int page = 1});
   Future<Either<Failure, UserData>> getById(String id);
   Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId);
+  Future<Either<Failure, FamilyTreeNode>> getTree(String familyTreeId);
   Future<Either<Failure, UserData>> getSingleBySearch({
     String? name,
     String? familyTreeId,
@@ -32,6 +35,10 @@ class UserRepositoryImpl implements UserRepository {
     return RegExp(r'^[a-zA-Z0-9\-_]+$').hasMatch(id);
   }
 
+  bool _isValidFamilyTreeId(String id) {
+    return RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(id);
+  }
+
   List<dynamic> _safeParseList(dynamic data) {
     if (data is List) return data;
     if (data is Map && data.containsKey('data') && data['data'] is List) {
@@ -44,6 +51,38 @@ class UserRepositoryImpl implements UserRepository {
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
     return null;
+  }
+
+  Map<String, dynamic> _sanitizeTreeNode(Map<String, dynamic> data) {
+    final sanitized = Map<String, dynamic>.from(data);
+
+    if (sanitized['user_id'] is String) {
+      sanitized['user_id'] = int.tryParse(sanitized['user_id']);
+    }
+
+    if (sanitized['spouse'] is List) {
+      sanitized['spouse'] = (sanitized['spouse'] as List).map((item) {
+        if (item is Map) {
+          final mapped = Map<String, dynamic>.from(item);
+          if (mapped['user_id'] is String) {
+            mapped['user_id'] = int.tryParse(mapped['user_id']);
+          }
+          return mapped;
+        }
+        return item;
+      }).toList();
+    }
+
+    if (sanitized['children'] is List) {
+      sanitized['children'] = (sanitized['children'] as List).map((item) {
+        if (item is Map) {
+          return _sanitizeTreeNode(Map<String, dynamic>.from(item));
+        }
+        return item;
+      }).toList();
+    }
+
+    return sanitized;
   }
 
   Map<String, dynamic> _sanitizeUserData(Map<String, dynamic> data) {
@@ -79,6 +118,20 @@ class UserRepositoryImpl implements UserRepository {
       return "Server tidak merespon. Coba lagi nanti.";
     }
     return "Gagal terhubung ke server.";
+  }
+
+  void _debugTreeResponseSummary(
+    String familyTreeId,
+    Map<String, dynamic> nodeMap,
+  ) {
+    final children = nodeMap['children'];
+    final spouse = nodeMap['spouse'];
+    debugPrint(
+      '[UserRepository][getTree] summary familyTreeId=$familyTreeId '
+      'keys=${nodeMap.keys.join(',')} '
+      'childCount=${children is List ? children.length : 0} '
+      'spouseCount=${spouse is List ? spouse.length : 0}',
+    );
   }
 
   // GET ALL USERS
@@ -148,7 +201,7 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId) async {
     try {
-      if (familyTreeId.isEmpty || !_isValidId(familyTreeId)) {
+      if (familyTreeId.isEmpty || !_isValidFamilyTreeId(familyTreeId)) {
         return Left(Failure("ID pohon keluarga tidak valid"));
       }
 
@@ -176,6 +229,84 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, FamilyTreeNode>> getTree(String familyTreeId) async {
+    try {
+      debugPrint(
+        '[UserRepository][getTree] request familyTreeId=$familyTreeId '
+        'url=$baseUrl/users/tree/$familyTreeId',
+      );
+
+      if (familyTreeId.isEmpty || !_isValidFamilyTreeId(familyTreeId)) {
+        debugPrint(
+          '[UserRepository][getTree] blocked invalid familyTreeId=$familyTreeId',
+        );
+        return Left(Failure("ID pohon keluarga tidak valid"));
+      }
+
+      final response = await Config.dio.get(
+        '$baseUrl/users/tree/$familyTreeId',
+      );
+
+      debugPrint(
+        '[UserRepository][getTree] response status=${response.statusCode} '
+        'dataType=${response.data.runtimeType}',
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final dynamic responseData = response.data;
+        final dynamic rawNode =
+            responseData is Map && responseData.containsKey('data')
+            ? responseData['data']
+            : responseData;
+
+        final nodeMap = _safeParseMap(rawNode);
+        if (nodeMap == null) {
+          debugPrint(
+            '[UserRepository][getTree] invalid response map '
+            'rawType=${rawNode.runtimeType}',
+          );
+          return Left(Failure("Format data tree tidak sesuai"));
+        }
+
+        _debugTreeResponseSummary(familyTreeId, nodeMap);
+
+        try {
+          final tree = FamilyTreeNode.fromJson(_sanitizeTreeNode(nodeMap));
+          debugPrint(
+            '[UserRepository][getTree] parsed familyTreeId=$familyTreeId '
+            'root=${tree.familyTreeId} children=${tree.children.length}',
+          );
+          return Right(tree);
+        } catch (e) {
+          debugPrint(
+            '[UserRepository][getTree] parse failed familyTreeId=$familyTreeId '
+            'error=$e',
+          );
+          return Left(Failure("Gagal memproses data tree"));
+        }
+      } else {
+        debugPrint(
+          '[UserRepository][getTree] unexpected status=${response.statusCode} '
+          'bodyType=${response.data.runtimeType}',
+        );
+        return Left(Failure("Data pohon keluarga tidak ditemukan"));
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[UserRepository][getTree] dioException familyTreeId=$familyTreeId '
+        'type=${e.type} status=${e.response?.statusCode} body=${e.response?.data}',
+      );
+      return Left(Failure(_getErrorMessage(e)));
+    } catch (e) {
+      debugPrint(
+        '[UserRepository][getTree] generalException familyTreeId=$familyTreeId '
+        'error=$e',
+      );
+      return Left(Failure("Terjadi kesalahan: Gagal memproses tree"));
+    }
+  }
+
   // GET SINGLE USER BY SEARCH
   @override
   Future<Either<Failure, UserData>> getSingleBySearch({
@@ -191,7 +322,7 @@ class UserRepositoryImpl implements UserRepository {
       }
 
       if (familyTreeId != null && familyTreeId.isNotEmpty) {
-        if (!_isValidId(familyTreeId)) {
+        if (!_isValidFamilyTreeId(familyTreeId)) {
           return Left(Failure("ID pohon keluarga tidak valid"));
         }
         queryParams['family_tree_id'] = familyTreeId;
@@ -230,7 +361,7 @@ class UserRepositoryImpl implements UserRepository {
     String familyTreeId,
   ) async {
     try {
-      if (familyTreeId.isEmpty || !_isValidId(familyTreeId)) {
+      if (familyTreeId.isEmpty || !_isValidFamilyTreeId(familyTreeId)) {
         return Left(Failure("ID pohon keluarga tidak valid"));
       }
 
@@ -255,7 +386,6 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, UserData>> createUser(UserData data) async {
     try {
-
       final Map<String, dynamic> mapData = data.toJson();
       mapData.remove('user_id');
       mapData.remove('created_at');
@@ -265,7 +395,6 @@ class UserRepositoryImpl implements UserRepository {
       final formData = FormData.fromMap(mapData);
 
       if (data.avatar != null) {
-
         String? filePath;
 
         if (data.avatar is XFile) {
@@ -291,16 +420,14 @@ class UserRepositoryImpl implements UserRepository {
               ),
             ),
           );
-        } 
-      } 
+        }
+      }
 
       final response = await Config.dio.post(
         '$baseUrl/users',
         data: formData,
         options: Options(
-          headers: {
-            'Accept': 'application/json',
-          },
+          headers: {'Accept': 'application/json'},
           followRedirects: false,
           validateStatus: (status) {
             return status! < 500;
@@ -329,23 +456,23 @@ class UserRepositoryImpl implements UserRepository {
         return Left(Failure(errorMsg));
       }
     } on DioException catch (e) {
-      print('--- [DEBUG] DIO EXCEPTION ---');
-      print('Type: ${e.type}');
-      print('Message: ${e.message}');
-      print('Response Status: ${e.response?.statusCode}');
-      print('Response Data: ${e.response?.data}');
+      debugPrint('--- [DEBUG] DIO EXCEPTION ---');
+      debugPrint('Type: ${e.type}');
+      debugPrint('Message: ${e.message}');
+      debugPrint('Response Status: ${e.response?.statusCode}');
+      debugPrint('Response Data: ${e.response?.data}');
 
       if (e.response?.statusCode == 422) {
-        print("Validation Error Detail: ${e.response?.data}");
+        debugPrint("Validation Error Detail: ${e.response?.data}");
       }
       return Left(Failure(_getErrorMessage(e)));
     } catch (e, stackTrace) {
-      print('--- [DEBUG] GENERAL EXCEPTION ---');
-      print('Error: $e');
-      print('Stack Trace: $stackTrace');
+      debugPrint('--- [DEBUG] GENERAL EXCEPTION ---');
+      debugPrint('Error: $e');
+      debugPrint('Stack Trace: $stackTrace');
       return Left(Failure("Terjadi kesalahan: $e"));
     } finally {
-      print('--- [DEBUG] END createUser ---');
+      debugPrint('--- [DEBUG] END createUser ---');
     }
   }
 

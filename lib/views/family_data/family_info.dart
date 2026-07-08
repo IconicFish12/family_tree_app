@@ -152,7 +152,10 @@ class FamilyInfoPage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.pushNamed('treeVisual'),
+        onPressed: () => context.pushNamed(
+          'treeVisual',
+          extra: {'familyTreeId': headUser?.familyTreeId, 'title': headName},
+        ),
         backgroundColor: Config.primary,
         tooltip: 'Lihat Pohon Keluarga',
         child: const Icon(Icons.account_tree_outlined, color: Config.white),

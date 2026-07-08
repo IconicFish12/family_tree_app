@@ -2,6 +2,7 @@ import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/core/app_lifecycle_handler.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
+import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:family_tree_app/data/repository/auth_repository.dart';
 import 'package:family_tree_app/data/repository/spouse_repository.dart';
@@ -41,16 +42,8 @@ class MainNavigationShell extends StatelessWidget {
         },
         type: BottomNavigationBarType.fixed,
         items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
-            label: 'Beranda',
-            backgroundColor: Colors.grey[100],
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.search),
-            label: 'Pencarian',
-            backgroundColor: Colors.grey[100],
-          ),
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: 'Beranda', backgroundColor: Colors.grey[100]),
+          BottomNavigationBarItem(icon: const Icon(Icons.search), label: 'Pencarian', backgroundColor: Colors.grey[100]),
           BottomNavigationBarItem(
             icon: const Icon(Icons.account_circle_outlined),
             label: 'Profile',
@@ -66,8 +59,7 @@ class MainNavigationShell extends StatelessWidget {
       return 0;
     } else if (location.startsWith('/family-search')) {
       return 1;
-    } else if (location.startsWith('/profile') ||
-        location.startsWith('/profile-edit')) {
+    } else if (location.startsWith('/profile') || location.startsWith('/profile-edit')) {
       return 2;
     }
     return 0;
@@ -107,36 +99,16 @@ class MyApp extends StatelessWidget {
       restorationScopeId: 'router',
       routerNeglect: true,
       routes: [
-        GoRoute(
-          path: '/',
-          name: 'splashScreen',
-          builder: (context, state) => const SplashScreen(),
-        ),
-        GoRoute(
-          path: '/login',
-          name: 'login',
-          builder: (context, state) => const LoginPage(),
-        ),
+        GoRoute(path: '/', name: 'splashScreen', builder: (context, state) => const SplashScreen()),
+        GoRoute(path: '/login', name: 'login', builder: (context, state) => const LoginPage()),
         ShellRoute(
           builder: (context, state, child) {
             return MainNavigationShell(child: child);
           },
           routes: [
-            GoRoute(
-              path: '/home',
-              name: 'home',
-              builder: (context, state) => const HomePage(),
-            ),
-            GoRoute(
-              path: '/family-list',
-              name: 'familyList',
-              builder: (context, state) => const FamilyListPage(),
-            ),
-            GoRoute(
-              path: '/add-family',
-              name: 'addFamily',
-              builder: (context, state) => const AddFamilyPage(),
-            ),
+            GoRoute(path: '/home', name: 'home', builder: (context, state) => const HomePage()),
+            GoRoute(path: '/family-list', name: 'familyList', builder: (context, state) => const FamilyListPage()),
+            GoRoute(path: '/add-family', name: 'addFamily', builder: (context, state) => const AddFamilyPage()),
             GoRoute(
               path: '/family-info',
               name: 'familyInfo',
@@ -171,35 +143,33 @@ class MyApp extends StatelessWidget {
                       parentName = extra['parentName'] as String?;
                     }
 
-                    return AddFamilyMemberPage(
-                      parentId: parentId,
-                      parentName: parentName,
-                    );
+                    return AddFamilyMemberPage(parentId: parentId, parentName: parentName);
                   },
                 ),
               ],
             ),
 
-            GoRoute(
-              path: '/family-search',
-              name: 'familySearch',
-              builder: (context, state) => const SearchFamilyPage(),
-            ),
+            GoRoute(path: '/family-search', name: 'familySearch', builder: (context, state) => const SearchFamilyPage()),
             GoRoute(
               path: '/tree-visual',
               name: 'treeVisual',
-              builder: (context, state) => const TreeVisualPage(),
+              builder: (context, state) {
+                final extra = state.extra;
+                String? initialFamilyTreeId;
+                String? initialTitle;
+
+                if (extra is String) {
+                  initialFamilyTreeId = extra;
+                } else if (extra is Map) {
+                  initialFamilyTreeId = extra['familyTreeId'] as String?;
+                  initialTitle = extra['title'] as String?;
+                }
+
+                return TreeVisualPage(initialFamilyTreeId: initialFamilyTreeId, initialTitle: initialTitle);
+              },
             ),
-            GoRoute(
-              path: '/profile',
-              name: 'profile',
-              builder: (context, state) => const ProfilePage(),
-            ),
-            GoRoute(
-              path: '/profile-edit',
-              name: 'profileEdit',
-              builder: (context, state) => const ProfileEditPage(),
-            ),
+            GoRoute(path: '/profile', name: 'profile', builder: (context, state) => const ProfilePage()),
+            GoRoute(path: '/profile-edit', name: 'profileEdit', builder: (context, state) => const ProfileEditPage()),
           ],
         ),
       ],
@@ -207,9 +177,8 @@ class MyApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => UserProvider(UserRepositoryImpl(), SpouseRepository()),
-        ),
+        ChangeNotifierProvider(create: (_) => UserProvider(UserRepositoryImpl(), SpouseRepository())),
+        ChangeNotifierProvider(create: (_) => TreeProvider(UserRepositoryImpl())),
         ChangeNotifierProvider(create: (_) => AuthProvider(AuthRepository())),
       ],
       child: Builder(

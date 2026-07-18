@@ -10,7 +10,7 @@ class SpouseRepository {
   }) async {
     try {
       final response = await Config.dio.post(
-        '${Config.baseUrl}/spouse',
+        '/spouse',
         data: {
           'primary_child_id': primaryUserId,
           'related_user_id': spouseUserId,

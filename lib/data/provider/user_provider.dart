@@ -1,6 +1,7 @@
+import 'package:family_tree_app/data/models/family_directory.dart';
+import 'package:family_tree_app/data/models/family_tree_node.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
-import 'package:family_tree_app/data/repository/spouse_repository.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:flutter/material.dart';
 
@@ -8,12 +9,14 @@ enum ViewState { initial, loading, success, error }
 
 class UserProvider extends ChangeNotifier {
   final UserRepositoryImpl _repositoryImpl;
-  final SpouseRepository _spouseRepository;
 
-  UserProvider(this._repositoryImpl, this._spouseRepository);
+  UserProvider(this._repositoryImpl);
 
   ViewState _state = ViewState.initial;
   ViewState get state => _state;
+
+  List<FamilyDirectoryMember> _directoryMembers = [];
+  List<FamilyDirectoryMember> get directoryMembers => _directoryMembers;
 
   List<UserData> _rawAllUsers = [];
   List<UserData> get allUsers => _rawAllUsers;
@@ -24,91 +27,144 @@ class UserProvider extends ChangeNotifier {
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
 
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+
+  String _keyword = '';
+  String get keyword => _keyword;
+
+  int _perPage = 25;
+  int get perPage => _perPage;
+
+  int _total = 0;
+  int get total => _total;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  DateTime? _lastFetchTime;
-  static const _minRefreshInterval = Duration(seconds: 30);
+  bool get canLoadMore =>
+      !_isLoadingMore &&
+      _directoryMembers.length >= _perPage &&
+      _directoryMembers.length < _total;
 
-  Future<void> forceRefresh() async {
-    debugPrint('[UserProvider] Force refresh triggered');
-    final result = await _repositoryImpl.getData(page: 1);
+  Future<void> fetchData({
+    bool isRefresh = false,
+    String? keyword,
+  }) async {
+    if (keyword != null) {
+      _keyword = keyword.trim();
+    }
+
+    if (isRefresh) {
+      _perPage = 25;
+      _directoryMembers = [];
+      _rawAllUsers = [];
+      _familyUnits = [];
+    }
+
+    _state = ViewState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result = await _repositoryImpl.getFamilyMembers(
+      keyword: _keyword,
+      perPage: _perPage,
+    );
 
     result.fold(
       (failure) {
-        debugPrint('[UserProvider] Force refresh failed: ${failure.message}');
+        _state = ViewState.error;
+        _errorMessage = failure.message;
       },
-      (newUsers) {
-        _rawAllUsers = newUsers;
+      (response) {
+        _directoryMembers = response.members;
+        _total = response.meta.total;
+        _perPage = response.meta.perPage;
+        _rawAllUsers = response.members
+            .map(
+              (member) => UserData(
+                userId: member.userId,
+                familyTreeId: member.familyTreeId,
+                fullName: member.fullName,
+                address: member.address,
+                birthYear: member.birthYear,
+                avatar: member.avatarUrl ?? member.avatar,
+              ),
+            )
+            .toList();
         _familyUnits = _buildFamilyTree(_rawAllUsers);
-        _lastFetchTime = DateTime.now();
-        notifyListeners();
+        _state = ViewState.success;
       },
     );
+
+    notifyListeners();
   }
 
-  Future<void> silentRefresh() async {
-    if (_lastFetchTime != null) {
-      final timeSinceLastFetch = DateTime.now().difference(_lastFetchTime!);
-      if (timeSinceLastFetch < _minRefreshInterval) {
-        debugPrint(
-          '[UserProvider] Skipped refresh - last fetch ${timeSinceLastFetch.inSeconds}s ago',
-        );
-        return;
-      }
-    }
-    await forceRefresh();
-  }
+  Future<void> loadMore() async {
+    if (!canLoadMore) return;
 
-  Future<void> fetchData({bool isRefresh = false}) async {
-    if (isRefresh) {
-      _rawAllUsers.clear();
-      _state = ViewState.loading;
-      notifyListeners();
-    }
+    _isLoadingMore = true;
+    _errorMessage = null;
+    final nextPerPage = _perPage + 25;
+    notifyListeners();
 
-    final result = await _repositoryImpl.getData(page: 1);
+    final result = await _repositoryImpl.getFamilyMembers(
+      keyword: _keyword,
+      perPage: nextPerPage,
+    );
 
     result.fold(
       (failure) {
         _errorMessage = failure.message;
-        if (isRefresh) _state = ViewState.error;
       },
-      (newUsers) {
-        _rawAllUsers.addAll(newUsers);
+      (response) {
+        _directoryMembers = response.members;
+        _total = response.meta.total;
+        _perPage = response.meta.perPage;
+        _rawAllUsers = response.members
+            .map(
+              (member) => UserData(
+                userId: member.userId,
+                familyTreeId: member.familyTreeId,
+                fullName: member.fullName,
+                address: member.address,
+                birthYear: member.birthYear,
+                avatar: member.avatarUrl ?? member.avatar,
+              ),
+            )
+            .toList();
         _familyUnits = _buildFamilyTree(_rawAllUsers);
-        _lastFetchTime = DateTime.now();
-        _state = ViewState.success;
       },
     );
+
+    _isLoadingMore = false;
     notifyListeners();
   }
 
-  Future<UserData?> updateProfile({
-    required String id,
-    required UserData data,
-  }) async {
-    debugPrint('[UserProvider] updateProfile called with id: $id');
-    debugPrint('[UserProvider] updateProfile data: ${data.toJson()}');
+  Future<void> forceRefresh() async {
+    await fetchData(isRefresh: true);
+  }
 
+  Future<void> silentRefresh() async {
+    if (_state == ViewState.loading) return;
+    await fetchData(isRefresh: true, keyword: _keyword);
+  }
+
+  Future<UserData?> updateProfile({required UserData data}) async {
     _isSubmitting = true;
+    _errorMessage = null;
     notifyListeners();
 
-    final result = await _repositoryImpl.updateProfile(id, data);
+    final result = await _repositoryImpl.updateProfile(data);
 
     return result.fold(
       (failure) {
-        debugPrint('[UserProvider] updateProfile FAILED: ${failure.message}');
         _errorMessage = failure.message;
         _isSubmitting = false;
         notifyListeners();
         return null;
       },
-      (updatedUser) async {
-        debugPrint(
-          '[UserProvider] updateProfile SUCCESS: ${updatedUser.toJson()}',
-        );
-        await forceRefresh();
+      (updatedUser) {
         _isSubmitting = false;
         notifyListeners();
         return updatedUser;
@@ -116,33 +172,9 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> addUser(UserData newUser) async {
-    _isSubmitting = true;
-    notifyListeners();
-
-    String generatedId = _generateNextFamilyTreeId(newUser.parentId);
-
-    final userToSend = newUser.copyWith(
-      familyTreeId: generatedId,
-      parentId: newUser.parentId,
-    );
-
-    final result = await _repositoryImpl.createUser(userToSend);
-
-    return result.fold(
-      (failure) {
-        _errorMessage = failure.message;
-        _isSubmitting = false;
-        notifyListeners();
-        return false;
-      },
-      (createdUser) async {
-        await forceRefresh();
-        _isSubmitting = false;
-        notifyListeners();
-        return true;
-      },
-    );
+  Future<List<FamilyTreeMarriage>> getMarriagesForMember(int memberId) async {
+    final result = await _repositoryImpl.getMarriages(memberId.toString());
+    return result.fold((_) => const [], (marriages) => marriages);
   }
 
   Future<bool> addSpouse({
@@ -150,67 +182,13 @@ class UserProvider extends ChangeNotifier {
     required int currentUserId,
   }) async {
     _isSubmitting = true;
+    _errorMessage = null;
     notifyListeners();
 
-    await fetchData(isRefresh: true);
-
-    String spouseTreeId = _generateNextFamilyTreeId(currentUserId);
-
-    final spouseToSend = spouseData.copyWith(
-      familyTreeId: spouseTreeId, // Satu grup
-      parentId: currentUserId,
+    final result = await _repositoryImpl.createMarriage(
+      memberId: currentUserId.toString(),
+      spouseData: spouseData,
     );
-
-    final userResult = await _repositoryImpl.createUser(spouseToSend);
-
-    return userResult.fold(
-      (failure) {
-        _errorMessage = "Gagal membuat user pasangan: ${failure.message}";
-        _isSubmitting = false;
-        notifyListeners();
-        return false;
-      },
-      (createdSpouse) async {
-        if (createdSpouse.userId == null) {
-          _errorMessage = "ID Pasangan tidak ditemukan.";
-          _isSubmitting = false;
-          notifyListeners();
-          return false;
-        }
-
-        final spouseResult = await _spouseRepository.addSpouse(
-          primaryUserId: currentUserId,
-          spouseUserId: createdSpouse.userId!,
-        );
-
-        return spouseResult.fold(
-          (failure) {
-            _errorMessage = failure.message;
-            _isSubmitting = false;
-            notifyListeners();
-            return false;
-          },
-          (success) async {
-            await fetchData(isRefresh: true);
-            _isSubmitting = false;
-            notifyListeners();
-            return true;
-          },
-        );
-      },
-    );
-  }
-
-  Future<bool> addChild(UserData childData) async {
-    _isSubmitting = true;
-    notifyListeners();
-
-    // Generate ID Anak based on Parent
-    String generatedId = _generateNextFamilyTreeId(childData.parentId);
-
-    final userToSend = childData.copyWith(familyTreeId: generatedId);
-
-    final result = await _repositoryImpl.createUser(userToSend);
 
     return result.fold(
       (failure) {
@@ -219,111 +197,127 @@ class UserProvider extends ChangeNotifier {
         notifyListeners();
         return false;
       },
-      (createdUser) async {
-        await fetchData(isRefresh: true);
+      (success) async {
+        await fetchData(isRefresh: true, keyword: _keyword);
         _isSubmitting = false;
         notifyListeners();
-        return true;
+        return success;
       },
     );
   }
 
-  String _generateNextFamilyTreeId(int? parentId) {
-    try {
-      if (parentId == null) {
-        final rootUsers = _rawAllUsers
-            .where((u) => u.parentId == null)
-            .toList();
+  Future<bool> addChild({
+    required UserData childData,
+    required String nit,
+    String? marriageId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
 
-        if (rootUsers.isEmpty) return "1";
-
-        int maxId = 0;
-        for (var user in rootUsers) {
-          if (user.familyTreeId != null) {
-            int? currentId = int.tryParse(
-              user.familyTreeId!.replaceAll(RegExp(r'[^0-9]'), ''),
-            );
-            if (currentId != null && currentId > maxId) {
-              maxId = currentId;
-            }
-          }
-        }
-        return (maxId + 1).toString();
-      } else {
-        final parent = _rawAllUsers.firstWhere(
-          (u) => u.userId == parentId,
-          orElse: () => const UserData(familyTreeId: "0"),
-        );
-
-        String parentPrefix = parent.familyTreeId ?? "0";
-
-        final siblings = _rawAllUsers
-            .where((u) => u.parentId == parentId)
-            .toList();
-
-        int maxSuffix = 0;
-        for (var sibling in siblings) {
-          if (sibling.familyTreeId != null &&
-              sibling.familyTreeId!.startsWith("$parentPrefix.")) {
-            List<String> parts = sibling.familyTreeId!.split('.');
-            if (parts.isNotEmpty) {
-              int? suffix = int.tryParse(
-                parts.last.replaceAll(RegExp(r'[^0-9]'), ''),
-              );
-              if (suffix != null && suffix > maxSuffix) {
-                maxSuffix = suffix;
-              }
-            }
-          }
-        }
-        return "$parentPrefix.${maxSuffix + 1}";
-      }
-    } catch (e) {
-      return "0";
+    final parentId = childData.parentId;
+    if (parentId == null) {
+      _errorMessage = 'Orang tua belum dipilih.';
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
     }
+
+    final result = await _repositoryImpl.createChild(
+      memberId: parentId.toString(),
+      marriageId: marriageId,
+      nit: nit,
+      childData: childData,
+    );
+
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _isSubmitting = false;
+        notifyListeners();
+        return false;
+      },
+      (success) async {
+        await fetchData(isRefresh: true, keyword: _keyword);
+        _isSubmitting = false;
+        notifyListeners();
+        return success;
+      },
+    );
   }
 
   List<FamilyUnit> _buildFamilyTree(List<UserData> allUsers) {
-    final rootUsers = allUsers.where((u) => u.parentId == null).toList();
-    List<FamilyUnit> units = [];
-    for (var root in rootUsers) {
-      if (root.userId == null) continue;
-      final children = _findChildren(root.userId!, allUsers);
-      units.add(
-        FamilyUnit(
-          headId: root.userId,
-          nit: root.familyTreeId ?? "-",
-          headName: root.fullName ?? "No Name",
-          spouseName: null,
-          location: root.address ?? "-",
-          avatar: root.avatar is String ? root.avatar : null,
-          birthYear: root.birthYear,
-          children: children,
-        ),
+    final rootUsers = allUsers.where((u) => u.familyTreeId != null).toList()
+      ..sort((a, b) => (a.familyTreeId ?? '').compareTo(b.familyTreeId ?? ''));
+
+    final rootMembers = rootUsers
+        .where((user) => !(user.familyTreeId ?? '').contains('.'))
+        .toList();
+
+    return rootMembers.map((root) {
+      final children = root.userId == null
+          ? const <ChildMember>[]
+          : _findChildren(root.userId!, allUsers);
+
+      return FamilyUnit(
+        headId: root.userId,
+        nit: root.familyTreeId ?? '-',
+        headName: root.fullName ?? 'Tanpa Nama',
+        spouseName: null,
+        location: root.address ?? '-',
+        avatar: root.avatar is String ? root.avatar as String : null,
+        birthYear: root.birthYear,
+        children: children,
       );
-    }
-    return units;
+    }).toList();
   }
 
   List<ChildMember> _findChildren(int parentId, List<UserData> allUsers) {
-    final children = allUsers.where((u) => u.parentId == parentId).toList();
-    if (children.isEmpty) return [];
-    return children.map((child) {
-      List<ChildMember> grandChildren = [];
-      if (child.userId != null) {
-        grandChildren = _findChildren(child.userId!, allUsers);
+    UserData? parent;
+    for (final user in allUsers) {
+      if (user.userId == parentId) {
+        parent = user;
+        break;
       }
+    }
+
+    if (parent?.familyTreeId == null) {
+      return const [];
+    }
+
+    final parentFamilyTreeId = parent!.familyTreeId!;
+    final parentPrefix = '$parentFamilyTreeId.';
+    final directChildren = allUsers
+        .where(
+          (user) =>
+              user.familyTreeId != null &&
+              user.familyTreeId!.startsWith(parentPrefix) &&
+              !_hasIntermediateLevel(parentFamilyTreeId, user.familyTreeId!),
+        )
+        .toList()
+      ..sort((a, b) => (a.familyTreeId ?? '').compareTo(b.familyTreeId ?? ''));
+
+    return directChildren.map((child) {
+      final nestedChildren = child.userId == null
+          ? const <ChildMember>[]
+          : _findChildren(child.userId!, allUsers);
+
       return ChildMember(
         id: child.userId,
-        nit: child.familyTreeId ?? "-",
-        name: child.fullName ?? "No Name",
+        nit: child.familyTreeId ?? '-',
+        name: child.fullName ?? 'Tanpa Nama',
         spouseName: null,
-        location: child.address ?? "-",
-        emoji: '👤',
-        photoUrl: child.avatar is String ? child.avatar : null,
+        location: child.address ?? '-',
+        photoUrl: child.avatar is String ? child.avatar as String : null,
         birthYear: child.birthYear,
-        children: grandChildren,
+        children: nestedChildren,
       );
     }).toList();
+  }
+
+  bool _hasIntermediateLevel(String parentId, String childId) {
+    final parentParts = parentId.split('.');
+    final childParts = childId.split('.');
+    return childParts.length != parentParts.length + 1;
   }
 }

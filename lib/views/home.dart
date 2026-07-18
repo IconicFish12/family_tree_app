@@ -1,10 +1,9 @@
 import 'package:family_tree_app/components/family_info_card.dart';
-import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../config/config.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -46,25 +45,15 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Data user tidak ditemukan"),
+                  const Text('Data user tidak ditemukan.'),
                   ElevatedButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text("Login Ulang"),
+                    child: const Text('Login Ulang'),
                   ),
                 ],
               ),
             );
           }
-
-          // Convert Data to UserData
-          final userData = UserData(
-            userId: user.userId,
-            familyTreeId: user.familyTreeId,
-            fullName: user.fullName,
-            address: user.address,
-            birthYear: user.birthYear?.toString(),
-            avatar: user.avatar,
-          );
 
           return SingleChildScrollView(
             child: Column(
@@ -101,15 +90,20 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Selamat Datang, ${user.fullName}!",
+                        'Selamat Datang, ${user.fullName ?? 'Keluarga'}',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: Config.semiBold,
                           color: Config.textHead,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Buka daftar keluarga dari menu bawah atau lihat bagan keluarga Anda dari halaman ini.',
+                        style: TextStyle(color: Config.textSecondary),
+                      ),
                       const SizedBox(height: 20),
-                      FamilyInfoCard(user: userData),
+                      FamilyInfoCard(user: user),
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -125,8 +119,8 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildElevatedButton(
-                              text: 'Lihat List Keluarga',
-                              onPressed: () => context.pushNamed('familyList'),
+                              text: 'Lihat Pohon Keluarga',
+                              onPressed: () => context.pushNamed('treeVisual'),
                             ),
                           ),
                         ],
@@ -143,9 +137,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- WIDGET HELPER ---
-
-  /// Widget untuk Search Bar
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
@@ -161,8 +152,10 @@ class _HomePageState extends State<HomePage> {
       ),
       child: TextField(
         controller: _searchController,
+        readOnly: true,
+        onTap: () => context.goNamed('familySearch'),
         decoration: InputDecoration(
-          hintText: 'Cari berdasarkan nama, nik atau hal lainnya..',
+          hintText: 'Cari anggota keluarga...',
           hintStyle: TextStyle(
             color: Config.textSecondary.withValues(alpha: 0.7),
             fontSize: 14,
@@ -178,7 +171,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Widget untuk OutlinedButton
   Widget _buildOutlinedButton({
     required String text,
     required VoidCallback onPressed,
@@ -199,7 +191,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Widget untuk ElevatedButton
   Widget _buildElevatedButton({
     required String text,
     required VoidCallback onPressed,

@@ -65,10 +65,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       avatar: _newProfilePhoto,
     );
 
-    final result = await userProvider.updateProfile(
-      id: currentUser.userId.toString(),
-      data: updatedData,
-    );
+    final result = await userProvider.updateProfile(data: updatedData);
 
     if (!mounted) return;
 
@@ -127,11 +124,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   label: "Foto Profil",
                   initialImagePath: _currentPhotoUrl,
                   isNetworkImage: true,
-                  onImageSelected: (file) {
-                    setState(() {
-                      _newProfilePhoto = file;
-                    });
-                  },
+                  onImageSelected: (file) => _newProfilePhoto = file,
                 ),
               ),
               const SizedBox(height: 32),

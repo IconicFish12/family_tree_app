@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 enum TreeViewState { initial, loading, success, error }
 
 class TreeProvider extends ChangeNotifier {
+  static const int visibleLevels = 3;
+
   final UserRepositoryImpl _repository;
 
   TreeProvider(this._repository);
@@ -12,207 +14,108 @@ class TreeProvider extends ChangeNotifier {
   TreeViewState _state = TreeViewState.initial;
   TreeViewState get state => _state;
 
-  FamilyTreeNode? _currentTree;
-  FamilyTreeNode? get currentTree => _currentTree;
+  FamilyTreeNode? _fullTree;
+  FamilyTreeNode? get fullTree => _fullTree;
 
-  String? _currentFamilyTreeId;
-  String? get currentFamilyTreeId => _currentFamilyTreeId;
-
-  String? _currentTitle;
-  String? get currentTitle => _currentTitle;
+  FamilyTreeNode? _currentRoot;
+  FamilyTreeNode? get currentRoot => _currentRoot;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  final List<_TreeHistoryEntry> _history = [];
+  final List<FamilyTreeNode> _history = [];
   bool get canGoBack => _history.isNotEmpty;
 
-  Future<void> initialize({
-    String? initialFamilyTreeId,
-    String? initialTitle,
-    String? fallbackRootFamilyTreeId,
-  }) async {
-    final resolvedId =
-        _normalizeFamilyTreeId(initialFamilyTreeId) ??
-        _resolveRootFamilyTreeId(fallbackRootFamilyTreeId);
-
-    debugPrint(
-      '[TreeProvider] initialize initialFamilyTreeId=$initialFamilyTreeId '
-      'fallbackRootFamilyTreeId=$fallbackRootFamilyTreeId resolvedId=$resolvedId '
-      'initialTitle=$initialTitle',
-    );
-
-    _history.clear();
-    _currentFamilyTreeId = resolvedId;
-    _currentTitle = initialTitle;
-
-    if (resolvedId == null || resolvedId.isEmpty) {
-      _state = TreeViewState.error;
-      _errorMessage = 'ID pohon keluarga belum tersedia.';
-      _currentTree = null;
-      notifyListeners();
-      return;
-    }
-
-    await loadCurrentTree();
-  }
-
-  Future<void> loadCurrentTree() async {
-    final familyTreeId = _normalizeFamilyTreeId(_currentFamilyTreeId);
-
-    debugPrint(
-      '[TreeProvider] loadCurrentTree start familyTreeId=$familyTreeId '
-      'historyDepth=${_history.length}',
-    );
-
-    if (familyTreeId == null || familyTreeId.isEmpty) {
-      _state = TreeViewState.error;
-      _errorMessage = 'ID pohon keluarga tidak valid';
-      _currentTree = null;
-      notifyListeners();
-      return;
-    }
-
+  Future<void> initialize() async {
     _state = TreeViewState.loading;
     _errorMessage = null;
-    _currentTree = null;
     notifyListeners();
 
-    final result = await _repository.getTree(familyTreeId);
-
+    final result = await _repository.getTree();
     result.fold(
       (failure) {
-        debugPrint(
-          '[TreeProvider] loadCurrentTree failed familyTreeId=$familyTreeId '
-          'message=${failure.message}',
-        );
         _state = TreeViewState.error;
         _errorMessage = failure.message;
-        notifyListeners();
       },
       (tree) {
-        debugPrint(
-          '[TreeProvider] loadCurrentTree success familyTreeId=$familyTreeId '
-          'resolvedRoot=${tree.familyTreeId} childCount=${tree.children.length}',
-        );
+        _fullTree = tree;
+        _currentRoot = tree;
+        _history.clear();
         _state = TreeViewState.success;
-        _errorMessage = null;
-        _currentTree = tree;
-        _currentFamilyTreeId = tree.familyTreeId;
-        _currentTitle = tree.fullName;
-        notifyListeners();
       },
     );
+    notifyListeners();
+  }
+
+  int relativeLevel(FamilyTreeNode node) {
+    final root = _currentRoot;
+    if (root == null) return 1;
+    return (node.level - root.level) + 1;
+  }
+
+  bool isVisibleAtCurrentDepth(FamilyTreeNode node) {
+    final level = relativeLevel(node);
+    return level >= 1 && level <= visibleLevels;
+  }
+
+  bool canOpenSubtree(FamilyTreeNode node) {
+    if (!node.hasDescendants) return false;
+    return relativeLevel(node) >= visibleLevels;
   }
 
   Future<void> openSubtree(FamilyTreeNode node) async {
-    if (!node.canOpenSubtree || _currentTree == null) {
-      debugPrint(
-        '[TreeProvider] openSubtree ignored familyTreeId=${node.familyTreeId} '
-        'hasChildren=${node.hasChildren} currentTreeNull=${_currentTree == null}',
-      );
+    final matchedNode = _findNodeByUserId(_fullTree, node.userId);
+    if (matchedNode == null || !matchedNode.hasDescendants) {
       return;
     }
 
-    if (_state == TreeViewState.loading) {
-      debugPrint(
-        '[TreeProvider] openSubtree ignored while loading '
-        'target=${node.familyTreeId}',
-      );
-      return;
+    if (_currentRoot != null) {
+      _history.add(_currentRoot!);
     }
 
-    final nextFamilyTreeId = _normalizeFamilyTreeId(node.familyTreeId);
-    debugPrint(
-      '[TreeProvider] openSubtree current=$_currentFamilyTreeId '
-      'target=$nextFamilyTreeId title=${node.fullName}',
-    );
-
-    if (nextFamilyTreeId == null || nextFamilyTreeId.isEmpty) {
-      _state = TreeViewState.error;
-      _errorMessage = 'ID pohon keluarga tidak valid';
-      notifyListeners();
-      return;
-    }
-
-    _history.add(
-      _TreeHistoryEntry(
-        familyTreeId: _currentFamilyTreeId!,
-        title: _currentTitle,
-        tree: _currentTree!,
-      ),
-    );
-
-    _currentFamilyTreeId = nextFamilyTreeId;
-    _currentTitle = node.fullName;
-
-    await loadCurrentTree();
+    _currentRoot = matchedNode;
+    _state = TreeViewState.success;
+    notifyListeners();
   }
 
   bool restorePreviousTree() {
-    if (_history.isEmpty) {
-      debugPrint('[TreeProvider] restorePreviousTree no history');
-      return false;
-    }
-
-    final previous = _history.removeLast();
-    debugPrint(
-      '[TreeProvider] restorePreviousTree familyTreeId=${previous.familyTreeId} '
-      'remainingHistory=${_history.length}',
-    );
-
-    _currentFamilyTreeId = previous.familyTreeId;
-    _currentTitle = previous.title;
-    _currentTree = previous.tree;
-    _errorMessage = null;
+    if (_history.isEmpty) return false;
+    _currentRoot = _history.removeLast();
     _state = TreeViewState.success;
     notifyListeners();
     return true;
   }
 
   Future<void> refreshCurrentTree() async {
-    debugPrint(
-      '[TreeProvider] refreshCurrentTree familyTreeId=$_currentFamilyTreeId',
-    );
-    await loadCurrentTree();
+    await initialize();
   }
 
-  void reset() {
-    debugPrint('[TreeProvider] reset');
+  void reset({bool shouldNotify = true}) {
     _state = TreeViewState.initial;
-    _currentTree = null;
-    _currentFamilyTreeId = null;
-    _currentTitle = null;
+    _fullTree = null;
+    _currentRoot = null;
     _errorMessage = null;
     _history.clear();
-    notifyListeners();
-  }
-
-  String? _normalizeFamilyTreeId(String? value) {
-    final trimmed = value?.trim();
-    if (trimmed == null || trimmed.isEmpty) {
-      return null;
+    if (shouldNotify) {
+      notifyListeners();
     }
-    return trimmed;
   }
 
-  String? _resolveRootFamilyTreeId(String? value) {
-    final normalized = _normalizeFamilyTreeId(value);
-    if (normalized == null) {
-      return null;
+  FamilyTreeNode? _findNodeByUserId(FamilyTreeNode? node, int? userId) {
+    if (node == null || userId == null) return null;
+    if (node.userId == userId) {
+      return node;
     }
-    return normalized.split('.').first;
+
+    for (final marriage in node.marriages) {
+      for (final child in marriage.children) {
+        final result = _findNodeByUserId(child, userId);
+        if (result != null) {
+          return result;
+        }
+      }
+    }
+
+    return null;
   }
-}
-
-class _TreeHistoryEntry {
-  final String familyTreeId;
-  final String? title;
-  final FamilyTreeNode tree;
-
-  const _TreeHistoryEntry({
-    required this.familyTreeId,
-    required this.title,
-    required this.tree,
-  });
 }

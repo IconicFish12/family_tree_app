@@ -1,6 +1,5 @@
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/config/config.dart';
-import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
@@ -15,31 +14,14 @@ class SearchFamilyPage extends StatefulWidget {
 }
 
 class _SearchFamilyPageState extends State<SearchFamilyPage> {
-  late TextEditingController _searchController;
-
-  // Filter variables
-  int? selectedYear;
-  String? selectedMonth;
-
-  final List<String> months = [
-    'Januari',
-    'Februari',
-    'Maret',
-    'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
-    'September',
-    'Oktober',
-    'November',
-    'Desember',
-  ];
+  late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    _scrollController = ScrollController()..addListener(_handleScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserProvider>().fetchData(isRefresh: true);
@@ -49,180 +31,32 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
     super.dispose();
   }
 
-  List<UserData> _filterMembers(List<UserData> allUsers) {
-    final query = _searchController.text.toLowerCase();
-
-    return allUsers.where((user) {
-      final name = user.fullName?.toLowerCase() ?? '';
-      final treeId = user.familyTreeId?.toLowerCase() ?? '';
-
-      final textMatch =
-          query.isEmpty || name.contains(query) || treeId.contains(query);
-
-      bool yearMatch = true;
-      if (selectedYear != null) {
-        if (user.birthYear != null) {
-          final birthYearInt = int.tryParse(user.birthYear!);
-          yearMatch = birthYearInt == selectedYear;
-        } else {
-          yearMatch = false;
-        }
-      }
-
-      final monthMatch = selectedMonth == null;
-
-      return textMatch && yearMatch && monthMatch;
-    }).toList();
+  void _handleScroll() {
+    final provider = context.read<UserProvider>();
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 120) {
+      provider.loadMore();
+    }
   }
 
-  void _resetFilters() {
-    setState(() {
-      _searchController.clear();
-      selectedYear = null;
-      selectedMonth = null;
-    });
+  Future<void> _search() async {
+    await context.read<UserProvider>().fetchData(
+      isRefresh: true,
+      keyword: _searchController.text,
+    );
   }
 
-  void _showFilterBottomSheet() {
-    int? tempYear = selectedYear;
-    String? tempMonth = selectedMonth;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (BuildContext context, StateSetter sheetSetState) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filter',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: Config.semiBold,
-                        color: Config.textHead,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Tahun Kelahiran',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: DropdownButton<int>(
-                      value: tempYear,
-                      hint: const Text('Pilih Tahun'),
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      items: [
-                        for (int year = 2024; year >= 1920; year--)
-                          DropdownMenuItem(
-                            value: year,
-                            child: Text(year.toString()),
-                          ),
-                      ],
-                      onChanged: (value) =>
-                          sheetSetState(() => tempYear = value),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Bulan Kelahiran',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: DropdownButton<String>(
-                      value: tempMonth,
-                      hint: const Text('Pilih Bulan'),
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      items: months
-                          .map(
-                            (m) => DropdownMenuItem(value: m, child: Text(m)),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          sheetSetState(() => tempMonth = value),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          _resetFilters();
-                          Navigator.pop(context);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: Config.primary),
-                          foregroundColor: Config.primary,
-                        ),
-                        child: const Text('Reset'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedYear = tempYear;
-                            selectedMonth = tempMonth;
-                          });
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Config.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          foregroundColor: Config.white,
-                        ),
-                        child: const Text(
-                          'Terapkan',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+  Future<void> _resetSearch() async {
+    _searchController.clear();
+    await context.read<UserProvider>().fetchData(
+      isRefresh: true,
+      keyword: '',
     );
   }
 
@@ -234,7 +68,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         backgroundColor: Config.white,
         elevation: 0,
         title: Text(
-          'Pencarian',
+          'Daftar Keluarga',
           style: TextStyle(
             color: Config.textHead,
             fontSize: 20,
@@ -245,74 +79,70 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+          Container(
+            width: double.infinity,
+            color: Config.white,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Cari nama anggota keluarga yang ingin dilihat.',
+                  style: TextStyle(
+                    color: Config.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Config.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (value) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'Cari berdasarkan nama, nik...',
-                            hintStyle: TextStyle(
-                              color: Config.textSecondary,
-                              fontSize: 12,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: Config.textSecondary,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 12,
-                            ),
+                      child: TextField(
+                        controller: _searchController,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _search(),
+                        decoration: InputDecoration(
+                          hintText: 'Masukkan nama anggota keluarga',
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Config.textSecondary,
+                          ),
+                          filled: true,
+                          fillColor: Config.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: _showFilterBottomSheet,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Config.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _search,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
                         ),
-                        padding: const EdgeInsets.all(12),
-                        child: Icon(Icons.tune, color: Config.accent),
+                        child: const Text('Cari'),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (selectedYear != null || selectedMonth != null)
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      if (selectedYear != null)
-                        _buildActiveFilterChip(
-                          'Tahun: $selectedYear',
-                          () => setState(() => selectedYear = null),
-                        ),
-                      if (selectedMonth != null)
-                        _buildActiveFilterChip(
-                          'Bulan: $selectedMonth',
-                          () => setState(() => selectedMonth = null),
-                        ),
-                    ],
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _resetSearch,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tampilkan Semua Keluarga'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Config.primary,
+                    side: const BorderSide(color: Config.primary),
                   ),
+                ),
               ],
             ),
           ),
@@ -320,68 +150,81 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             child: Consumer<UserProvider>(
               builder: (context, provider, child) {
                 if (provider.state == ViewState.loading &&
-                    provider.familyUnits.isEmpty) {
+                    provider.directoryMembers.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (provider.state == ViewState.error) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(provider.errorMessage ?? "Terjadi kesalahan"),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => provider.fetchData(isRefresh: true),
-                          child: const Text("Coba Lagi"),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                
-                final allUsers = provider.allUsers;
-                final filtered = _filterMembers(allUsers);
-
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 60,
-                          color: Config.textSecondary,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Tidak ada hasil pencarian',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Config.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                if (provider.state == ViewState.error &&
+                    provider.directoryMembers.isEmpty) {
+                  return _buildPlaceholder(
+                    icon: Icons.error_outline,
+                    title: 'Data keluarga belum bisa dimuat',
+                    message:
+                        provider.errorMessage ??
+                        'Silakan coba lagi beberapa saat lagi.',
+                    actionLabel: 'Coba Lagi',
+                    onPressed: _search,
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                if (provider.directoryMembers.isEmpty) {
+                  return _buildPlaceholder(
+                    icon: Icons.groups_outlined,
+                    title: 'Data keluarga belum ditemukan',
+                    message:
+                        provider.keyword.isEmpty
+                            ? 'Belum ada anggota keluarga yang bisa ditampilkan.'
+                            : 'Coba gunakan kata kunci lain yang lebih sederhana.',
+                    actionLabel: provider.keyword.isEmpty
+                        ? 'Muat Ulang'
+                        : 'Tampilkan Semua',
+                    onPressed: provider.keyword.isEmpty ? _search : _resetSearch,
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () => context.read<UserProvider>().fetchData(
+                    isRefresh: true,
+                    keyword: provider.keyword,
                   ),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final member = filtered[index];
-                    return _buildMemberCard(member);
-                  },
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: provider.directoryMembers.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == provider.directoryMembers.length) {
+                        if (provider.isLoadingMore) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        if (provider.canLoadMore) {
+                          return const SizedBox(height: 24);
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                            horizontal: 8,
+                          ),
+                          child: Center(
+                            child: Text(
+                              provider.directoryMembers.length < provider.perPage
+                                  ? 'Semua anggota keluarga sudah tampil.'
+                                  : 'Tidak ada data tambahan lagi.',
+                              style: TextStyle(color: Config.textSecondary),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final member = provider.directoryMembers[index];
+                      return _buildMemberCard(member);
+                    },
+                  ),
                 );
               },
             ),
@@ -391,68 +234,81 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     );
   }
 
-  Widget _buildActiveFilterChip(String label, VoidCallback onDeleted) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Config.primary,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
+  Widget _buildPlaceholder({
+    required IconData icon,
+    required String title,
+    required String message,
+    required String actionLabel,
+    required VoidCallback onPressed,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 54, color: Config.textSecondary),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: Config.semiBold,
+                color: Config.textHead,
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: onDeleted,
-            child: const Icon(Icons.close, size: 14, color: Colors.white),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Config.textSecondary),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              onPressed: onPressed,
+              child: Text(actionLabel),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMemberCard(UserData member) {
+  Widget _buildMemberCard(dynamic member) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       color: Config.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: Colors.grey[200]!),
       ),
       child: InkWell(
         onTap: () {
-          // Convert UserData to ChildMember for navigation
           final childMember = ChildMember(
             id: member.userId,
-            nit: member.familyTreeId ?? "-",
-            name: member.fullName ?? "No Name",
-            spouseName: null, 
-            location: member.address ?? "-",
+            nit: member.nit.isNotEmpty ? member.nit : member.familyTreeId,
+            name: member.fullName,
+            spouseName: null,
+            location: member.address ?? '-',
             emoji: '👤',
-            children: [], 
-            photoUrl: member.avatar?.toString(),
+            children: const [],
+            photoUrl: Config.getFullImageUrl(member.avatarUrl ?? member.avatar),
+            birthYear: member.birthYear,
           );
 
           context.pushNamed('memberInfo', extra: childMember);
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               MemberAvatar(
-                photoUrl: member.avatar?.toString(),
+                photoUrl: Config.getFullImageUrl(member.avatarUrl ?? member.avatar),
                 emoji: '👤',
-                size: 50,
+                size: 54,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -460,16 +316,16 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      member.fullName ?? 'Tanpa Nama',
+                      member.fullName,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: Config.semiBold,
                         color: Config.textHead,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      member.familyTreeId ?? '-',
+                      'NIT: ${member.nit.isEmpty ? '-' : member.nit}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Config.textSecondary,
@@ -477,7 +333,15 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      member.birthYear ?? '-',
+                      'Tingkat keluarga: ${member.level}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Config.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tahun lahir: ${member.birthYear ?? '-'}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Config.textSecondary,

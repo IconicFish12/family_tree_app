@@ -175,7 +175,7 @@ class FamilyInfoPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -243,7 +243,7 @@ class FamilyInfoPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withOpacity(0.08),
+            color: Config.textHead.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -300,7 +300,7 @@ class FamilyInfoPage extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right,
-              color: Config.textSecondary.withOpacity(0.5),
+              color: Config.textSecondary.withValues(alpha: 0.5),
               size: 28,
             ),
           ],

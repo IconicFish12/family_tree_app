@@ -1,13 +1,16 @@
 import 'dart:io';
+
+import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/provider/image_picker_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:family_tree_app/config/config.dart';
+import 'package:provider/provider.dart';
 
 class ImagePickerField extends StatefulWidget {
   final String label;
   final String? initialImagePath;
-  final Function(XFile?) onImageSelected;
+  final ValueChanged<XFile?> onImageSelected;
   final bool isNetworkImage;
 
   const ImagePickerField({
@@ -23,110 +26,118 @@ class ImagePickerField extends StatefulWidget {
 }
 
 class _ImagePickerFieldState extends State<ImagePickerField> {
-  // Ganti File? menjadi XFile?
-  XFile? _pickedFile;
-  String? _networkImageUrl;
+  late final ImagePickerProvider _imagePickerProvider;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialImagePath != null) {
-      if (widget.isNetworkImage) {
-        _networkImageUrl = widget.initialImagePath;
-      } 
-    }
+    _imagePickerProvider = ImagePickerProvider(
+      initialImagePath: widget.initialImagePath,
+      isNetworkImage: widget.isNetworkImage,
+    );
+  }
+
+  @override
+  void dispose() {
+    _imagePickerProvider.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: source,
-        imageQuality: 50,
-        maxWidth: 800,
-      );
-
+      final image = await _imagePickerProvider.pickImage(source);
       if (image != null) {
-        setState(() {
-          _pickedFile = image;
-          _networkImageUrl = null;
-        });
-        widget.onImageSelected(_pickedFile);
+        widget.onImageSelected(image);
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil gambar: $error')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 150,
-          height: 150,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Config.background,
-            border: Border.all(color: Config.accent.withOpacity(0.3), width: 2),
-          ),
-          child: ClipOval(child: _buildImageContent()),
-        ),
-        const SizedBox(height: 20),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return ChangeNotifierProvider<ImagePickerProvider>.value(
+      value: _imagePickerProvider,
+      child: Consumer<ImagePickerProvider>(
+        builder: (context, pickerProvider, child) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildButton(Icons.photo_library, 'Galeri', ImageSource.gallery),
-              const SizedBox(width: 12),
-              _buildButton(Icons.camera_alt, 'Kamera', ImageSource.camera),
+              Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Config.background,
+                  border: Border.all(
+                    color: Config.accent.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: ClipOval(
+                  child: _buildImageContent(pickerProvider),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildButton(Icons.photo_library, 'Galeri', ImageSource.gallery),
+                    const SizedBox(width: 12),
+                    _buildButton(Icons.camera_alt, 'Kamera', ImageSource.camera),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildImageContent() {
-    if (_pickedFile != null) {
+  Widget _buildImageContent(ImagePickerProvider pickerProvider) {
+    if (pickerProvider.pickedFile != null) {
       if (kIsWeb) {
         return Image.network(
-          _pickedFile!.path,
+          pickerProvider.pickedFile!.path,
           fit: BoxFit.cover,
-          errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image),
+          errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
         );
-      } else {
-        return Image.file(File(_pickedFile!.path), fit: BoxFit.cover);
       }
+
+      return Image.file(File(pickerProvider.pickedFile!.path), fit: BoxFit.cover);
     }
 
-    if (_networkImageUrl != null) {
+    if (pickerProvider.networkImageUrl != null) {
       return Image.network(
-        _networkImageUrl!,
+        pickerProvider.networkImageUrl!,
         fit: BoxFit.cover,
-        loadingBuilder: (ctx, child, progress) {
-          if (progress == null) return child;
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) {
+            return child;
+          }
           return const Center(child: CircularProgressIndicator());
         },
-        errorBuilder: (ctx, err, stack) => Center(
+        errorBuilder: (_, _, _) => Center(
           child: Icon(
             Icons.person,
             size: 80,
-            color: Config.accent.withOpacity(0.3),
+            color: Config.accent.withValues(alpha: 0.3),
           ),
         ),
       );
     }
+
     return Center(
       child: Icon(
         Icons.person,
         size: 80,
-        color: Config.accent.withOpacity(0.3),
+        color: Config.accent.withValues(alpha: 0.3),
       ),
     );
   }

@@ -1,25 +1,39 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
-import 'package:family_tree_app/views/profile/profile_edit.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-      appBar: _buildAppBar(context),
-
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Profil',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: Colors.black87),
+            tooltip: 'Edit Profil',
+            onPressed: () => context.pushNamed('profileEdit'),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           final user = authProvider.currentUser;
@@ -28,10 +42,10 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Data profil tidak ditemukan"),
+                  const Text('Data profil tidak ditemukan.'),
                   ElevatedButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text("Login Ulang"),
+                    child: const Text('Login Ulang'),
                   ),
                 ],
               ),
@@ -43,136 +57,71 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: const Text(
-        "Profile",
-        style: TextStyle(
-          color: Colors.black87,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
-      ),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, color: Colors.black87),
-          tooltip: "Edit Profile",
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileEditPage()),
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
-    );
-  }
-
-  Future<void> _handleExport() async {
-    final exportUrl = Uri.parse('${Config.baseUrl}/export-users');
-
-    try {
-      if (await canLaunchUrl(exportUrl)) {
-        await launchUrl(exportUrl, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak dapat membuka link export'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Widget _buildBody(BuildContext context, dynamic user) {
+  Widget _buildBody(BuildContext context, UserData user) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildProfileHeader(user),
           const SizedBox(height: 24),
           _buildInfoSection(user),
-          const SizedBox(height: 32),
-
-          // Export Button
-          ElevatedButton.icon(
-            onPressed: _handleExport,
-            icon: const Icon(Icons.download),
-            label: const Text(
-              "Export Data Keluarga",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Config.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              elevation: 2,
+            child: const Text(
+              'Fitur export keluarga akan disesuaikan dengan session token aplikasi pada perubahan berikutnya.',
+              style: TextStyle(height: 1.4),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Logout Button
+          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () {
-              context.go('/login');
+            onPressed: () async {
+              await context.read<AuthProvider>().logout();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[400],
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.circular(12),
               ),
               elevation: 2,
             ),
             child: const Text(
-              "Logout",
+              'Logout',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildProfileHeader(dynamic user) {
+  Widget _buildProfileHeader(UserData user) {
+    final photoUrl = user.avatar is String
+        ? Config.getFullImageUrl(user.avatar as String)
+        : null;
+
     return Center(
       child: Column(
         children: [
           CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey[300],
-            backgroundImage: user.avatar != null
-                ? NetworkImage(
-                    Config.getFullImageUrl(user.avatar.toString()) as String,
-                  )
-                : null,
-            child: user.avatar == null
+            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+            child: photoUrl == null
                 ? Icon(Icons.person, size: 60, color: Colors.grey[600])
                 : null,
           ),
           const SizedBox(height: 12),
           Text(
-            user.fullName ?? "Tanpa Nama",
+            user.fullName ?? 'Tanpa Nama',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
@@ -181,7 +130,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 4),
           Text(
-            "ID Keluarga: ${user.familyTreeId}",
+            'ID Pohon: ${user.familyTreeId ?? '-'}',
             style: TextStyle(fontSize: 15, color: Colors.grey[600]),
           ),
         ],
@@ -189,7 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildInfoSection(dynamic user) {
+  Widget _buildInfoSection(UserData user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -197,40 +146,34 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Expanded(
               child: _buildInfoCard(
-                title: "Nama Lengkap",
-                value: user.fullName ?? "-",
+                title: 'Nama Lengkap',
+                value: user.fullName ?? '-',
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildInfoCard(
-                title: "Tahun Lahir",
-                value: user.birthYear?.toString() ?? "-",
+                title: 'Tahun Lahir',
+                value: user.birthYear?.toString() ?? '-',
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _buildInfoCard(title: "Alamat", value: user.address ?? "-"),
-        const SizedBox(height: 12),
-
-        _buildInfoCard(
-          title: "Terdaftar Sejak",
-          value: user.createdAt.toLocal().toString().split(' ')[0],
-        ),
+        _buildInfoCard(title: 'Alamat', value: user.address ?? '-'),
       ],
     );
   }
 
   Widget _buildInfoCard({required String title, required String value}) {
     return Container(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 2),

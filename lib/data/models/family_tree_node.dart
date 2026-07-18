@@ -1,22 +1,72 @@
 class FamilyTreeSpouse {
   final int? userId;
+  final String familyTreeId;
+  final int level;
   final String fullName;
   final String? address;
   final String? birthYear;
+  final String? avatar;
+  final String? avatarUrl;
 
   const FamilyTreeSpouse({
     this.userId,
+    required this.familyTreeId,
+    required this.level,
     required this.fullName,
     this.address,
     this.birthYear,
+    this.avatar,
+    this.avatarUrl,
   });
 
   factory FamilyTreeSpouse.fromJson(Map<String, dynamic> json) {
     return FamilyTreeSpouse(
       userId: _toInt(json['user_id']),
-      fullName: (json['full_name'] ?? 'Tanpa Nama').toString(),
+      familyTreeId: (json['family_tree_id'] ?? '').toString(),
+      level: _toInt(json['level']) ?? 0,
+      fullName: (json['full_name'] ?? 'Pasangan').toString(),
       address: json['address']?.toString(),
       birthYear: json['birth_year']?.toString(),
+      avatar: json['avatar']?.toString(),
+      avatarUrl: json['avatar_url']?.toString(),
+    );
+  }
+}
+
+class FamilyTreeMarriage {
+  final int marriageId;
+  final int marriageOrder;
+  final FamilyTreeSpouse? spouse;
+  final List<FamilyTreeNode> children;
+
+  const FamilyTreeMarriage({
+    required this.marriageId,
+    required this.marriageOrder,
+    required this.spouse,
+    required this.children,
+  });
+
+  bool get hasChildren => children.isNotEmpty;
+
+  factory FamilyTreeMarriage.fromJson(Map<String, dynamic> json) {
+    final rawChildren = json['children'];
+    final rawSpouse = json['spouse'];
+
+    return FamilyTreeMarriage(
+      marriageId: _toInt(json['marriage_id']) ?? 0,
+      marriageOrder: _toInt(json['marriage_order']) ?? 0,
+      spouse: rawSpouse is Map
+          ? FamilyTreeSpouse.fromJson(Map<String, dynamic>.from(rawSpouse))
+          : null,
+      children: rawChildren is List
+          ? rawChildren
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      FamilyTreeNode.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .toList()
+          : const [],
     );
   }
 }
@@ -24,58 +74,50 @@ class FamilyTreeSpouse {
 class FamilyTreeNode {
   final int? userId;
   final String familyTreeId;
+  final int level;
   final String fullName;
   final String? address;
   final String? birthYear;
-  final List<FamilyTreeSpouse> spouse;
-  final List<FamilyTreeNode> children;
+  final String? avatar;
+  final String? avatarUrl;
+  final List<FamilyTreeMarriage> marriages;
 
   const FamilyTreeNode({
     this.userId,
     required this.familyTreeId,
+    required this.level,
     required this.fullName,
     this.address,
     this.birthYear,
-    required this.spouse,
-    required this.children,
+    this.avatar,
+    this.avatarUrl,
+    required this.marriages,
   });
 
-  bool get hasChildren => children.isNotEmpty;
-  bool get canOpenSubtree => familyTreeId.isNotEmpty && hasChildren;
+  bool get hasDescendants =>
+      marriages.any((marriage) => marriage.children.isNotEmpty);
 
-  String get spouseNames {
-    return spouse
-        .map((item) => item.fullName.trim())
-        .where((name) => name.isNotEmpty)
-        .join(', ');
-  }
+  int get spouseCount => marriages.where((marriage) => marriage.spouse != null).length;
 
   factory FamilyTreeNode.fromJson(Map<String, dynamic> json) {
-    final spouseRaw = json['spouse'];
-    final childrenRaw = json['children'];
+    final rawMarriages = json['marriages'];
 
     return FamilyTreeNode(
       userId: _toInt(json['user_id']),
       familyTreeId: (json['family_tree_id'] ?? '').toString(),
+      level: _toInt(json['level']) ?? 0,
       fullName: (json['full_name'] ?? 'Tanpa Nama').toString(),
       address: json['address']?.toString(),
       birthYear: json['birth_year']?.toString(),
-      spouse: spouseRaw is List
-          ? spouseRaw
+      avatar: json['avatar']?.toString(),
+      avatarUrl: json['avatar_url']?.toString(),
+      marriages: rawMarriages is List
+          ? rawMarriages
                 .whereType<Map>()
                 .map(
-                  (item) => FamilyTreeSpouse.fromJson(
+                  (item) => FamilyTreeMarriage.fromJson(
                     Map<String, dynamic>.from(item),
                   ),
-                )
-                .toList()
-          : const [],
-      children: childrenRaw is List
-          ? childrenRaw
-                .whereType<Map>()
-                .map(
-                  (item) =>
-                      FamilyTreeNode.fromJson(Map<String, dynamic>.from(item)),
                 )
                 .toList()
           : const [],

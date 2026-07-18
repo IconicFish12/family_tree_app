@@ -1,70 +1,154 @@
-import 'package:family_tree_app/data/models/login_model.dart';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/core/session_storage.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/auth_repository.dart';
-import 'package:flutter/material.dart';
 
-enum ViewState { initial, loading, success, error }
+enum AuthStatus {
+  initializing,
+  unauthenticated,
+  authenticating,
+  authenticated,
+}
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository;
+  final SessionStorage _sessionStorage;
 
-  AuthProvider(this._authRepository);
+  AuthProvider(this._authRepository, this._sessionStorage) {
+    Config.registerUnauthorizedHandler(handleUnauthorized);
+    unawaited(initializeSession());
+  }
 
-  ViewState _state = ViewState.initial;
-  ViewState get state => _state;
+  AuthStatus _status = AuthStatus.initializing;
+  AuthStatus get status => _status;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  Data? _currentUser;
-  Data? get currentUser => _currentUser;
+  UserData? _currentUser;
+  UserData? get currentUser => _currentUser;
 
-  void updateUser(UserData updatedUser) {
-    if (_currentUser == null) return;
+  bool get isAuthenticated => _status == AuthStatus.authenticated;
 
-    debugPrint('[AuthProvider] Updating user with: ${updatedUser.toJson()}');
+  Future<void> initializeSession() async {
+    try {
+      _status = AuthStatus.initializing;
+      _errorMessage = null;
+      notifyListeners();
 
-    dynamic newAvatar = _currentUser!.avatar;
-    if (updatedUser.avatar != null) {
-      if (updatedUser.avatar is String) {
-        newAvatar = updatedUser.avatar;
+      final savedToken = await _sessionStorage.getAccessToken();
+      if (savedToken == null || savedToken.isEmpty) {
+        await _clearLocalSession(notify: false);
+        _status = AuthStatus.unauthenticated;
+        notifyListeners();
+        return;
       }
+
+      Config.setAccessToken(savedToken);
+
+      final profileResult = await _authRepository.getProfile();
+      if (profileResult.isLeft()) {
+        await _clearLocalSession(notify: false);
+        _status = AuthStatus.unauthenticated;
+      } else {
+        profileResult.fold(
+          (_) => null,
+          (profile) {
+            _currentUser = profile;
+            _status = AuthStatus.authenticated;
+          },
+        );
+      }
+    } catch (_) {
+      await _clearLocalSession(notify: false);
+      _status = AuthStatus.unauthenticated;
     }
 
-    _currentUser = _currentUser!.copyWith(
-      fullName: updatedUser.fullName ?? _currentUser!.fullName,
-      address: updatedUser.address ?? _currentUser!.address,
-      birthYear: updatedUser.birthYear ?? _currentUser!.birthYear,
-      avatar: newAvatar,
+    notifyListeners();
+  }
+
+  Future<bool> login(String nit, String password) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    final loginResult = await _authRepository.login(
+      nit: nit.trim(),
+      password: password.trim(),
+      deviceName: defaultTargetPlatform.name,
     );
 
-    debugPrint(
-      '[AuthProvider] Updated currentUser: fullName=${_currentUser!.fullName}, avatar=${_currentUser!.avatar}',
+    final success = await loginResult.fold(
+      (failure) async {
+        _errorMessage = failure.message;
+        _status = AuthStatus.unauthenticated;
+        notifyListeners();
+        return false;
+      },
+      (token) async {
+        Config.setAccessToken(token);
+        await _sessionStorage.saveAccessToken(token);
+
+        final profileResult = await _authRepository.getProfile();
+        return profileResult.fold(
+          (failure) async {
+            await _clearLocalSession(notify: false);
+            _errorMessage = failure.message;
+            _status = AuthStatus.unauthenticated;
+            notifyListeners();
+            return false;
+          },
+          (profile) async {
+            _currentUser = profile;
+            _status = AuthStatus.authenticated;
+            notifyListeners();
+            return true;
+          },
+        );
+      },
+    );
+
+    return success;
+  }
+
+  Future<void> logout() async {
+    await _authRepository.logout();
+    await _clearLocalSession();
+  }
+
+  Future<void> handleUnauthorized(String reason) async {
+    _errorMessage = reason;
+    await _clearLocalSession();
+  }
+
+  void updateUser(UserData updatedUser) {
+    final current = _currentUser;
+    if (current == null) return;
+
+    dynamic nextAvatar = current.avatar;
+    if (updatedUser.avatar != null) {
+      nextAvatar = updatedUser.avatar;
+    }
+
+    _currentUser = current.copyWith(
+      fullName: updatedUser.fullName ?? current.fullName,
+      address: updatedUser.address ?? current.address,
+      birthYear: updatedUser.birthYear ?? current.birthYear,
+      avatar: nextAvatar,
     );
     notifyListeners();
   }
 
-  Future<bool> login(String familyTreeId, String password) async {
-    _state = ViewState.loading;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await _authRepository.login(familyTreeId, password);
-
-    return result.fold(
-      (failure) {
-        _errorMessage = failure.message;
-        _state = ViewState.error;
-        notifyListeners();
-        return false;
-      },
-      (loginModel) {
-        _currentUser = loginModel.data;
-
-        _state = ViewState.success;
-        notifyListeners();
-        return true;
-      },
-    );
+  Future<void> _clearLocalSession({bool notify = true}) async {
+    _currentUser = null;
+    Config.setAccessToken(null);
+    await _sessionStorage.clear();
+    _status = AuthStatus.unauthenticated;
+    if (notify) {
+      notifyListeners();
+    }
   }
 }

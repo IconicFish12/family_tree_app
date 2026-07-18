@@ -1,88 +1,211 @@
-# Family Tree Application
+# Tali Silsilah
 
-## Overview
+Aplikasi Flutter untuk login berbasis token, pengelolaan data keluarga, pencarian anggota keluarga, dan visualisasi pohon keluarga berbasis API eksternal.
 
-The Family Tree Application is a sophisticated mobile and web solution built with Flutter, designed to facilitate the digital management and visualization of family lineages. This application provides users with an intuitive interface to create, edit, and explore complex family structures, ensuring that genealogical data is preserved and easily accessible.
+## Ringkasan
 
-## Key Features
+- Jenis project: Flutter app lintas platform, mobile-first
+- Repository ini berisi frontend saja
+- Backend berada di luar repository dan diakses melalui REST API
+- State management utama: `Provider`
+- Networking utama: `Dio`
+- Routing utama: `GoRouter`
+- Visualisasi tree: `GraphView`
 
-- **Interactive Genealogy Visualization**: utilizes `GraphView` to render dynamic, interactive family trees that allow users to navigate through generations seamlessly.
-- **Comprehensive Profile Management**: Enables detailed storage of family member information, including personal details, media associations, and historical data.
-- **Relationship Mapping**: Efficiently handles complex relationship types including spouses, children, and parents, maintaining data integrity across the tree.
-- **Cross-Platform Compatibility**: Fully optimized for both Android and iOS platforms, with web support capabilities.
-- **Modern Infrastructure**: Built on a robust architecture ensuring scalability and performance.
+## Fitur Utama
 
-## Technology Stack
+- Login berbasis credential token
+- Restore session saat aplikasi dibuka ulang
+- Auto logout ketika token invalid, expired, `401`, atau `403`
+- Daftar keluarga dan pencarian anggota keluarga
+- Tambah pasangan
+- Tambah anak dengan pemilihan cabang pasangan
+- Edit profil anggota login
+- Visualisasi pohon keluarga dengan batas tampilan 3 tingkat per cabang
 
-This project leverages a modern technology stack to ensure performance and maintainability:
+## Tech Stack
 
-- **Framework**: Flutter (Dart)
-- **State Management**: Provider
-- **Networking**: Dio
-- **Data Modeling**: Freezed & JSON Serializable
-- **Navigation**: GoRouter
-- **Visualization**: GraphView
-- **Utilities**:
-    - `fpdart` for functional programming patterns
-    - `get_it` for dependency injection
-    - `logger` for advanced logging
+- Flutter
+- Dart
+- Provider
+- Dio
+- GoRouter
+- GraphView
+- Freezed
+- json_serializable
+- Shared Preferences
 
-## Getting Started
+## Struktur Folder
 
-### Prerequisites
-
-- Flutter SDK (Latest Stable Version)
-- Dart SDK
-- Android Studio / Xcode (for mobile development)
-
-### Installation
-
-1.  **Clone the Repository**
-
-    ```bash
-    git clone <repository-url>
-    ```
-
-2.  **Install Dependencies**
-
-    Navigate to the project directory and run:
-
-    ```bash
-    flutter pub get
-    ```
-
-3.  **Code Generation**
-
-    This project uses code generation for JSON serialization and immutability. Run the build runner:
-
-    ```bash
-    dart run build_runner build --delete-conflicting-outputs
-    ```
-
-### Running the Application
-
-To run the application in debug mode:
-
-```bash
-flutter run
+```text
+lib/
+  components/        widget reusable
+  config/            theme, environment, dio config
+  core/              util app-level
+  data/
+    models/          DTO dan helper model
+    provider/        app state dan UI-scoped state
+    repository/      akses API dan mapping failure
+  views/             halaman dan flow UI
+test/                test Flutter
+android/ ios/ ...    platform runner Flutter
 ```
 
-For a release build:
+## Setup Environment
 
-```bash
-flutter run --release
+Project ini menggunakan `--dart-define-from-file` bawaan Flutter. Tidak ada package dotenv tambahan.
+
+### File environment
+
+- `.env`: file lokal developer, tidak boleh di-commit
+- `.env.example`: template aman untuk repository
+
+### Variabel yang dipakai
+
+```env
+APP_NAME=Tali Silsilah
+APP_ENV=development
+API_BASE_URL=https://api-alusrah.oproject.id/api
+API_STORAGE_URL=https://api-alusrah.oproject.id/storage/
+NETWORK_TIMEOUT_SECONDS=20
 ```
 
-## Project Structure
+### Langkah awal
 
-The codebase adheres to a clean architecture pattern, organized as follows:
+1. Pastikan file `.env` tersedia di root project.
+2. Jika belum ada, gunakan `.env.example` sebagai acuan.
+3. Jalankan app dengan `--dart-define-from-file=.env`.
 
-- `lib/core`: Contains core utilities and shared functionality.
-- `lib/data`: Handles data layer responsibilities including models and repositories.
-- `lib/views`: Contains UI components and screens.
-- `lib/config`: Configuration files and environment settings.
-- `lib/components`: Reusable UI widgets.
+## Command
 
-## Development
+### Install dependency
 
-for any development inquiries or contributions, please refer to the project's contribution guidelines or contact the development team.
+```bash
+flutter pub get
+```
+
+### Generate file model
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Run development
+
+```bash
+flutter run --dart-define-from-file=.env
+```
+
+### Build Android release
+
+```bash
+flutter build apk --release --dart-define-from-file=.env
+```
+
+### Analyze
+
+```bash
+flutter analyze
+```
+
+### Test
+
+```bash
+flutter test
+```
+
+## Arsitektur Existing
+
+Project ini memakai layered architecture ringan, bukan clean architecture penuh.
+
+- `views`: render UI, event UI, controller input
+- `provider`: state management dan orchestration antar layer
+- `repository`: komunikasi API
+- `models`: DTO response/request dan helper model
+- `config`: theme, environment, dan konfigurasi `Dio`
+
+## Aturan Development
+
+### Penamaan
+
+- File: `snake_case.dart`
+- Class: `PascalCase`
+- Variable dan method: `camelCase`
+
+### State management
+
+- Shared state masuk ke `lib/data/provider/`
+- UI state yang memengaruhi tampilan sebaiknya juga dipindah ke provider/notifier kecil
+- Hindari `setState` untuk state yang bisa dipisah dengan jelas
+- `TextEditingController`, `FocusNode`, dan lifecycle widget boleh tetap berada di `StatefulWidget`
+- Gunakan `context.select`, `Consumer`, atau provider lokal agar rebuild lebih sempit
+
+### API dan konfigurasi
+
+- Jangan hardcode base URL baru di file lain
+- Semua request API sebaiknya lewat repository
+- Gunakan `Config.dio` agar token dan unauthorized handler tetap konsisten
+- Gunakan environment melalui `AppEnvironment`, bukan hardcoded string baru
+
+### Widget dan screen
+
+- `components/` hanya untuk widget reusable
+- Jika sebuah screen mulai memegang terlalu banyak state UI, pecah ke provider/notifier terpisah
+- Usahakan satu screen hanya fokus pada satu flow utama
+
+### Routing
+
+- Gunakan route name dari `GoRouter`
+- Hati-hati dengan `state.extra`
+- Jika mengubah shape `extra`, cek semua caller dan destination route
+
+## Auth Flow
+
+1. User login dengan credential
+2. Token disimpan lokal
+3. Semua request API menggunakan bearer token otomatis
+4. Jika API mengembalikan `401` atau `403`, session dibersihkan dan user diarahkan kembali ke login
+
+## Area Sensitif
+
+Ubah dengan hati-hati:
+
+- `lib/config/app_environment.dart`
+- `lib/config/config.dart`
+- `lib/data/provider/auth_provider.dart`
+- `lib/data/provider/user_provider.dart`
+- `lib/data/provider/tree_provider.dart`
+- model API di `lib/data/models/`
+- route utama di `lib/main.dart`
+
+## File Sensitif yang Tidak Boleh Masuk Git
+
+Sudah diatur di `.gitignore`, terutama:
+
+- `.env`
+- `.env.*` selain `.env.example`
+- `key.properties`
+- `*.jks`
+- `*.keystore`
+- `android/app/google-services.json`
+- `ios/Runner/GoogleService-Info.plist`
+
+Jika ada file credential baru, update `.gitignore` sebelum file itu dipakai.
+
+## Catatan untuk Developer Baru
+
+- Repository ini adalah frontend client
+- API adalah source of truth utama
+- Sebelum refactor besar, cek route aktif dan provider yang dipakai
+- Jika mengubah model `Freezed`, jalankan ulang `build_runner`
+- Jangan ubah kontrak API tanpa cek provider, repository, dan UI yang bergantung padanya
+
+## Command Cepat
+
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter run --dart-define-from-file=.env
+flutter analyze
+flutter test
+```

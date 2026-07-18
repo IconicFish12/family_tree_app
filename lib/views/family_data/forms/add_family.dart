@@ -43,7 +43,6 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
             child: YearPicker(
               firstDate: DateTime(1900),
               lastDate: DateTime.now(),
-              initialDate: DateTime.now(),
               selectedDate: DateTime.now(),
               onChanged: (DateTime dateTime) {
                 _birthYearController.text = dateTime.year.toString();
@@ -68,6 +67,13 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
         return;
       }
 
+      if (currentUser.userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: ID anggota login tidak ditemukan")),
+        );
+        return;
+      }
+
       final spouseData = UserData(
         fullName: _spouseNameController.text,
         address: _locationController.text,
@@ -80,7 +86,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
 
       final success = await userProvider.addSpouse(
         spouseData: spouseData,
-        currentUserId: currentUser.userId,
+        currentUserId: currentUser.userId!,
       );
 
       if (!mounted) return;
@@ -138,9 +144,9 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.only(bottom: 24),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -175,8 +181,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
               Center(
                 child: ImagePickerField(
                   label: 'Foto Pasangan',
-                  onImageSelected: (file) =>
-                      setState(() => _spousePhoto = file),
+                  onImageSelected: (file) => _spousePhoto = file,
                 ),
               ),
               const SizedBox(height: 24),

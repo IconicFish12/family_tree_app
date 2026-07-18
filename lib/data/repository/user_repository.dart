@@ -1,600 +1,305 @@
-// import 'dart:io';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/failure.dart';
-import 'package:flutter/foundation.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 abstract class UserRepository {
-  Future<Either<Failure, List<UserData>>> getData({int page = 1});
-  Future<Either<Failure, UserData>> getById(String id);
-  Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId);
-  Future<Either<Failure, FamilyTreeNode>> getTree(String familyTreeId);
-  Future<Either<Failure, UserData>> getSingleBySearch({
-    String? name,
-    String? familyTreeId,
+  Future<Either<Failure, FamilyDirectoryResponse>> getFamilyMembers({
+    String keyword = '',
+    int perPage = 25,
   });
-  Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers(
-    String familyTreeId,
-  );
-  Future<Either<Failure, UserData>> createUser(UserData data);
-  Future<Either<Failure, UserData>> login(String email, String password);
-  Future<Either<Failure, UserData>> updateProfile(String id, UserData data);
+
+  Future<Either<Failure, UserData>> getById(String id);
+  Future<Either<Failure, FamilyTreeNode>> getTree();
+  Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers();
+  Future<Either<Failure, UserData>> updateProfile(UserData data);
+  Future<Either<Failure, List<FamilyTreeMarriage>>> getMarriages(String memberId);
+  Future<Either<Failure, bool>> createMarriage({
+    required String memberId,
+    required UserData spouseData,
+  });
+  Future<Either<Failure, bool>> createChild({
+    required String memberId,
+    String? marriageId,
+    required String nit,
+    required UserData childData,
+  });
 }
 
 class UserRepositoryImpl implements UserRepository {
-  final String baseUrl = Config.baseUrl;
-
-  bool _isValidId(String id) {
-    return RegExp(r'^[a-zA-Z0-9\-_]+$').hasMatch(id);
-  }
-
-  bool _isValidFamilyTreeId(String id) {
-    return RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(id);
-  }
-
-  List<dynamic> _safeParseList(dynamic data) {
-    if (data is List) return data;
-    if (data is Map && data.containsKey('data') && data['data'] is List) {
-      return data['data'] as List<dynamic>;
+  String _errorMessage(DioException error) {
+    final responseData = error.response?.data;
+    if (responseData is Map && responseData['message'] != null) {
+      return responseData['message'].toString();
     }
-    return [];
-  }
-
-  Map<String, dynamic>? _safeParseMap(dynamic data) {
-    if (data is Map<String, dynamic>) return data;
-    if (data is Map) return Map<String, dynamic>.from(data);
-    return null;
-  }
-
-  Map<String, dynamic> _sanitizeTreeNode(Map<String, dynamic> data) {
-    final sanitized = Map<String, dynamic>.from(data);
-
-    if (sanitized['user_id'] is String) {
-      sanitized['user_id'] = int.tryParse(sanitized['user_id']);
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout) {
+      return 'Koneksi ke server terlalu lama. Silakan coba lagi.';
     }
-
-    if (sanitized['spouse'] is List) {
-      sanitized['spouse'] = (sanitized['spouse'] as List).map((item) {
-        if (item is Map) {
-          final mapped = Map<String, dynamic>.from(item);
-          if (mapped['user_id'] is String) {
-            mapped['user_id'] = int.tryParse(mapped['user_id']);
-          }
-          return mapped;
-        }
-        return item;
-      }).toList();
-    }
-
-    if (sanitized['children'] is List) {
-      sanitized['children'] = (sanitized['children'] as List).map((item) {
-        if (item is Map) {
-          return _sanitizeTreeNode(Map<String, dynamic>.from(item));
-        }
-        return item;
-      }).toList();
-    }
-
-    return sanitized;
+    return error.message ?? 'Terjadi kesalahan saat terhubung ke server.';
   }
 
   Map<String, dynamic> _sanitizeUserData(Map<String, dynamic> data) {
     final sanitized = Map<String, dynamic>.from(data);
-
     if (sanitized['user_id'] is String) {
       sanitized['user_id'] = int.tryParse(sanitized['user_id']);
     }
     if (sanitized['parent_id'] is String) {
       sanitized['parent_id'] = int.tryParse(sanitized['parent_id']);
     }
-
     return sanitized;
   }
 
-  String _getErrorMessage(DioException e) {
-    if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
-      return "Akses ditolak. Silahkan login kembali.";
-    }
-    if (e.response?.statusCode == 404) {
-      return "Data tidak ditemukan.";
-    }
-    if (e.response?.statusCode == 422) {
-      return "Data yang dikirim tidak valid. Periksa kembali.";
-    }
-    if (e.response?.statusCode == 500) {
-      return "Terjadi kesalahan server. Coba lagi nanti.";
-    }
-    if (e.type == DioExceptionType.connectionTimeout) {
-      return "Koneksi timeout. Periksa internet Anda.";
-    }
-    if (e.type == DioExceptionType.receiveTimeout) {
-      return "Server tidak merespon. Coba lagi nanti.";
-    }
-    return "Gagal terhubung ke server.";
-  }
-
-  void _debugTreeResponseSummary(
-    String familyTreeId,
-    Map<String, dynamic> nodeMap,
-  ) {
-    final children = nodeMap['children'];
-    final spouse = nodeMap['spouse'];
-    debugPrint(
-      '[UserRepository][getTree] summary familyTreeId=$familyTreeId '
-      'keys=${nodeMap.keys.join(',')} '
-      'childCount=${children is List ? children.length : 0} '
-      'spouseCount=${spouse is List ? spouse.length : 0}',
-    );
-  }
-
-  // GET ALL USERS
   @override
-  Future<Either<Failure, List<UserData>>> getData({int page = 1}) async {
+  Future<Either<Failure, FamilyDirectoryResponse>> getFamilyMembers({
+    String keyword = '',
+    int perPage = 25,
+  }) async {
     try {
-      if (page < 1) return Left(Failure("Halaman harus minimal 1"));
-
       final response = await Config.dio.get(
-        '$baseUrl/users',
-        queryParameters: {'page': page},
+        '/family-members',
+        queryParameters: {
+          'keyword': keyword.trim(),
+          'per_page': perPage,
+        },
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        final List<dynamic> rawList = _safeParseList(response.data);
-        if (rawList.isEmpty) return Right([]);
-
-        try {
-          final result = rawList
-              .map(
-                (e) => UserData.fromJson(
-                  _sanitizeUserData(Map<String, dynamic>.from(e)),
-                ),
-              )
-              .toList();
-          return Right(result);
-        } catch (e) {
-          return Left(Failure("Format data tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Gagal memuat data pengguna"));
+      if (response.statusCode == 200 && response.data is Map) {
+        return Right(
+          FamilyDirectoryResponse.fromJson(
+            Map<String, dynamic>.from(response.data as Map),
+          ),
+        );
       }
+
+      return Left(Failure('Daftar keluarga tidak dapat dimuat.'));
     } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memproses data"));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat memproses daftar keluarga.'));
     }
   }
 
-  // GET USER BY ID
   @override
   Future<Either<Failure, UserData>> getById(String id) async {
     try {
-      if (id.isEmpty || !_isValidId(id)) {
-        return Left(Failure("ID pengguna tidak valid"));
+      final response = await Config.dio.get('/family-members/$id');
+
+      if (response.statusCode == 200 && response.data is Map) {
+        final body = Map<String, dynamic>.from(response.data as Map);
+        final rawData = body['data'] is Map
+            ? Map<String, dynamic>.from(body['data'] as Map)
+            : body;
+        return Right(UserData.fromJson(_sanitizeUserData(rawData)));
       }
 
-      final response = await Config.dio.get('$baseUrl/user/$id');
-
-      if (response.statusCode == 200 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Pengguna tidak ditemukan"));
-      }
+      return Left(Failure('Detail anggota tidak ditemukan.'));
     } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memproses data"));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat memuat detail anggota.'));
     }
   }
 
-  // GET USERS BY FAMILY TREE ID
   @override
-  Future<Either<Failure, List<UserData>>> getByTree(String familyTreeId) async {
+  Future<Either<Failure, FamilyTreeNode>> getTree() async {
     try {
-      if (familyTreeId.isEmpty || !_isValidFamilyTreeId(familyTreeId)) {
-        return Left(Failure("ID pohon keluarga tidak valid"));
-      }
+      final response = await Config.dio.get('/family-tree');
 
-      final response = await Config.dio.get(
-        '$baseUrl/users/tree/$familyTreeId',
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        final List<dynamic> rawList = _safeParseList(response.data);
-        if (rawList.isEmpty) return Right([]);
-
-        try {
-          final result = rawList.map((e) => UserData.fromJson(e)).toList();
-          return Right(result);
-        } catch (e) {
-          return Left(Failure("Format data tidak sesuai"));
+      if (response.statusCode == 200 && response.data is Map) {
+        final body = Map<String, dynamic>.from(response.data as Map);
+        final rawData = body['data'];
+        if (rawData is Map) {
+          return Right(FamilyTreeNode.fromJson(Map<String, dynamic>.from(rawData)));
         }
-      } else {
-        return Left(Failure("Data pohon keluarga tidak ditemukan"));
       }
+
+      return Left(Failure('Bagan keluarga tidak dapat dimuat.'));
     } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memproses data"));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat memproses bagan keluarga.'));
     }
   }
 
   @override
-  Future<Either<Failure, FamilyTreeNode>> getTree(String familyTreeId) async {
+  Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers() async {
     try {
-      debugPrint(
-        '[UserRepository][getTree] request familyTreeId=$familyTreeId '
-        'url=$baseUrl/users/tree/$familyTreeId',
-      );
+      final response = await Config.dio.get('/family/count');
 
-      if (familyTreeId.isEmpty || !_isValidFamilyTreeId(familyTreeId)) {
-        debugPrint(
-          '[UserRepository][getTree] blocked invalid familyTreeId=$familyTreeId',
-        );
-        return Left(Failure("ID pohon keluarga tidak valid"));
+      if (response.statusCode == 200 && response.data is Map) {
+        return Right(Map<String, dynamic>.from(response.data as Map));
       }
 
-      final response = await Config.dio.get(
-        '$baseUrl/users/tree/$familyTreeId',
-      );
-
-      debugPrint(
-        '[UserRepository][getTree] response status=${response.statusCode} '
-        'dataType=${response.data.runtimeType}',
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        final dynamic responseData = response.data;
-        final dynamic rawNode =
-            responseData is Map && responseData.containsKey('data')
-            ? responseData['data']
-            : responseData;
-
-        final nodeMap = _safeParseMap(rawNode);
-        if (nodeMap == null) {
-          debugPrint(
-            '[UserRepository][getTree] invalid response map '
-            'rawType=${rawNode.runtimeType}',
-          );
-          return Left(Failure("Format data tree tidak sesuai"));
-        }
-
-        _debugTreeResponseSummary(familyTreeId, nodeMap);
-
-        try {
-          final tree = FamilyTreeNode.fromJson(_sanitizeTreeNode(nodeMap));
-          debugPrint(
-            '[UserRepository][getTree] parsed familyTreeId=$familyTreeId '
-            'root=${tree.familyTreeId} children=${tree.children.length}',
-          );
-          return Right(tree);
-        } catch (e) {
-          debugPrint(
-            '[UserRepository][getTree] parse failed familyTreeId=$familyTreeId '
-            'error=$e',
-          );
-          return Left(Failure("Gagal memproses data tree"));
-        }
-      } else {
-        debugPrint(
-          '[UserRepository][getTree] unexpected status=${response.statusCode} '
-          'bodyType=${response.data.runtimeType}',
-        );
-        return Left(Failure("Data pohon keluarga tidak ditemukan"));
-      }
+      return Left(Failure('Jumlah anggota keluarga tidak dapat dimuat.'));
     } on DioException catch (e) {
-      debugPrint(
-        '[UserRepository][getTree] dioException familyTreeId=$familyTreeId '
-        'type=${e.type} status=${e.response?.statusCode} body=${e.response?.data}',
-      );
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      debugPrint(
-        '[UserRepository][getTree] generalException familyTreeId=$familyTreeId '
-        'error=$e',
-      );
-      return Left(Failure("Terjadi kesalahan: Gagal memproses tree"));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat menghitung anggota keluarga.'));
     }
   }
 
-  // GET SINGLE USER BY SEARCH
   @override
-  Future<Either<Failure, UserData>> getSingleBySearch({
-    String? name,
-    String? familyTreeId,
-  }) async {
+  Future<Either<Failure, UserData>> updateProfile(UserData data) async {
     try {
-      final queryParams = <String, dynamic>{};
+      if (data.avatar is XFile) {
+        final formData = FormData.fromMap({
+          '_method': 'PATCH',
+          if (data.fullName != null) 'full_name': data.fullName,
+          if (data.address != null) 'address': data.address,
+          if (data.birthYear != null) 'birth_year': data.birthYear,
+        });
 
-      if (name != null && name.isNotEmpty) {
-        if (name.length > 255) return Left(Failure("Nama terlalu panjang"));
-        queryParams['name'] = name.trim();
-      }
+        final image = data.avatar as XFile;
+        final fileName = image.path.split(Platform.pathSeparator).last;
+        final mimeType = fileName.toLowerCase().endsWith('png')
+            ? 'image/png'
+            : 'image/jpeg';
 
-      if (familyTreeId != null && familyTreeId.isNotEmpty) {
-        if (!_isValidFamilyTreeId(familyTreeId)) {
-          return Left(Failure("ID pohon keluarga tidak valid"));
-        }
-        queryParams['family_tree_id'] = familyTreeId;
-      }
-
-      if (queryParams.isEmpty) {
-        return Left(
-          Failure("Minimal satu parameter pencarian harus diberikan"),
+        formData.files.add(
+          MapEntry(
+            'avatar',
+            await MultipartFile.fromFile(
+              image.path,
+              filename: fileName,
+              contentType: MediaType.parse(mimeType),
+            ),
+          ),
         );
+
+        final response = await Config.dio.post('/profile', data: formData);
+        return _parseProfileResponse(response);
       }
 
-      final response = await Config.dio.get(
-        '$baseUrl/user/find',
-        queryParameters: queryParams,
+      final response = await Config.dio.patch(
+        '/profile',
+        data: {
+          if (data.fullName != null) 'full_name': data.fullName,
+          if (data.address != null) 'address': data.address,
+          if (data.birthYear != null) 'birth_year': data.birthYear,
+        },
       );
-
-      if (response.statusCode == 200 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Pengguna tidak ditemukan"));
-      }
+      return _parseProfileResponse(response);
     } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memproses data"));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat memperbarui profil.'));
     }
   }
 
-  // COUNT FAMILY MEMBERS
+  Either<Failure, UserData> _parseProfileResponse(Response<dynamic> response) {
+    if (response.statusCode == 200 && response.data is Map) {
+      final body = Map<String, dynamic>.from(response.data as Map);
+      final rawData = body['data'] is Map
+          ? Map<String, dynamic>.from(body['data'] as Map)
+          : body;
+      return Right(UserData.fromJson(_sanitizeUserData(rawData)));
+    }
+
+    return Left(Failure('Profil tidak dapat diperbarui.'));
+  }
+
   @override
-  Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers(
-    String familyTreeId,
+  Future<Either<Failure, List<FamilyTreeMarriage>>> getMarriages(
+    String memberId,
   ) async {
     try {
-      if (familyTreeId.isEmpty || !_isValidFamilyTreeId(familyTreeId)) {
-        return Left(Failure("ID pohon keluarga tidak valid"));
+      final response = await Config.dio.get('/family-members/$memberId/marriages');
+
+      if (response.statusCode == 200 && response.data is Map) {
+        final body = Map<String, dynamic>.from(response.data as Map);
+        final rawData = body['data'];
+        if (rawData is List) {
+          final marriages = rawData
+              .whereType<Map>()
+              .map(
+                (item) => FamilyTreeMarriage.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList();
+          return Right(marriages);
+        }
       }
 
-      final response = await Config.dio.get(
-        '$baseUrl/family/count/$familyTreeId',
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        final Map<String, dynamic>? data = _safeParseMap(response.data);
-        if (data == null) return Left(Failure("Format data tidak sesuai"));
-        return Right(data);
-      } else {
-        return Left(Failure("Gagal mendapatkan jumlah anggota"));
-      }
+      return Left(Failure('Data pasangan tidak dapat dimuat.'));
     } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal memproses data"));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat membaca data pasangan.'));
     }
   }
 
   @override
-  Future<Either<Failure, UserData>> createUser(UserData data) async {
+  Future<Either<Failure, bool>> createMarriage({
+    required String memberId,
+    required UserData spouseData,
+  }) async {
     try {
-      final Map<String, dynamic> mapData = data.toJson();
-      mapData.remove('user_id');
-      mapData.remove('created_at');
-      mapData.remove('updated_at');
-      mapData.remove('avatar');
-
-      final formData = FormData.fromMap(mapData);
-
-      if (data.avatar != null) {
-        String? filePath;
-
-        if (data.avatar is XFile) {
-          filePath = (data.avatar as XFile).path;
-        } else if (data.avatar is File) {
-          filePath = (data.avatar as File).path;
-        }
-
-        if (filePath != null && filePath.isNotEmpty) {
-          final String fileName = filePath.split('/').last;
-          final String mimeType = fileName.toLowerCase().endsWith('png')
-              ? 'image/png'
-              : 'image/jpeg';
-          final MediaType mediaType = MediaType.parse(mimeType);
-
-          formData.files.add(
-            MapEntry(
-              'avatar',
-              await MultipartFile.fromFile(
-                filePath,
-                filename: fileName,
-                contentType: mediaType,
-              ),
-            ),
-          );
-        }
-      }
-
       final response = await Config.dio.post(
-        '$baseUrl/users',
-        data: formData,
-        options: Options(
-          headers: {'Accept': 'application/json'},
-          followRedirects: false,
-          validateStatus: (status) {
-            return status! < 500;
+        '/family-members/$memberId/marriages',
+        data: {
+          'spouse': {
+            'full_name': spouseData.fullName,
+            'address': spouseData.address,
+            'birth_year': spouseData.birthYear,
           },
-        ),
+        },
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final responseData = response.data;
-
-        if (responseData != null) {
-          final userJson =
-              responseData is Map && responseData.containsKey('data')
-              ? responseData['data']
-              : responseData;
-
-          return Right(UserData.fromJson(_sanitizeUserData(userJson)));
-        }
-        return Left(Failure("Data kosong"));
-      } else {
-        String errorMsg =
-            "Gagal menyimpan data (Status: ${response.statusCode})";
-        if (response.data is Map && response.data['message'] != null) {
-          errorMsg = response.data['message'];
-        }
-        return Left(Failure(errorMsg));
+        return const Right(true);
       }
+
+      return Left(Failure('Pasangan tidak dapat ditambahkan.'));
     } on DioException catch (e) {
-      debugPrint('--- [DEBUG] DIO EXCEPTION ---');
-      debugPrint('Type: ${e.type}');
-      debugPrint('Message: ${e.message}');
-      debugPrint('Response Status: ${e.response?.statusCode}');
-      debugPrint('Response Data: ${e.response?.data}');
-
-      if (e.response?.statusCode == 422) {
-        debugPrint("Validation Error Detail: ${e.response?.data}");
-      }
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e, stackTrace) {
-      debugPrint('--- [DEBUG] GENERAL EXCEPTION ---');
-      debugPrint('Error: $e');
-      debugPrint('Stack Trace: $stackTrace');
-      return Left(Failure("Terjadi kesalahan: $e"));
-    } finally {
-      debugPrint('--- [DEBUG] END createUser ---');
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat menambah pasangan.'));
     }
   }
 
-  // LOGIN - HALAMAN 1
   @override
-  Future<Either<Failure, UserData>> login(String email, String password) async {
+  Future<Either<Failure, bool>> createChild({
+    required String memberId,
+    String? marriageId,
+    required String nit,
+    required UserData childData,
+  }) async {
     try {
-      if (email.isEmpty || !email.contains('@')) {
-        return Left(Failure("Email tidak valid"));
-      }
-      if (email.length > 255) {
-        return Left(Failure("Email terlalu panjang"));
-      }
+      final payload = <String, dynamic>{
+        'nit': nit,
+        'full_name': childData.fullName,
+        'address': childData.address,
+        'birth_year': childData.birthYear,
+      };
 
-      if (password.isEmpty || password.length < 6) {
-        return Left(Failure("Password minimal 6 karakter"));
-      }
-      if (password.length > 255) {
-        return Left(Failure("Password terlalu panjang"));
+      if (marriageId != null && marriageId.isNotEmpty) {
+        payload['marriage_id'] = marriageId;
       }
 
       final response = await Config.dio.post(
-        '$baseUrl/users/login',
-        data: {'email': email.trim(), 'password': password},
+        '/family-members/$memberId/children',
+        data: payload,
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        try {
-          return Right(UserData.fromJson(response.data));
-        } catch (e) {
-          return Left(Failure("Format data respons tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Email atau password salah"));
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return const Right(true);
       }
+
+      return Left(Failure('Anak tidak dapat ditambahkan.'));
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        return Left(Failure("Email atau password salah"));
-      }
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure("Terjadi kesalahan: Gagal login"));
-    }
-  }
-
-  // UPDATE PROFILE - HALAMAN 10
-  @override
-  Future<Either<Failure, UserData>> updateProfile(
-    String id,
-    UserData data,
-  ) async {
-    try {
-      if (id.isEmpty || !_isValidId(id)) {
-        return Left(Failure("ID pengguna tidak valid"));
-      }
-
-      final Map<String, dynamic> mapData = data.toJson();
-      mapData.remove('user_id');
-      mapData.remove('created_at');
-      mapData.remove('updated_at');
-      mapData.remove('avatar');
-
-      final formData = FormData.fromMap(mapData);
-
-      if (data.avatar != null) {
-        String? filePath;
-
-        if (data.avatar is XFile) {
-          filePath = (data.avatar as XFile).path;
-        }
-
-        // Jika path ditemukan, proses upload
-        if (filePath != null && filePath.isNotEmpty) {
-          final String fileName = filePath.split('/').last;
-
-          // Deteksi Mime Type sederhana
-          final String mimeType = fileName.toLowerCase().endsWith('png')
-              ? 'image/png'
-              : 'image/jpeg';
-          final MediaType mediaType = MediaType.parse(mimeType);
-
-          formData.files.add(
-            MapEntry(
-              'avatar',
-              await MultipartFile.fromFile(
-                filePath,
-                filename: fileName,
-                contentType: mediaType,
-              ),
-            ),
-          );
-        }
-      }
-
-      final response = await Config.dio.post(
-        '$baseUrl/user/update/$id',
-        data: formData,
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        final responseData = response.data;
-        Map<String, dynamic>? userData;
-
-        if (responseData is Map && responseData.containsKey('data')) {
-          userData = responseData['data'];
-        } else if (responseData is Map<String, dynamic>) {
-          userData = responseData;
-        }
-
-        if (userData != null) {
-          final parsedUser = UserData.fromJson(_sanitizeUserData(userData));
-          return Right(parsedUser);
-        } else {
-          return Left(Failure("Format response tidak sesuai"));
-        }
-      } else {
-        return Left(Failure("Gagal memperbarui profil"));
-      }
-    } on DioException catch (e) {
-      return Left(Failure(_getErrorMessage(e)));
-    } catch (e) {
-      return Left(Failure(e.toString()));
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat menambah anak.'));
     }
   }
 }

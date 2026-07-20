@@ -98,18 +98,18 @@ class _FamilyListPageState extends State<FamilyListPage> {
             child: Scaffold(
               backgroundColor: Config.background,
               appBar: AppBar(
-                backgroundColor: Config.white,
+                backgroundColor: Config.primary,
                 elevation: 0,
                 leading: !navigation.isAtRoot
                     ? IconButton(
-                        icon: Icon(Icons.arrow_back, color: Config.textHead),
+                        icon: const Icon(Icons.arrow_back, color: Config.white),
                         onPressed: navigation.navigateBack,
                       )
                     : null,
-                title: Text(
-                  'List Keluarga',
+                title: const Text(
+                  'Daftar Keluarga',
                   style: TextStyle(
-                    color: Config.textHead,
+                    color: Config.white,
                     fontSize: 20,
                     fontWeight: Config.semiBold,
                   ),
@@ -117,7 +117,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 centerTitle: true,
                 actions: [
                   IconButton(
-                    icon: Icon(Icons.refresh, color: Config.textSecondary),
+                    icon: const Icon(Icons.refresh, color: Config.white),
                     onPressed: () =>
                         context.read<UserProvider>().fetchData(isRefresh: true),
                   ),
@@ -204,9 +204,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                         _getShortName(item),
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: isLast
-                              ? Config.semiBold
-                              : Config.regular,
+                          fontWeight: isLast ? Config.semiBold : Config.regular,
                           color: isLast ? Config.primary : Config.textSecondary,
                         ),
                       ),
@@ -225,9 +223,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => context.read<UserProvider>().fetchData(
-              isRefresh: true,
-            ),
+            onRefresh: () =>
+                context.read<UserProvider>().fetchData(isRefresh: true),
             color: Config.primary,
             child: currentList.isEmpty
                 ? ListView(
@@ -250,10 +247,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
                     controller: navigation.isAtRoot ? _scrollController : null,
                     padding: const EdgeInsets.all(16),
                     itemCount: currentList.length,
-                    itemBuilder: (context, index) => _buildListItem(
-                      currentList[index],
-                      navigation,
-                    ),
+                    itemBuilder: (context, index) =>
+                        _buildListItem(currentList[index], navigation),
                   ),
           ),
         ),
@@ -261,10 +256,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
     );
   }
 
-  Widget _buildListItem(
-    dynamic item,
-    FamilyListNavigationProvider navigation,
-  ) {
+  Widget _buildListItem(dynamic item, FamilyListNavigationProvider navigation) {
     var name = '';
     var spouse = '';
     var isFolder = false;

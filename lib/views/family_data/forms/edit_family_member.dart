@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
@@ -9,45 +10,66 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-class ProfileEditPage extends StatefulWidget {
-  const ProfileEditPage({super.key});
+class EditFamilyMemberPage extends StatefulWidget {
+  final ChildMember member;
+
+  const EditFamilyMemberPage({super.key, required this.member});
 
   @override
-  State<ProfileEditPage> createState() => _ProfileEditPageState();
+  State<EditFamilyMemberPage> createState() => _EditFamilyMemberPageState();
 }
 
-class _ProfileEditPageState extends State<ProfileEditPage> {
+class _EditFamilyMemberPageState extends State<EditFamilyMemberPage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _namaController;
+  late TextEditingController _nitController;
   late TextEditingController _tahunLahirController;
   late TextEditingController _alamatController;
   late TextEditingController _deskripsiController;
 
-  XFile? _newProfilePhoto;
+  XFile? _newPhoto;
   String? _currentPhotoUrl;
   String _gender = 'Laki – Laki';
-  String _relationshipRole = 'Kepala Keluarga';
+  late String _relationshipRole;
 
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().currentUser;
-
-    _namaController = TextEditingController(text: user?.fullName ?? "");
-    _tahunLahirController = TextEditingController(
-      text: user?.birthYear?.toString() ?? "",
-    );
-    _alamatController = TextEditingController(text: user?.address ?? "");
+    _namaController = TextEditingController(text: widget.member.name);
+    _nitController = TextEditingController(text: widget.member.nit);
+    _tahunLahirController =
+        TextEditingController(text: widget.member.birthYear ?? "");
+    _alamatController =
+        TextEditingController(text: widget.member.location ?? "");
     _deskripsiController = TextEditingController();
 
-    if (user?.avatar != null && user!.avatar is String) {
-      _currentPhotoUrl = Config.getFullImageUrl(user.avatar as String);
+    final initialRole = widget.member.role;
+    if (initialRole != null && initialRole.startsWith('Anak')) {
+      _relationshipRole = 'Anak';
+    } else if (initialRole == 'Kepala Keluarga' || initialRole == 'Pasangan') {
+      _relationshipRole = initialRole!;
+    } else {
+      _relationshipRole = 'Anak';
+    }
+
+    if (widget.member.gender != null && widget.member.gender!.isNotEmpty) {
+      final g = widget.member.gender!.toLowerCase();
+      if (g == 'p' || g.startsWith('perempuan') || g == 'female') {
+        _gender = 'Perempuan';
+      } else {
+        _gender = 'Laki – Laki';
+      }
+    }
+
+    if (widget.member.photoUrl != null && widget.member.photoUrl!.isNotEmpty) {
+      _currentPhotoUrl = Config.getFullImageUrl(widget.member.photoUrl!);
     }
   }
 
   @override
   void dispose() {
     _namaController.dispose();
+    _nitController.dispose();
     _tahunLahirController.dispose();
     _alamatController.dispose();
     _deskripsiController.dispose();
@@ -61,24 +83,163 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final userProvider = context.read<UserProvider>();
     final currentUser = authProvider.currentUser;
 
-    if (currentUser == null) return;
+    final bool isCurrentUser =
+        (currentUser != null && widget.member.id == currentUser.userId);
 
-    final updatedData = UserData(
-      fullName: _namaController.text,
-      address: _alamatController.text,
-      birthYear: _tahunLahirController.text,
-      avatar: _newProfilePhoto,
+    if (isCurrentUser) {
+      final updatedData = UserData(
+        fullName: _namaController.text,
+        address: _alamatController.text,
+        birthYear: _tahunLahirController.text,
+        avatar: _newPhoto,
+      );
+
+      final result = await userProvider.updateProfile(data: updatedData);
+
+      if (!mounted) return;
+
+      if (result != null) {
+        authProvider.updateUser(result);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Data profil Anda berhasil diperbarui!"),
+            backgroundColor: Config.primary,
+          ),
+        );
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(userProvider.errorMessage ?? "Gagal memperbarui profil"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      if (widget.member.id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("ID Anggota tidak valid untuk diperbarui."),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final success = await userProvider.updateFamilyMember(
+        memberId: widget.member.id!,
+        fullName: _namaController.text,
+        address: _alamatController.text,
+        birthYear: _tahunLahirController.text,
+        gender: _gender,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Data ${widget.member.name} berhasil diperbarui!"),
+            backgroundColor: Config.primary,
+          ),
+        );
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                userProvider.errorMessage ?? "Gagal memperbarui anggota keluarga."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Hapus Anggota Keluarga",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Config.textHead,
+          ),
+        ),
+        content: Text(
+          "Apakah Anda yakin ingin menghapus ${widget.member.name} dari daftar keluarga? Tindakan ini tidak dapat dibatalkan.",
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Batal",
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _handleDelete();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Hapus",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
+  }
 
-    final result = await userProvider.updateProfile(data: updatedData);
+  void _handleDelete() async {
+    final authProvider = context.read<AuthProvider>();
+    final userProvider = context.read<UserProvider>();
+    final currentUser = authProvider.currentUser;
+    final bool isCurrentUser =
+        (currentUser != null && widget.member.id == currentUser.userId);
+
+    if (isCurrentUser) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Tidak dapat menghapus akun profil utama."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (widget.member.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("ID Anggota tidak valid untuk dihapus."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final success = await userProvider.deleteFamilyMember(widget.member.id!);
 
     if (!mounted) return;
 
-    if (result != null) {
-      authProvider.updateUser(result);
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Profil berhasil diperbarui!"),
+        SnackBar(
+          content:
+              Text("Anggota keluarga ${widget.member.name} berhasil dihapus!"),
           backgroundColor: Config.primary,
         ),
       );
@@ -86,7 +247,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(userProvider.errorMessage ?? "Gagal update profil"),
+          content: Text(
+              userProvider.errorMessage ?? "Gagal menghapus anggota keluarga."),
           backgroundColor: Colors.red,
         ),
       );
@@ -109,7 +271,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           onPressed: () => context.pop(),
         ),
         title: const Text(
-          "Edit Profile",
+          "Edit Anggota Keluarga",
           style: TextStyle(
             color: Config.white,
             fontWeight: FontWeight.bold,
@@ -117,6 +279,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Config.white),
+            tooltip: 'Hapus Anggota',
+            onPressed: _showDeleteConfirmation,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -136,6 +306,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 controller: _namaController,
                 hintText: "Nama Lengkap",
                 validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+              ),
+
+              const SizedBox(height: 16),
+
+              // NIT
+              _buildLabel("NIT"),
+              _buildStyledCardInput(
+                controller: _nitController,
+                hintText: "Nama NIT Anggota",
               ),
 
               const SizedBox(height: 16),
@@ -203,39 +382,64 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
               const SizedBox(height: 32),
 
-              // Centered Update Button
-              Center(
-                child: SizedBox(
-                  width: 180,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: isSubmitting ? null : _handleUpdate,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Config.primary,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
+              // Centered Action Buttons Row (Hapus & Update)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: isSubmitting ? null : _showDeleteConfirmation,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: const Text(
+                        "Hapus",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            "Update",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
                   ),
-                ),
+                  const SizedBox(width: 14),
+                  SizedBox(
+                    width: 150,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting ? null : _handleUpdate,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Config.primary,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              "Update",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
             ],
@@ -248,16 +452,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   Widget _buildPhotoPickerRow() {
     return Row(
       children: [
-        // Avatar Circle
         Container(
           width: 90,
           height: 90,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.grey.shade300,
-            image: _newProfilePhoto != null
+            image: _newPhoto != null
                 ? DecorationImage(
-                    image: FileImage(File(_newProfilePhoto!.path)),
+                    image: FileImage(File(_newPhoto!.path)),
                     fit: BoxFit.cover,
                   )
                 : (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
@@ -274,7 +477,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
             ],
           ),
-          child: (_newProfilePhoto == null &&
+          child: (_newPhoto == null &&
                   (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty))
               ? Icon(
                   Icons.person,
@@ -285,7 +488,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         const SizedBox(width: 20),
 
-        // Buttons: Galeri & Kamera
         Row(
           children: [
             ElevatedButton(
@@ -294,7 +496,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 final picked =
                     await picker.pickImage(source: ImageSource.gallery);
                 if (picked != null) {
-                  setState(() => _newProfilePhoto = picked);
+                  setState(() => _newPhoto = picked);
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -321,7 +523,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 final picked =
                     await picker.pickImage(source: ImageSource.camera);
                 if (picked != null) {
-                  setState(() => _newProfilePhoto = picked);
+                  setState(() => _newPhoto = picked);
                 }
               },
               style: ElevatedButton.styleFrom(

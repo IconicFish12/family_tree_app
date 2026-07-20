@@ -15,6 +15,7 @@ import 'package:family_tree_app/views/family_data/search_family.dart';
 import 'package:family_tree_app/views/family_data/tree_visual.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
+import 'package:family_tree_app/views/family_data/forms/edit_family_member.dart';
 import 'package:family_tree_app/views/home.dart';
 import 'package:family_tree_app/views/profile/profile.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';
@@ -67,10 +68,14 @@ class MainNavigationShell extends StatelessWidget {
     if (location.startsWith('/home')) {
       return 0;
     }
-    if (location.startsWith('/family-search') || location.startsWith('/family-list')) {
+    if (location.startsWith('/family') ||
+        location.startsWith('/member') ||
+        location.startsWith('/edit-family-member') ||
+        location.startsWith('/add-family') ||
+        location.startsWith('/tree-visual')) {
       return 1;
     }
-    if (location.startsWith('/profile') || location.startsWith('/profile-edit')) {
+    if (location.startsWith('/profile')) {
       return 2;
     }
     return 0;
@@ -177,6 +182,14 @@ class MyApp extends StatelessWidget {
                 },
               ),
             ],
+          ),
+          GoRoute(
+            path: '/edit-family-member',
+            name: 'editFamilyMember',
+            builder: (context, state) {
+              final member = state.extra as ChildMember;
+              return EditFamilyMemberPage(member: member);
+            },
           ),
           GoRoute(path: '/tree-visual', name: 'treeVisual', builder: (context, state) => const TreeVisualPage()),
           GoRoute(path: '/profile', name: 'profile', builder: (context, state) => const ProfilePage()),

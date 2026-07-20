@@ -54,16 +54,16 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
       child: Scaffold(
         backgroundColor: Config.background,
         appBar: AppBar(
-          backgroundColor: Config.white,
+          backgroundColor: Config.primary,
           elevation: 0,
           leading: CustomBackButton(
-            color: Config.textHead,
+            color: Config.white,
             onPressed: _restorePreviousTreeOrClose,
           ),
-          title: Text(
+          title: const Text(
             'Pohon Keluarga',
             style: TextStyle(
-              color: Config.textHead,
+              color: Config.white,
               fontWeight: Config.semiBold,
               fontSize: 20,
             ),
@@ -78,10 +78,10 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                   Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: Config.semiBold,
-                      color: Config.textHead,
+                      color: Config.white,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -90,7 +90,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                   Text(
                     'Tampilan maksimal 3 tingkat. Pasangan berada sejajar dengan anggota keluarga. Cabang anak dipisahkan per pasangan agar lebih mudah dibaca.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Config.textSecondary),
+                    style: TextStyle(fontSize: 12, color: Config.white.withValues(alpha: 0.85)),
                   ),
                 ],
               ),

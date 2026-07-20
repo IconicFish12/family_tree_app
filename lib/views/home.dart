@@ -26,12 +26,12 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.background,
+        backgroundColor: Config.primary,
         elevation: 0,
         title: Text(
           'Silsilah Keluarga',
           style: TextStyle(
-            color: Config.textHead,
+            color: Config.white,
             fontSize: 20,
             fontWeight: Config.semiBold,
           ),
@@ -63,17 +63,21 @@ class _HomePageState extends State<HomePage> {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    SizedBox(
+                    Container(
+                      height: 220,
                       width: double.infinity,
-                      height: 180,
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(24),
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
                       child: Image.asset(
                         'assets/images/family_logo.png',
+                        width: double.infinity,
+                        height: 220,
                         fit: BoxFit.cover,
                       ),
-                    ),
-                    Container(
-                      height: 180,
-                      color: Colors.black.withValues(alpha: 0.2),
                     ),
                     Positioned(
                       bottom: -25,
@@ -83,49 +87,42 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 45),
+                const SizedBox(height: 50),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Selamat Datang, ${user.fullName ?? 'Keluarga'}',
+                        'Selamat Datang, ${user.fullName ?? 'Keluarga'}!',
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: Config.semiBold,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                           color: Config.textHead,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Buka daftar keluarga dari menu bawah atau lihat bagan keluarga Anda dari halaman ini.',
-                        style: TextStyle(color: Config.textSecondary),
+                        'Kelola dan lihat informasi silsilah keluarga Anda di sini.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Config.textSecondary,
+                        ),
                       ),
-                      const SizedBox(height: 20),
-                      FamilyInfoCard(user: user),
                       const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildOutlinedButton(
-                              text: 'Tambah Anggota Baru',
-                              onPressed: () => context.pushNamed(
-                                'addFamilyMember',
-                                extra: user.userId,
-                              ),
-                            ),
+                      FamilyInfoCard(user: user),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildOutlinedButton(
+                          text: 'Tambah Anggota Baru',
+                          onPressed: () => context.pushNamed(
+                            'addFamilyMember',
+                            extra: user.userId,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildElevatedButton(
-                              text: 'Lihat Pohon Keluarga',
-                              onPressed: () => context.pushNamed('treeVisual'),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 35),
                     ],
                   ),
                 ),
@@ -141,11 +138,11 @@ class _HomePageState extends State<HomePage> {
     return Container(
       decoration: BoxDecoration(
         color: Config.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -155,16 +152,13 @@ class _HomePageState extends State<HomePage> {
         readOnly: true,
         onTap: () => context.goNamed('familySearch'),
         decoration: InputDecoration(
-          hintText: 'Cari anggota keluarga...',
-          hintStyle: TextStyle(
-            color: Config.textSecondary.withValues(alpha: 0.7),
-            fontSize: 14,
-          ),
+          hintText: 'Cari berdasarkan nama, nik atau hal lainnya..',
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
           suffixIcon: Icon(Icons.search, color: Config.textSecondary),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            vertical: 15,
-            horizontal: 20,
+            vertical: 16,
+            horizontal: 24,
           ),
         ),
       ),
@@ -179,39 +173,15 @@ class _HomePageState extends State<HomePage> {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: Config.primary,
+        backgroundColor: Config.primary.withValues(alpha: 0.05),
         side: BorderSide(color: Config.primary, width: 1.5),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 14, fontWeight: Config.semiBold),
-      ),
-    );
-  }
-
-  Widget _buildElevatedButton({
-    required String text,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Config.primary,
-        foregroundColor: Config.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 2,
-      ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Config.white,
-          fontSize: 14,
-          fontWeight: Config.semiBold,
-        ),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ),
     );
   }

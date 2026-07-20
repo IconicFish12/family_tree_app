@@ -1,4 +1,3 @@
-import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
@@ -8,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:provider/provider.dart';
 
-class FamilyInfoPage extends StatelessWidget {
+class FamilyInfoPage extends StatefulWidget {
   final int? parentId;
   final String? initialHeadName;
 
@@ -21,20 +20,34 @@ class FamilyInfoPage extends StatelessWidget {
   });
 
   @override
+  State<FamilyInfoPage> createState() => _FamilyInfoPageState();
+}
+
+class _FamilyInfoPageState extends State<FamilyInfoPage> {
+  bool _isMenuOpen = false;
+
+  void _toggleMenu() {
+    setState(() {
+      _isMenuOpen = !_isMenuOpen;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
     final allUsers = userProvider.allUsers;
 
     UserData? headUser;
-    if (parentId != null) {
+    if (widget.parentId != null) {
       try {
-        headUser = allUsers.firstWhere((u) => u.userId == parentId);
+        headUser = allUsers.firstWhere((u) => u.userId == widget.parentId);
       } catch (e) {
         // User not found
       }
     }
 
-    String headName = headUser?.fullName ?? initialHeadName ?? "Loading...";
+    String headName = headUser?.fullName ?? widget.initialHeadName ?? "Loading...";
+    UserData? spouseUser;
     String? spouseNameStr;
     List<ChildMember> childrenList = [];
 
@@ -42,12 +55,12 @@ class FamilyInfoPage extends StatelessWidget {
       final myFamilyTreeId = headUser.familyTreeId!;
 
       try {
-        final spouse = allUsers.firstWhere((u) {
+        spouseUser = allUsers.firstWhere((u) {
           return u.familyTreeId == myFamilyTreeId &&
               u.parentId == null &&
               u.userId != headUser!.userId;
         });
-        spouseNameStr = spouse.fullName;
+        spouseNameStr = spouseUser.fullName;
       } catch (_) {}
 
       final familyMembers = allUsers.where((u) {
@@ -74,10 +87,10 @@ class FamilyInfoPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.white,
+        backgroundColor: Config.primary,
         elevation: 0,
         leading: CustomBackButton(
-          color: Config.textHead,
+          color: Config.white,
           onPressed: () {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
@@ -87,223 +100,322 @@ class FamilyInfoPage extends StatelessWidget {
           },
         ),
         title: Text(
-          "Keluarga Saya",
-          style: TextStyle(
-            color: Config.textHead,
+          "Keluarga $headName",
+          style: const TextStyle(
+            color: Config.white,
             fontWeight: Config.semiBold,
             fontSize: 20,
           ),
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildFamilyHeaderCard(context, headName, spouseNameStr),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Anak-Anak (${childrenList.length})',
-                  style: TextStyle(
-                    color: Config.textHead,
-                    fontSize: 18,
-                    fontWeight: Config.semiBold,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    context.pushNamed('addFamilyMember', extra: parentId);
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Tambah'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Config.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (childrenList.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Center(
-                  child: Text(
-                    "Belum ada data anak.",
-                    style: TextStyle(color: Config.textSecondary),
-                  ),
-                ),
-              )
-            else
-              Column(
-                children: childrenList.map((member) {
-                  return _buildMemberCard(context: context, member: member);
-                }).toList(),
-              ),
-          ],
-        ),
-      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.pushNamed(
-          'treeVisual',
-          extra: {'familyTreeId': headUser?.familyTreeId, 'title': headName},
-        ),
+        onPressed: _toggleMenu,
         backgroundColor: Config.primary,
-        tooltip: 'Lihat Pohon Keluarga',
-        child: const Icon(Icons.account_tree_outlined, color: Config.white),
+        shape: const CircleBorder(),
+        child: Icon(
+          _isMenuOpen ? Icons.close : Icons.add,
+          color: Config.white,
+          size: 30,
+        ),
       ),
-    );
-  }
-
-  Widget _buildFamilyHeaderCard(
-    BuildContext context,
-    String headName,
-    String? spouseName,
-  ) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(12.0),
-        boxShadow: [
-          BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          _buildMemberTile(
-            context: context,
-            name: headName,
-            role: "Kepala Keluarga",
-            emoji: '👨',
-            onTap: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Divider(color: Config.background, height: 1),
-          ),
-          if (spouseName != null)
-            _buildMemberTile(
-              context: context,
-              name: spouseName,
-              role: "Pasangan",
-              emoji: '👩',
-              onTap: () {},
-            )
-          else
-            InkWell(
-              onTap: () {
-                context.pushNamed(
-                  'addFamilyMember',
-                  extra: {'parentId': parentId, 'isSpouseOnly': true},
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.person_add_alt_1, color: Config.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Tambah Pasangan",
-                      style: TextStyle(
-                        color: Config.primary,
-                        fontWeight: Config.semiBold,
+          SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Card Kepala Keluarga
+                _buildCardItem(
+                  context: context,
+                  name: headName,
+                  subtitle: "Kepala Keluarga",
+                  photoUrl: headUser?.avatar is String ? headUser?.avatar : null,
+                  onTap: () {
+                    if (headUser != null) {
+                      final headMember = ChildMember(
+                        id: headUser.userId,
+                        nit: headUser.familyTreeId ?? '',
+                        name: headUser.fullName ?? headName,
+                        role: "Kepala Keluarga",
+                        location: headUser.address ?? '',
+                        birthYear: headUser.birthYear ?? '',
+                        emoji: '👤',
+                        photoUrl: headUser.avatar is String ? headUser.avatar : null,
+                      );
+                      context.pushNamed('memberInfo', extra: headMember);
+                    }
+                  },
+                ),
+
+                // Card Pasangan (jika ada)
+                if (spouseNameStr != null)
+                  _buildCardItem(
+                    context: context,
+                    name: spouseNameStr,
+                    subtitle: "Pasangan",
+                    photoUrl: spouseUser?.avatar is String ? spouseUser?.avatar : null,
+                    onTap: () {
+                      if (spouseUser != null) {
+                        final spouseMember = ChildMember(
+                          id: spouseUser.userId,
+                          nit: spouseUser.familyTreeId ?? '',
+                          name: spouseUser.fullName ?? spouseNameStr ?? '',
+                          role: "Pasangan",
+                          location: spouseUser.address ?? '',
+                          birthYear: spouseUser.birthYear ?? '',
+                          emoji: '👤',
+                          photoUrl: spouseUser.avatar is String ? spouseUser.avatar : null,
+                        );
+                        context.pushNamed('memberInfo', extra: spouseMember);
+                      }
+                    },
+                  ),
+
+                // Card Anak-Anak
+                ...List.generate(childrenList.length, (index) {
+                  final child = childrenList[index];
+                  final childRole = "Anak Ke ${index + 1}";
+                  return _buildCardItem(
+                    context: context,
+                    name: child.name,
+                    subtitle: childRole,
+                    photoUrl: child.photoUrl,
+                    onTap: () {
+                      final childWithRole = ChildMember(
+                        id: child.id,
+                        nit: child.nit,
+                        name: child.name,
+                        role: childRole,
+                        birthYear: child.birthYear,
+                        spouseName: child.spouseName,
+                        location: child.location,
+                        photoUrl: child.photoUrl,
+                        emoji: child.emoji,
+                      );
+                      context.pushNamed('memberInfo', extra: childWithRole);
+                    },
+                  );
+                }),
+
+                if (childrenList.isEmpty && spouseNameStr == null)
+                  Padding(
+                    padding: const EdgeInsets.all(30.0),
+                    child: Center(
+                      child: Text(
+                        "Belum ada data anggota keluarga tambahan.",
+                        style: TextStyle(color: Config.textSecondary),
                       ),
                     ),
-                  ],
+                  ),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
+
+          // Dimmed Backdrop Overlay
+          if (_isMenuOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _toggleMenu,
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.5),
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildMemberCard({
-    required BuildContext context,
-    required ChildMember member,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(12.0),
-        boxShadow: [
-          BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      margin: const EdgeInsets.only(bottom: 12.0),
-      child: _buildMemberTile(
-        context: context,
-        name: member.name,
-        role: "Anak",
-        emoji: member.emoji,
-        onTap: () {
-          context.pushNamed('memberInfo', extra: member);
-        },
-      ),
-    );
-  }
-
-  Widget _buildMemberTile({
-    required BuildContext context,
-    required String name,
-    required String role,
-    required String emoji,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12.0),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            MemberAvatar(emoji: emoji, size: 60, borderRadius: 8.0),
-            const SizedBox(width: 16),
-            Expanded(
+          // Speed Dial Menu Buttons
+          if (_isMenuOpen)
+            Positioned(
+              right: 16,
+              bottom: 80,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                      fontWeight: Config.semiBold,
-                      fontSize: 16,
-                      color: Config.textHead,
-                    ),
+                  _buildMenuOption(
+                    label: 'Tambah Anggota Keluarga',
+                    onTap: () {
+                      _toggleMenu();
+                      if (widget.parentId != null) {
+                        context.pushNamed(
+                          'addFamilyMember',
+                          extra: {'parentId': widget.parentId, 'parentName': headName},
+                        );
+                      }
+                    },
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    role,
-                    style: TextStyle(fontSize: 14, color: Config.textSecondary),
+                  const SizedBox(height: 10),
+                  _buildMenuOption(
+                    label: 'Lihat pohon keluarga',
+                    onTap: () {
+                      _toggleMenu();
+                      context.pushNamed(
+                        'treeVisual',
+                        extra: {
+                          'familyTreeId': headUser?.familyTreeId,
+                          'title': headName,
+                        },
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: Config.textSecondary.withValues(alpha: 0.5),
-              size: 28,
-            ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuOption({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Config.primary,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Config.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.chevron_right,
+                color: Config.white,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardItem({
+    required BuildContext context,
+    required String name,
+    required String subtitle,
+    String? photoUrl,
+    VoidCallback? onTap,
+  }) {
+    final fullPhotoUrl = photoUrl != null && photoUrl.isNotEmpty
+        ? Config.getFullImageUrl(photoUrl)
+        : null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      height: 90,
+      decoration: BoxDecoration(
+        color: Config.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Row(
+            children: [
+              // Photo / Placeholder Box
+              Container(
+                width: 95,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                  image: fullPhotoUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(fullPhotoUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: fullPhotoUrl == null
+                    ? Icon(
+                        Icons.person,
+                        size: 44,
+                        color: Colors.grey.shade500,
+                      )
+                    : null,
+              ),
+              // Green Details Container
+              Expanded(
+                child: Container(
+                  height: double.infinity,
+                  color: Config.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Config.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Config.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Config.white,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

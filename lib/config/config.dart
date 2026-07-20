@@ -87,9 +87,24 @@ class Config {
   }
 
   static String? getFullImageUrl(String? path) {
-    if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http')) return path;
-    return '$baseStorageUrl$path';
+    if (path == null || path.trim().isEmpty) return null;
+    final cleanPath = path.trim();
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      return cleanPath;
+    }
+
+    String relative = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+    String storageBase = baseStorageUrl;
+
+    if (storageBase.endsWith('/storage/') && relative.startsWith('storage/')) {
+      relative = relative.substring('storage/'.length);
+    }
+
+    if (!storageBase.endsWith('/')) {
+      storageBase = '$storageBase/';
+    }
+
+    return '$storageBase$relative';
   }
 
   ThemeData get lightTheme {

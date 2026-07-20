@@ -2,6 +2,8 @@ class ChildMember {
   final int? id;
   final String nit;
   final String name;
+  final String? role;
+  final String? gender;
   final String? birthYear;
   final String? spouseName;
   final String? location;
@@ -13,13 +15,15 @@ class ChildMember {
     this.id,
     required this.nit,
     required this.name,
+    this.role,
+    this.gender,
     this.birthYear,
     this.spouseName,
     required this.location,
     this.photoUrl,
     this.emoji = '👤',
     List<ChildMember>? children,
-  }) : children = children ?? []; 
+  }) : children = children ?? [];
 }
 
 class FamilyUnit {

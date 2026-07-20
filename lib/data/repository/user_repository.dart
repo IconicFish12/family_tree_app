@@ -31,6 +31,14 @@ abstract class UserRepository {
     required String nit,
     required UserData childData,
   });
+  Future<Either<Failure, bool>> updateFamilyMember({
+    required int memberId,
+    required String fullName,
+    String? address,
+    String? birthYear,
+    String? gender,
+  });
+  Future<Either<Failure, bool>> deleteFamilyMember(int memberId);
 }
 
 class UserRepositoryImpl implements UserRepository {
@@ -300,6 +308,55 @@ class UserRepositoryImpl implements UserRepository {
       return Left(Failure(_errorMessage(e)));
     } catch (_) {
       return Left(Failure('Terjadi kesalahan saat menambah anak.'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> updateFamilyMember({
+    required int memberId,
+    required String fullName,
+    String? address,
+    String? birthYear,
+    String? gender,
+  }) async {
+    try {
+      final response = await Config.dio.patch(
+        '/family-members/$memberId',
+        data: {
+          'full_name': fullName,
+          if (address != null && address.isNotEmpty) 'address': address,
+          if (birthYear != null && birthYear.isNotEmpty) 'birth_year': birthYear,
+          if (gender != null && gender.isNotEmpty) 'gender': gender,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return const Right(true);
+      }
+      return Left(Failure('Gagal memperbarui data anggota keluarga.'));
+    } on DioException catch (e) {
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat memproses pembaruan anggota keluarga.'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> deleteFamilyMember(int memberId) async {
+    try {
+      final response = await Config.dio.delete(
+        '/family-members/$memberId',
+        data: {'confirm': true},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return const Right(true);
+      }
+      return Left(Failure('Gagal menghapus anggota keluarga.'));
+    } on DioException catch (e) {
+      return Left(Failure(_errorMessage(e)));
+    } catch (_) {
+      return Left(Failure('Terjadi kesalahan saat memproses penghapusan anggota keluarga.'));
     }
   }
 }

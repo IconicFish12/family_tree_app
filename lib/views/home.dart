@@ -56,7 +56,8 @@ class _HomePageState extends State<HomePage> {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    SizedBox(
+                    Container(
+                      height: 220,
                       width: double.infinity,
                       height: 180,
                       child: Image.asset('assets/images/family_logo.png', fit: BoxFit.cover),
@@ -65,7 +66,7 @@ class _HomePageState extends State<HomePage> {
                     Positioned(bottom: -25, left: 20, right: 20, child: _buildSearchBar()),
                   ],
                 ),
-                const SizedBox(height: 45),
+                const SizedBox(height: 50),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
@@ -77,8 +78,11 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Buka daftar keluarga dari menu bawah atau lihat bagan keluarga Anda dari halaman ini.',
-                        style: TextStyle(color: Config.textSecondary),
+                        'Kelola dan lihat informasi silsilah keluarga Anda di sini.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Config.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -89,7 +93,7 @@ class _HomePageState extends State<HomePage> {
                               onPressed: () => _showAddMemberOptions(user.userId),
                             ),
                           ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -224,9 +228,10 @@ class _HomePageState extends State<HomePage> {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: Config.primary,
+        backgroundColor: Config.primary.withValues(alpha: 0.05),
         side: BorderSide(color: Config.primary, width: 1.5),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Text(
         text,

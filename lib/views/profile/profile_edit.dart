@@ -1,4 +1,4 @@
-import 'package:family_tree_app/components/image_picker_field.dart';
+import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
@@ -21,9 +21,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   late TextEditingController _namaController;
   late TextEditingController _tahunLahirController;
   late TextEditingController _alamatController;
+  late TextEditingController _deskripsiController;
 
   XFile? _newProfilePhoto;
   String? _currentPhotoUrl;
+  String _gender = 'Laki – Laki';
+  String _relationshipRole = 'Kepala Keluarga';
 
   @override
   void initState() {
@@ -33,6 +36,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _namaController = TextEditingController(text: user?.fullName ?? "");
     _tahunLahirController = TextEditingController(text: user?.birthYear?.toString() ?? "");
     _alamatController = TextEditingController(text: user?.address ?? "");
+    _deskripsiController = TextEditingController();
 
     if (user?.avatar != null && user!.avatar is String) {
       _currentPhotoUrl = Config.getFullImageUrl(user.avatar as String);
@@ -44,6 +48,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _namaController.dispose();
     _tahunLahirController.dispose();
     _alamatController.dispose();
+    _deskripsiController.dispose();
     super.dispose();
   }
 
@@ -67,7 +72,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     if (!mounted) return;
 
-    // 3. Handle Hasil
     if (result != null) {
       authProvider.updateUser(result);
       ScaffoldMessenger.of(
@@ -75,7 +79,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       ).showSnackBar(const SnackBar(content: Text("Profil berhasil diperbarui!"), backgroundColor: Config.primary));
       context.pop(true);
     } else {
-      // GAGAL
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(userProvider.errorMessage ?? "Gagal update profil"), backgroundColor: Colors.red),
       );
@@ -87,11 +90,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final isSubmitting = context.select<UserProvider, bool>((p) => p.isSubmitting);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: Config.background,
       appBar: AppBar(
         backgroundColor: Color(0xFF559260),
         elevation: 0,
-        leading: CustomBackButton(onPressed: () => context.pop()),
+        leading: CustomBackButton(
+          color: Config.white,
+          onPressed: () => context.pop(),
+        ),
         title: const Text(
           "Edit Profile",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
@@ -99,47 +105,88 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: ImagePickerField(
-                  label: "Foto Profil",
-                  initialImagePath: _currentPhotoUrl,
-                  isNetworkImage: true,
-                  onImageSelected: (file) => _newProfilePhoto = file,
-                ),
-              ),
-              const SizedBox(height: 32),
+              // Photo Picker Row (Avatar + Galeri & Kamera buttons)
+              _buildPhotoPickerRow(),
 
-              _buildTextField(
+              const SizedBox(height: 24),
+
+              // Nama Lengkap
+              _buildLabel("Nama Lengkap"),
+              _buildStyledCardInput(
                 controller: _namaController,
-                label: "Nama Lengkap",
-                hint: "Masukan nama lengkap",
-                icon: Icons.person_outline,
+                hintText: "Nama Lengkap",
+                validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
               ),
+
               const SizedBox(height: 16),
 
-              _buildTextField(
+              // Hubungan Keluarga
+              _buildLabel("hubungan Keluarga"),
+              _buildStyledDropdownCard(
+                value: _relationshipRole,
+                items: const ['Kepala Keluarga', 'Pasangan', 'Anak'],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _relationshipRole = val);
+                  }
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Jenis Kelamin Radio
+              Row(
+                children: [
+                  const Text(
+                    'Jenis Kelamin',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Config.textHead,
+                    ),
+                  ),
+                  const Spacer(),
+                  _buildRadioOption('Laki – Laki'),
+                  const SizedBox(width: 12),
+                  _buildRadioOption('Perempuan'),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Tempat, Tanggal Lahir
+              _buildLabel("Tempat, Tanggal Lahir"),
+              _buildStyledCardInput(
                 controller: _tahunLahirController,
-                label: "Tahun Lahir",
-                hint: "Contoh: 1990",
-                icon: Icons.calendar_today,
-                keyboardType: TextInputType.number,
+                hintText: "Tempat, Tanggal Lahir",
               ),
+
               const SizedBox(height: 16),
 
-              _buildTextField(
+              // Alamat Tempat Tinggal
+              _buildLabel("Alamat Tempat Tinggal"),
+              _buildStyledCardInput(
                 controller: _alamatController,
-                label: "Alamat Tempat Tinggal",
-                hint: "Masukan alamat lengkap",
-                icon: Icons.location_on_outlined,
-                minLines: 1,
-                maxLines: 6,
+                hintText: "masukan alamat",
+                maxLines: 2,
               ),
+
+              const SizedBox(height: 16),
+
+              // Deskripsi Pribadi
+              _buildLabel("Deskripsi Pribadi"),
+              _buildStyledCardInput(
+                controller: _deskripsiController,
+                hintText: "Tambahkan Deskripsi",
+                maxLines: 3,
+              ),
+
               const SizedBox(height: 32),
 
               SizedBox(
@@ -161,6 +208,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       : const Text("Simpan Perubahan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -168,19 +216,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    IconData? icon,
-    int maxLines = 1,
-    int minLines = 1,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    final isMultiline = maxLines > 1;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildPhotoPickerRow() {
+    return Row(
       children: [
         Text(
           label,
@@ -211,8 +248,103 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
             ),
           ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Config.textHead,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Config.textHead,
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildStyledCardInput({
+    required TextEditingController controller,
+    required String hintText,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Config.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        validator: validator,
+        style: const TextStyle(fontSize: 14, color: Config.textHead),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStyledDropdownCard({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final safeValue = items.contains(value) ? value : items.first;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Config.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: safeValue,
+          icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
+          isExpanded: true,
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(item),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
     );
   }
 }

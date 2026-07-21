@@ -14,7 +14,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor: Config.background,
       appBar: AppBar(
         backgroundColor: Color(0xFF559260),
         elevation: 0,
@@ -54,10 +54,14 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, UserData user) {
+    final photoUrl = user.avatar is String
+        ? Config.getFullImageUrl(user.avatar as String)
+        : null;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _buildProfileHeader(user),
           const SizedBox(height: 24),
@@ -106,6 +110,7 @@ class ProfilePage extends StatelessWidget {
 
     return Center(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 50,
@@ -173,20 +178,22 @@ class ProfilePage extends StatelessWidget {
             Expanded(
               child: _buildInfoCard(title: 'Tahun Lahir', value: user.birthYear?.toString() ?? '-'),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _buildInfoCard(title: 'Alamat', value: user.address ?? '-'),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildInfoCard({required String title, required String value}) {
+  Widget _buildNoteCard({
+    required String title,
+    required String content,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Config.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3, offset: const Offset(0, 2)),
         ],
@@ -194,8 +201,6 @@ class ProfilePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.black87),

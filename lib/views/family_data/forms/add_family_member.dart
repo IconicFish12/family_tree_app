@@ -7,6 +7,7 @@ import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class AddFamilyMemberPage extends StatefulWidget {
@@ -23,7 +24,11 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _birthYearController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final FamilyMemberFormProvider _formProvider = FamilyMemberFormProvider();
+
+  String _gender = 'Laki – Laki';
+  String _relationshipRole = 'Anak';
 
   @override
   void initState() {
@@ -47,6 +52,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     _nameController.dispose();
     _addressController.dispose();
     _birthYearController.dispose();
+    _descriptionController.dispose();
     _formProvider.dispose();
     super.dispose();
   }
@@ -114,8 +120,11 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                 style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
               ),
               centerTitle: true,
-              leading: CustomBackButton(onPressed: () => context.pop()),
-              backgroundColor: Colors.white,
+              leading: CustomBackButton(
+                color: Config.white,
+                onPressed: () => context.pop(),
+              ),
+              backgroundColor: Config.primary,
               elevation: 0,
             ),
             body: formProvider.isLoadingContext && formProvider.availableParents.isEmpty
@@ -300,10 +309,9 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     );
   }
 
-  Widget _buildTextField({
-    required String label,
+  Widget _buildStyledCardInput({
     required TextEditingController controller,
-    IconData? icon,
+    required String hintText,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
     bool isRequired = false,

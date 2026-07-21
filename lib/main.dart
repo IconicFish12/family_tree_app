@@ -14,6 +14,7 @@ import 'package:family_tree_app/views/family_data/search_family.dart';
 import 'package:family_tree_app/views/family_data/tree_visual.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
+import 'package:family_tree_app/views/family_data/forms/edit_family_member.dart';
 import 'package:family_tree_app/views/home.dart';
 import 'package:family_tree_app/views/profile/profile.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';

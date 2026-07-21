@@ -96,18 +96,18 @@ class _FamilyListPageState extends State<FamilyListPage> {
             child: Scaffold(
               backgroundColor: Config.background,
               appBar: AppBar(
-                backgroundColor: Config.white,
+                backgroundColor: Config.primary,
                 elevation: 0,
                 leading: !navigation.isAtRoot
                     ? IconButton(
-                        icon: Icon(Icons.arrow_back, color: Config.textHead),
+                        icon: const Icon(Icons.arrow_back, color: Config.white),
                         onPressed: navigation.navigateBack,
                       )
                     : null,
-                title: Text(
-                  'List Keluarga',
+                title: const Text(
+                  'Daftar Keluarga',
                   style: TextStyle(
-                    color: Config.textHead,
+                    color: Config.white,
                     fontSize: 20,
                     fontWeight: Config.semiBold,
                   ),
@@ -115,7 +115,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 centerTitle: true,
                 actions: [
                   IconButton(
-                    icon: Icon(Icons.refresh, color: Config.textSecondary),
+                    icon: const Icon(Icons.refresh, color: Config.white),
                     onPressed: () =>
                         context.read<UserProvider>().fetchData(isRefresh: true),
                   ),

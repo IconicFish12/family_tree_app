@@ -1,4 +1,3 @@
-import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
@@ -18,6 +17,16 @@ class SearchFamilyPage extends StatefulWidget {
 class _SearchFamilyPageState extends State<SearchFamilyPage> {
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
+
+  String _sortOrder = 'none'; // 'none', 'asc', 'desc'
+  int? _selectedLevel;
+  bool _isFabMenuOpen = false;
+
+  void _toggleFabMenu() {
+    setState(() {
+      _isFabMenuOpen = !_isFabMenuOpen;
+    });
+  }
 
   @override
   void initState() {
@@ -55,6 +64,8 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasActiveFilter = _sortOrder != 'none' || _selectedLevel != null;
+
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
@@ -133,10 +144,9 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                       return _buildMemberCard(member: visibleMembers[index], provider: provider);
                     },
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -37,10 +37,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (nit.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan isi NIT dan password terlebih dahulu.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Silakan isi NIT dan password terlebih dahulu.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -55,19 +52,14 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(authProvider.errorMessage ?? 'Login gagal.'),
-        backgroundColor: Colors.red,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(authProvider.errorMessage ?? 'Login gagal.'), backgroundColor: Colors.red));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = context.select<AuthProvider, bool>(
-      (provider) => provider.status == AuthStatus.authenticating,
-    );
+    final isLoading = context.select<AuthProvider, bool>((provider) => provider.status == AuthStatus.authenticating);
 
     return ChangeNotifierProvider<LoginUiProvider>.value(
       value: _loginUiProvider,
@@ -93,11 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 18),
                       const Text(
                         'Selamat Datang',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -109,32 +97,22 @@ class _LoginPageState extends State<LoginPage> {
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'NIT / ID Anggota Inti',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
+                          'NIT / ID Keluarga Inti',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black),
                         ),
                       ),
                       const SizedBox(height: 10),
                       TextField(
                         controller: _nitController,
                         textInputAction: TextInputAction.next,
-                        decoration: _inputDecoration(
-                          hintText: 'Contoh: DEMO-ROOT-1',
-                        ),
+                        decoration: _inputDecoration(hintText: 'Masukan Email atau Username'),
                       ),
                       const SizedBox(height: 20),
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Password',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -146,9 +124,7 @@ class _LoginPageState extends State<LoginPage> {
                           hintText: 'Masukkan password',
                           suffixIcon: IconButton(
                             icon: Icon(
-                              loginUi.obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
+                              loginUi.obscurePassword ? Icons.visibility_off : Icons.visibility,
                               color: Colors.grey,
                             ),
                             onPressed: loginUi.togglePasswordVisibility,
@@ -164,9 +140,7 @@ class _LoginPageState extends State<LoginPage> {
                             backgroundColor: const Color(0xFF4CAF50),
                             disabledBackgroundColor: Colors.grey[400],
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           child: isLoading
                               ? const SizedBox(
@@ -174,18 +148,12 @@ class _LoginPageState extends State<LoginPage> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                   ),
                                 )
                               : const Text(
                                   'Masuk',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                         ),
                       ),
@@ -206,10 +174,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  InputDecoration _inputDecoration({
-    required String hintText,
-    Widget? suffixIcon,
-  }) {
+  InputDecoration _inputDecoration({required String hintText, Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hintText,
       hintStyle: TextStyle(color: Colors.grey[400]),

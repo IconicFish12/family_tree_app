@@ -3,14 +3,17 @@ import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
+import 'package:family_tree_app/data/provider/marriage_form_provider.dart';
+import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class AddFamilyPage extends StatefulWidget {
-  const AddFamilyPage({super.key});
+  final int? initialMemberId;
+
+  const AddFamilyPage({super.key, this.initialMemberId});
 
   @override
   State<AddFamilyPage> createState() => _AddFamilyPageState();
@@ -22,8 +25,24 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
   final _nikController = TextEditingController();
   final _locationController = TextEditingController();
   final _birthYearController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  XFile? _spousePhoto;
+  final MarriageFormProvider _formProvider = MarriageFormProvider();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
+  }
+
+  Future<void> _initialize() async {
+    if (!mounted) return;
+    final actor = context.read<AuthProvider>().currentUser;
+    if (actor == null) return;
+    await _formProvider.initialize(
+      userProvider: context.read<UserProvider>(),
+      actor: actor,
+      initialMemberId: widget.initialMemberId,
+    );
+  }
 
   String _gender = 'Perempuan';
   String _relationshipRole = 'Pasangan';
@@ -34,377 +53,187 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     _nikController.dispose();
     _locationController.dispose();
     _birthYearController.dispose();
-    _descriptionController.dispose();
+    _formProvider.dispose();
     super.dispose();
   }
 
-  Future<void> _selectYear(BuildContext context) async {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Pilih Tahun Lahir"),
-          content: SizedBox(
-            width: 300,
-            height: 300,
-            child: YearPicker(
-              firstDate: DateTime(1900),
-              lastDate: DateTime.now(),
-              selectedDate: DateTime.now(),
-              onChanged: (DateTime dateTime) {
-                _birthYearController.text = dateTime.year.toString();
-                Navigator.pop(context);
-              },
-            ),
-          ),
-        );
-      },
+  Future<void> _saveFamily() async {
+    if (!_formKey.currentState!.validate()) return;
+    final memberId = _formProvider.selectedMemberId;
+    if (memberId == null) {
+      _showError('Pilih anggota keluarga terlebih dahulu.');
+      return;
+    }
+
+    final userProvider = context.read<UserProvider>();
+    final success = await userProvider.addSpouse(
+      memberId: memberId,
+      spouseData: UserData(
+        fullName: _spouseNameController.text.trim(),
+        address: _emptyToNull(_locationController.text),
+        birthYear: _emptyToNull(_birthYearController.text),
+      ),
     );
+
+    if (!mounted) return;
+    if (!success) {
+      _showError(userProvider.errorMessage ?? 'Pasangan gagal ditambahkan.');
+      return;
+    }
+
+    await context.read<TreeProvider>().refreshCurrentTree();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pasangan berhasil ditambahkan.'),
+        backgroundColor: Config.primary,
+      ),
+    );
+    context.pop(true);
   }
 
-  void _saveFamily() async {
-    if (_formKey.currentState!.validate()) {
-      final authProvider = context.read<AuthProvider>();
-      final currentUser = authProvider.currentUser;
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
 
-      if (currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error: Sesi login tidak valid")),
-        );
-        return;
-      }
-
-      if (currentUser.userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Error: ID anggota login tidak ditemukan"),
-          ),
-        );
-        return;
-      }
-
-      final spouseData = UserData(
-        fullName: _spouseNameController.text,
-        address: _locationController.text,
-        birthYear: _birthYearController.text,
-        parentId: null,
-        avatar: _spousePhoto,
-      );
-
-      final userProvider = context.read<UserProvider>();
-
-      final success = await userProvider.addSpouse(
-        spouseData: spouseData,
-        currentUserId: currentUser.userId!,
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pasangan berhasil ditambahkan! Keluarga terbentuk.'),
-            backgroundColor: Config.primary,
-          ),
-        );
-        context.pop();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(userProvider.errorMessage ?? 'Gagal menyimpan data'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isSubmitting = context.select<UserProvider, bool>(
-      (p) => p.isSubmitting,
-    );
-    final currentUser = context.select<AuthProvider, dynamic>(
-      (p) => p.currentUser,
+      (provider) => provider.isSubmitting,
     );
 
-    return Scaffold(
-      backgroundColor: Config.background,
-      appBar: AppBar(
-        title: const Text(
-          "Buat Keluarga",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Config.white,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Config.primary,
-        elevation: 0,
-        leading: CustomBackButton(
-          color: Config.white,
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Info Banner
-              if (currentUser != null)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Config.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Config.primary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.favorite_border, color: Config.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Menambahkan pasangan untuk:",
-                              style: TextStyle(
-                                color: Config.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              currentUser.fullName ?? "Anda",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: Config.textHead,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Top Avatar & Basic Info Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAvatarPicker(
-                    imageFile: _spousePhoto,
-                    onImageSelected: (file) {
-                      setState(() => _spousePhoto = file);
-                    },
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _buildStyledCardInput(
-                          controller: _spouseNameController,
-                          hintText: 'Nama Lengkap',
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Nama wajib diisi'
-                              : null,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildStyledCardInput(
-                          controller: _nikController,
-                          hintText: 'Masukan NIT',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Jenis Kelamin Row
-              Row(
-                children: [
-                  const Text(
-                    'Jenis Kelamin',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Config.textHead,
-                    ),
-                  ),
-                  const Spacer(),
-                  _buildRadioOption('Laki – Laki'),
-                  const SizedBox(width: 12),
-                  _buildRadioOption('Perempuan'),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Hubungan Keluarga Dropdown
-              _buildLabel('Hubungan Keluarga'),
-              _buildStyledDropdownCard(
-                value: _relationshipRole,
-                items: const ['Pasangan', 'Kepala Keluarga', 'Anak'],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _relationshipRole = val);
-                  }
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Informasi Lanjutan Section Header
-              const Text(
-                'Informasi Lanjutan',
+    return ChangeNotifierProvider<MarriageFormProvider>.value(
+      value: _formProvider,
+      child: Consumer<MarriageFormProvider>(
+        builder: (context, formProvider, child) {
+          return Scaffold(
+            backgroundColor: Config.background,
+            appBar: AppBar(
+              title: const Text(
+                'Tambah Pasangan',
                 style: TextStyle(
-                  fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Config.textHead,
+                  color: Colors.black,
                 ),
               ),
-              const SizedBox(height: 14),
-
-              // Tanggal Lahir
-              _buildLabel('Tanggal Lahir'),
-              _buildStyledCardInput(
-                controller: _birthYearController,
-                hintText: 'Tempat, Tanggal Lahir (cth: 1995)',
-                readOnly: true,
-                onTap: () => _selectYear(context),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Alamat tempat tinggal
-              _buildLabel('Alamat tempat tinggal'),
-              _buildStyledCardInput(
-                controller: _locationController,
-                hintText: 'masukan alamat',
-                maxLines: 2,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Deskripsi Pribadi
-              _buildLabel('Deskripsi Pribadi'),
-              _buildStyledCardInput(
-                controller: _descriptionController,
-                hintText: 'Tambahkan Deskripsi',
-                maxLines: 3,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Submit Button
-              Center(
-                child: SizedBox(
-                  width: 180,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: isSubmitting ? null : _saveFamily,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Config.primary,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+              centerTitle: true,
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: CustomBackButton(onPressed: () => context.pop()),
+            ),
+            body: formProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildGuidance(),
+                          const SizedBox(height: 20),
+                          if (formProvider.errorMessage != null)
+                            _buildErrorBox(formProvider.errorMessage!),
+                          DropdownButtonFormField<int>(
+                            key: ValueKey(formProvider.selectedMemberId),
+                            initialValue: formProvider.selectedMemberId,
+                            isExpanded: true,
+                            decoration: _inputDecoration(
+                              label: 'Pasangan akan ditambahkan untuk',
+                              icon: Icons.family_restroom,
                             ),
-                          )
-                        : const Text(
-                            "Tambah",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            items: formProvider.availableMembers
+                                .map(
+                                  (member) => DropdownMenuItem<int>(
+                                    value: member.userId,
+                                    child: Text(
+                                      '${member.fullName} • NIT ${member.nit}',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: formProvider.selectMember,
+                            validator: (value) => value == null
+                                ? 'Pilih anggota keluarga.'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            label: 'Nama Lengkap Pasangan',
+                            controller: _spouseNameController,
+                            icon: Icons.person_outline,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            label: 'Tahun Lahir (opsional)',
+                            controller: _birthYearController,
+                            icon: Icons.calendar_today_outlined,
+                            keyboardType: TextInputType.number,
+                            validateYear: true,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            label: 'Alamat (opsional)',
+                            controller: _locationController,
+                            icon: Icons.location_on_outlined,
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed:
+                                  isSubmitting ||
+                                      formProvider.selectedMemberId == null
+                                  ? null
+                                  : _saveFamily,
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('Simpan Pasangan'),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildAvatarPicker({
-    required XFile? imageFile,
-    required Function(XFile?) onImageSelected,
-  }) {
-    return GestureDetector(
-      onTap: () async {
-        final picker = ImagePicker();
-        final picked = await picker.pickImage(source: ImageSource.gallery);
-        if (picked != null) {
-          onImageSelected(picked);
-        }
-      },
-      child: Stack(
+  Widget _buildGuidance() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey.shade300,
-              image: imageFile != null
-                  ? DecorationImage(
-                      image: FileImage(File(imageFile.path)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: imageFile == null
-                ? Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.grey.shade500,
-                  )
-                : null,
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Config.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                color: Colors.white,
-                size: 16,
-              ),
+          Icon(Icons.info_outline, color: Colors.blue),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Pilih anggota keluarga yang akan diberi pasangan. Pasangan tidak mempunyai NIT dan masuk ke cabang anggota yang dipilih.',
+              style: TextStyle(height: 1.4),
             ),
           ),
         ],
@@ -412,124 +241,65 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     );
   }
 
-  Widget _buildRadioOption(String value) {
-    final isSelected = _gender == value;
-    return GestureDetector(
-      onTap: () => setState(() => _gender = value),
-      child: Row(
+  Widget _buildErrorBox(String message) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected ? Config.primary : Colors.transparent,
-              border: Border.all(
-                color: isSelected ? Config.primary : Colors.grey.shade400,
-                width: 2,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Config.textHead,
-            ),
+          Text(message),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _initialize,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Muat Ulang'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: Config.textHead,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStyledCardInput({
+  Widget _buildTextField({
+    required String label,
     required TextEditingController controller,
-    required String hintText,
+    IconData? icon,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    String? Function(String?)? validator,
+    bool isRequired = false,
+    bool validateYear = false,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        readOnly: readOnly,
-        onTap: onTap,
-        validator: validator,
-        style: const TextStyle(fontSize: 14, color: Config.textHead),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-      ),
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: (value) {
+        final text = value?.trim() ?? '';
+        if (isRequired && text.isEmpty) return '$label wajib diisi.';
+        if (validateYear && text.isNotEmpty) {
+          final year = int.tryParse(text);
+          if (year == null || year < 1900 || year > DateTime.now().year) {
+            return 'Masukkan tahun yang benar.';
+          }
+        }
+        return null;
+      },
+      decoration: _inputDecoration(label: label, icon: icon),
     );
   }
 
-  Widget _buildStyledDropdownCard({
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
-          isExpanded: true,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-          items: items.map((String item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(item),
-            );
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
+  InputDecoration _inputDecoration({required String label, IconData? icon}) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: icon == null ? null : Icon(icon),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }

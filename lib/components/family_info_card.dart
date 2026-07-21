@@ -33,15 +33,8 @@ class FamilyInfoCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 15,
-            spreadRadius: 1,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Config.textHead.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -55,10 +48,7 @@ class FamilyInfoCard extends StatelessWidget {
                 height: 130,
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/family_logo.png'),
-                    fit: BoxFit.cover,
-                  ),
+                  image: DecorationImage(image: AssetImage('assets/images/family_logo.png'), fit: BoxFit.cover),
                 ),
               ),
               Container(
@@ -69,30 +59,23 @@ class FamilyInfoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Keluarga Utama',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: Config.semiBold,
-                        color: Config.white,
-                      ),
+                      'Keluarga Saya',
+                      style: TextStyle(fontSize: 18, fontWeight: Config.semiBold, color: Config.white),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      allUsers.isNotEmpty ? '$familyCount Anggota' : 'Loading...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: Config.regular,
-                        color: Config.white.withValues(alpha: 0.92),
-                      ),
+                      'ID Pohon: ${user.familyTreeId ?? "-"}',
+                      style: TextStyle(fontSize: 14, fontWeight: Config.regular, color: Config.white.withValues(alpha: 0.9)),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Keluarga Besar $familyHeadName',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: Config.regular,
-                        color: Config.white.withValues(alpha: 0.92),
-                      ),
+                      user.fullName ?? 'Tanpa Nama',
+                      style: TextStyle(fontSize: 14, fontWeight: Config.regular, color: Config.white.withValues(alpha: 0.9)),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Ketuk kartu ini untuk membuka bagan keluarga.',
+                      style: TextStyle(fontSize: 12, color: Config.white.withValues(alpha: 0.88)),
                     ),
                   ],
                 ),

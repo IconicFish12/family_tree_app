@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/provider/image_picker_provider.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -51,9 +48,9 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil gambar: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $error')));
     }
   }
 
@@ -66,6 +63,15 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Config.textHead,
+                ),
+              ),
+              const SizedBox(height: 12),
               Container(
                 width: 150,
                 height: 150,
@@ -77,9 +83,7 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
                     width: 2,
                   ),
                 ),
-                child: ClipOval(
-                  child: _buildImageContent(pickerProvider),
-                ),
+                child: ClipOval(child: _buildImageContent(pickerProvider)),
               ),
               const SizedBox(height: 20),
               SingleChildScrollView(
@@ -87,9 +91,17 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildButton(Icons.photo_library, 'Galeri', ImageSource.gallery),
+                    _buildButton(
+                      Icons.photo_library,
+                      'Galeri',
+                      ImageSource.gallery,
+                    ),
                     const SizedBox(width: 12),
-                    _buildButton(Icons.camera_alt, 'Kamera', ImageSource.camera),
+                    _buildButton(
+                      Icons.camera_alt,
+                      'Kamera',
+                      ImageSource.camera,
+                    ),
                   ],
                 ),
               ),
@@ -101,16 +113,12 @@ class _ImagePickerFieldState extends State<ImagePickerField> {
   }
 
   Widget _buildImageContent(ImagePickerProvider pickerProvider) {
-    if (pickerProvider.pickedFile != null) {
-      if (kIsWeb) {
-        return Image.network(
-          pickerProvider.pickedFile!.path,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
-        );
-      }
-
-      return Image.file(File(pickerProvider.pickedFile!.path), fit: BoxFit.cover);
+    if (pickerProvider.pickedBytes != null) {
+      return Image.memory(
+        pickerProvider.pickedBytes!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
+      );
     }
 
     if (pickerProvider.networkImageUrl != null) {

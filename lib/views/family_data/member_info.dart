@@ -1,196 +1,363 @@
+import 'package:family_tree_app/components/member_avatar.dart';
+import 'package:family_tree_app/components/family_edit_dialog.dart';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
-import 'package:family_tree_app/data/models/helper_member.dart';
+import 'package:family_tree_app/core/family_permission_service.dart';
+import 'package:family_tree_app/data/models/family_tree_node.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/data/provider/auth_provider.dart';
+import 'package:family_tree_app/data/provider/member_detail_provider.dart';
+import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-class MemberInfoPage extends StatelessWidget {
-  final ChildMember member;
+class MemberInfoPage extends StatefulWidget {
+  final int memberId;
 
-  const MemberInfoPage({super.key, required this.member});
+  const MemberInfoPage({super.key, required this.memberId});
+
+  @override
+  State<MemberInfoPage> createState() => _MemberInfoPageState();
+}
+
+class _MemberInfoPageState extends State<MemberInfoPage> {
+  static const FamilyPermissionService _permissionService = FamilyPermissionService();
+
+  late final MemberDetailProvider _detailProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _detailProvider = MemberDetailProvider(UserRepositoryImpl());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _detailProvider.load(widget.memberId);
+    });
+  }
+
+  @override
+  void dispose() {
+    _detailProvider.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reload() => _detailProvider.load(widget.memberId);
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = context.watch<UserProvider>();
-    final allUsers = userProvider.allUsers;
+    return ChangeNotifierProvider<MemberDetailProvider>.value(
+      value: _detailProvider,
+      child: Consumer<MemberDetailProvider>(
+        builder: (context, detail, child) {
+          return Scaffold(
+            backgroundColor: Config.background,
+            appBar: AppBar(
+              backgroundColor: Color(0xFF559260),
+              elevation: 0,
+              leading: CustomBackButton(onPressed: () => context.pop()),
+              title: const Text(
+                'Detail Anggota',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              centerTitle: true,
+            ),
+            body: _buildBody(detail),
+          );
+        },
+      ),
+    );
+  }
 
-    String? spouseNameStr = member.spouseName;
-    String? spousePhotoUrl;
-
-    if (member.nit.isNotEmpty && allUsers.isNotEmpty) {
-      try {
-        final spouse = allUsers.firstWhere((u) {
-          return u.familyTreeId == member.nit &&
-              u.parentId == null &&
-              u.userId != member.id;
-        });
-        spouseNameStr ??= spouse.fullName;
-        if (spouse.avatar is String) {
-          spousePhotoUrl = spouse.avatar as String;
-        }
-      } catch (_) {}
+  Widget _buildBody(MemberDetailProvider detail) {
+    if (detail.state == MemberDetailState.initial || detail.state == MemberDetailState.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (detail.state == MemberDetailState.error || detail.member == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 52, color: Colors.red),
+              const SizedBox(height: 12),
+              Text(detail.errorMessage ?? 'Detail anggota belum dapat dimuat.', textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(onPressed: _reload, icon: const Icon(Icons.refresh), label: const Text('Muat Ulang')),
+            ],
+          ),
+        ),
+      );
     }
 
-    final photoUrl = member.photoUrl != null && member.photoUrl!.isNotEmpty
-        ? Config.getFullImageUrl(member.photoUrl!)
-        : null;
+    final member = detail.member!;
+    final actor = context.watch<AuthProvider>().currentUser;
+    final isSelf = actor?.userId == member.userId;
+    final canManage = _permissionService.canManageMember(actorNit: actor?.nit, targetNit: member.nit);
+    final canDelete = _permissionService.canDeleteFamilyMember(actorNit: actor?.nit, targetNit: member.nit);
 
-    return Scaffold(
-      backgroundColor: Config.background,
-      appBar: AppBar(
-        backgroundColor: Config.primary,
-        elevation: 0,
-        leading: CustomBackButton(
-          color: Config.white,
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.goNamed('familyList');
-            }
-          },
-        ),
-        title: const Text(
-          "Detail Anggota",
-          style: TextStyle(
-            color: Config.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Config.white),
-            tooltip: 'Edit Anggota',
-            onPressed: () {
-              context.pushNamed('editFamilyMember', extra: member);
-            },
-          ),
-          const SizedBox(width: 8),
+    return RefreshIndicator(
+      onRefresh: _reload,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildProfileHeader(member),
+          const SizedBox(height: 16),
+          _buildFamilyStatus(detail.marriages),
+          const SizedBox(height: 16),
+          _buildInfoSection(member),
+          const SizedBox(height: 20),
+          if (canManage) _buildManagementActions(member, isSelf: isSelf) else _buildReadOnlyNotice(),
+          const SizedBox(height: 24),
+          _buildMarriageSection(detail, canManage: canManage),
+          const SizedBox(height: 24),
+          _buildDescendantSection(detail),
+          if (canDelete) ...[const SizedBox(height: 24), _buildDeleteMemberButton(detail)],
+          const SizedBox(height: 24),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+    );
+  }
+
+  Widget _buildProfileHeader(UserData member) {
+    final avatar = member.avatar is String ? Config.getFullImageUrl(member.avatar as String) : null;
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Circle Avatar Header
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey.shade300,
-                image: photoUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(photoUrl),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: photoUrl == null
-                  ? Icon(Icons.person, size: 54, color: Colors.grey.shade500)
-                  : null,
-            ),
+            MemberAvatar(photoUrl: avatar, size: 96, borderRadius: 48),
             const SizedBox(height: 12),
-
-            // Member Name
             Text(
-              member.name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Config.textHead,
+              member.fullName ?? 'Tanpa Nama',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Config.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'NIT ${member.nit ?? '-'}',
+                style: const TextStyle(color: Config.primaryDark, fontWeight: FontWeight.w600),
               ),
             ),
-            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Subtitle / Role
-            Text(
-              member.role ??
-                  (spouseNameStr != null ? 'Kepala Keluarga' : 'Anggota Keluarga'),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Config.primary,
-              ),
+  Widget _buildFamilyStatus(List<FamilyTreeMarriage> marriages) {
+    final hasFamily = marriages.isNotEmpty;
+    final spouseNames = marriages
+        .map((marriage) => marriage.spouse?.fullName)
+        .whereType<String>()
+        .where((name) => name.trim().isNotEmpty)
+        .toList();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: hasFamily ? Config.primary.withValues(alpha: 0.10) : Colors.grey.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: hasFamily ? Config.primary.withValues(alpha: 0.30) : Colors.grey.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(hasFamily ? Icons.favorite : Icons.favorite_border, color: hasFamily ? Config.primary : Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasFamily ? 'Sudah berkeluarga' : 'Belum berkeluarga',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (spouseNames.isNotEmpty) ...[const SizedBox(height: 4), Text('Pasangan: ${spouseNames.join(', ')}')],
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 24),
+  Widget _buildInfoSection(UserData member) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildInfoRow('Tahun Lahir', member.birthYear ?? '-'),
+            const Divider(height: 24),
+            _buildInfoRow('Alamat', member.address ?? '-'),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Side-by-side Cards: Nama Lengkap & Tanggal Lahir
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 105,
+          child: Text(label, style: TextStyle(color: Config.textSecondary)),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildManagementActions(UserData member, {required bool isSelf}) {
+    final memberId = member.userId!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Kelola Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () async {
+                final changed = await context.pushNamed<bool>('addFamilyMember', queryParameters: {'parentId': '$memberId'});
+                if (changed == true && mounted) await _reload();
+              },
+              icon: const Icon(Icons.child_care),
+              label: const Text('Tambah Anak'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final changed = await context.pushNamed<bool>('addFamily', queryParameters: {'memberId': '$memberId'});
+                if (changed == true && mounted) await _reload();
+              },
+              icon: const Icon(Icons.favorite_outline),
+              label: const Text('Tambah Pasangan'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () async {
+                if (isSelf) {
+                  final changed = await context.pushNamed<bool>('profileEdit');
+                  if (changed == true && mounted) await _reload();
+                } else {
+                  await _showEditMemberDialog(member);
+                }
+              },
+              icon: const Icon(Icons.edit_outlined),
+              label: Text(isSelf ? 'Edit Profil Saya' : 'Edit Anggota'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadOnlyNotice() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_outline, color: Colors.blue),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Data ini dapat dilihat, tetapi hanya anggota tersebut dan keturunannya yang dapat Anda kelola.',
+              style: TextStyle(height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarriageSection(MemberDetailProvider detail, {required bool canManage}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Pasangan (${detail.marriages.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        if (detail.marriages.isEmpty)
+          _buildEmptyCard('Belum ada data pasangan.')
+        else
+          ...detail.marriages.map((marriage) => _buildMarriageCard(detail, marriage, canManage: canManage)),
+      ],
+    );
+  }
+
+  Widget _buildMarriageCard(MemberDetailProvider detail, FamilyTreeMarriage marriage, {required bool canManage}) {
+    final spouse = marriage.spouse;
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
+                const CircleAvatar(child: Icon(Icons.favorite_outline)),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: _buildSmallInfoCard(
-                    title: 'Nama Lengkap',
-                    value: member.name,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _buildSmallInfoCard(
-                    title: 'Tanggal Lahir',
-                    value: (member.birthYear != null && member.birthYear!.isNotEmpty)
-                        ? member.birthYear!
-                        : '-',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        spouse?.fullName ?? 'Pasangan belum diketahui',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Pasangan ${marriage.marriageOrder} • ${marriage.children.length} anak',
+                        style: TextStyle(color: Config.textSecondary),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 14),
-
-            // Wide Card: Jenis Kelamin
-            _buildKeyValueCard(
-              label: 'Jenis Kelamin',
-              value: member.gender != null && member.gender!.isNotEmpty
-                  ? _formatGender(member.gender)
-                  : 'Laki – Laki',
-            ),
-
-            const SizedBox(height: 14),
-
-            // Wide Card: NIT
-            _buildKeyValueCard(
-              label: 'NIT',
-              value: member.nit.isNotEmpty ? member.nit : '-',
-            ),
-
-            const SizedBox(height: 14),
-
-            // Note Card: Tempat tinggal
-            _buildNoteCard(
-              title: 'Tempat tinggal',
-              content: member.location != null && member.location!.isNotEmpty
-                  ? member.location!
-                  : 'Belum ada data tempat tinggal.',
-            ),
-
-            const SizedBox(height: 24),
-
-            // Section Hubungan (jika ada Pasangan)
-            if (spouseNameStr != null) ...[
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Hubungan',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Config.textHead,
-                  ),
-                ),
-              ),
+            if (spouse?.birthYear?.isNotEmpty == true) ...[
+              const SizedBox(height: 10),
+              Text('Tahun lahir: ${spouse!.birthYear}'),
+            ],
+            if (spouse?.address?.isNotEmpty == true) ...[const SizedBox(height: 4), Text('Alamat: ${spouse!.address}')],
+            if (canManage) ...[
               const SizedBox(height: 12),
-              _buildRelationCard(
-                context: context,
-                name: spouseNameStr,
-                subtitle: 'Pasangan / Ibu Rumah Tangga',
-                photoUrl: spousePhotoUrl,
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _showEditMarriageDialog(detail.member!, marriage),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit Pasangan'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _confirmDeleteMarriage(detail.member!, marriage),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Hapus'),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  ),
+                ],
               ),
             ],
           ],
@@ -199,241 +366,189 @@ class MemberInfoPage extends StatelessWidget {
     );
   }
 
-  String _formatGender(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '-';
-    final g = raw.trim().toLowerCase();
-    if (g == 'l' || g.startsWith('laki') || g == 'male' || g == 'm') {
-      return 'Laki – Laki';
-    }
-    if (g == 'p' || g.startsWith('perempuan') || g == 'female' || g == 'f') {
-      return 'Perempuan';
-    }
-    return raw;
-  }
-
-  Widget _buildSmallInfoCard({
-    required String title,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Config.textHead,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+  Widget _buildDescendantSection(MemberDetailProvider detail) {
+    final children = detail.directChildren;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Anak dan Cucu (${children.length} anak)', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        if (children.isEmpty)
+          _buildEmptyCard('Belum ada data anak.')
+        else
+          ...children.map((child) => _buildChildCard(detail, child)),
+      ],
     );
   }
 
-  Widget _buildKeyValueCard({
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Config.textHead,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Config.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNoteCard({
-    required String title,
-    required String content,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Config.textHead,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            content,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRelationCard({
-    required BuildContext context,
-    required String name,
-    required String subtitle,
-    String? photoUrl,
-  }) {
-    final fullPhotoUrl = photoUrl != null && photoUrl.isNotEmpty
-        ? Config.getFullImageUrl(photoUrl)
-        : null;
-
-    return Container(
-      height: 90,
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        children: [
-          // Photo / Placeholder Box
-          Container(
-            width: 95,
-            height: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-              ),
-              image: fullPhotoUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(fullPhotoUrl),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: fullPhotoUrl == null
-                ? Icon(
-                    Icons.person,
-                    size: 44,
-                    color: Colors.grey.shade500,
-                  )
-                : null,
-          ),
-          // Green Details Container
-          Expanded(
-            child: Container(
-              height: double.infinity,
-              color: Config.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
+  Widget _buildChildCard(MemberDetailProvider detail, FamilyTreeNode child) {
+    final childId = child.userId;
+    final childDetail = childId == null ? null : detail.detailForChild(childId);
+    final grandchildren = childId == null ? const <FamilyTreeNode>[] : detail.grandchildrenForChild(childId);
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: childId == null
+            ? null
+            : () async {
+                final changed = await context.pushNamed<bool>('memberInfo', pathParameters: {'memberId': '$childId'});
+                if (changed == true && mounted) await _reload();
+              },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
+                  MemberAvatar(photoUrl: Config.getFullImageUrl(child.avatarUrl ?? child.avatar), size: 48),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Config.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Config.white.withValues(alpha: 0.9),
-                          ),
-                        ),
+                        Text(child.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text('NIT ${childDetail?.nit ?? child.nit ?? '-'}', style: TextStyle(color: Config.textSecondary)),
                       ],
                     ),
                   ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Config.white,
-                    size: 24,
-                  ),
+                  const Icon(Icons.chevron_right),
                 ],
               ),
-            ),
+              const SizedBox(height: 10),
+              Text(
+                grandchildren.isEmpty
+                    ? 'Belum ada cucu dari cabang ini.'
+                    : 'Cucu: ${grandchildren.map((item) => item.fullName).join(', ')}',
+                style: TextStyle(color: Config.textSecondary, height: 1.4),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _buildEmptyCard(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: Text(text, textAlign: TextAlign.center),
+    );
+  }
+
+  Widget _buildDeleteMemberButton(MemberDetailProvider detail) {
+    final hasStructure = detail.marriages.isNotEmpty || detail.directChildren.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton.icon(
+          onPressed: hasStructure ? null : () => _confirmDeleteMember(detail.member!),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Hapus Anggota'),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+        ),
+        if (hasStructure)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Hapus pasangan dan keturunannya terlebih dahulu sebelum menghapus anggota ini.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showEditMemberDialog(UserData member) async {
+    final changed = await showFamilyEditDialog(
+      context: context,
+      mode: FamilyEditMode.member,
+      initialData: member,
+      memberId: member.userId!,
+    );
+    if (changed == true && mounted) await _reload();
+  }
+
+  Future<void> _showEditMarriageDialog(UserData member, FamilyTreeMarriage marriage) async {
+    final spouse = marriage.spouse;
+    final changed = await showFamilyEditDialog(
+      context: context,
+      mode: FamilyEditMode.spouse,
+      initialData: UserData(fullName: spouse?.fullName, address: spouse?.address, birthYear: spouse?.birthYear),
+      memberId: member.userId!,
+      marriageId: marriage.marriageId,
+    );
+    if (changed == true && mounted) {
+      await context.read<TreeProvider>().refreshCurrentTree();
+      await _reload();
+    }
+  }
+
+  Future<void> _confirmDeleteMarriage(UserData member, FamilyTreeMarriage marriage) async {
+    if (marriage.children.isNotEmpty) {
+      _showError('Pernikahan masih mempunyai anak. Pindahkan atau hapus anak terlebih dahulu.');
+      return;
+    }
+    final confirmed = await _confirm(
+      title: 'Hapus pasangan?',
+      message: 'Data pasangan ${marriage.spouse?.fullName ?? ''} akan dihapus dari silsilah.',
+    );
+    if (!confirmed || !mounted) return;
+    final provider = context.read<UserProvider>();
+    final success = await provider.deleteMarriage(marriageId: marriage.marriageId, memberId: member.userId!);
+    if (!mounted) return;
+    if (!success) {
+      _showError(provider.errorMessage ?? 'Pasangan gagal dihapus.');
+      return;
+    }
+    await context.read<TreeProvider>().refreshCurrentTree();
+    await _reload();
+  }
+
+  Future<void> _confirmDeleteMember(UserData member) async {
+    final confirmed = await _confirm(
+      title: 'Hapus anggota?',
+      message: 'Data ${member.fullName ?? 'anggota ini'} akan dihapus. Tindakan ini tidak dapat dibatalkan.',
+    );
+    if (!confirmed || !mounted) return;
+    final provider = context.read<UserProvider>();
+    final success = await provider.deleteFamilyMember(member.userId!);
+    if (!mounted) return;
+    if (!success) {
+      _showError(provider.errorMessage ?? 'Anggota gagal dihapus.');
+      return;
+    }
+    await context.read<TreeProvider>().refreshCurrentTree();
+    if (mounted) context.pop(true);
+  }
+
+  Future<bool> _confirm({required String title, required String message}) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Batal')),
+              ElevatedButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Ya, Hapus'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
   }
 }

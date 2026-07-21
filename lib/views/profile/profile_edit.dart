@@ -34,9 +34,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final user = context.read<AuthProvider>().currentUser;
 
     _namaController = TextEditingController(text: user?.fullName ?? "");
-    _tahunLahirController = TextEditingController(
-      text: user?.birthYear?.toString() ?? "",
-    );
+    _tahunLahirController = TextEditingController(text: user?.birthYear?.toString() ?? "");
     _alamatController = TextEditingController(text: user?.address ?? "");
     _deskripsiController = TextEditingController();
 
@@ -76,33 +74,25 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     if (result != null) {
       authProvider.updateUser(result);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Profil berhasil diperbarui!"),
-          backgroundColor: Config.primary,
-        ),
-      );
-      context.pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Profil berhasil diperbarui!"), backgroundColor: Config.primary));
+      context.pop(true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(userProvider.errorMessage ?? "Gagal update profil"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(userProvider.errorMessage ?? "Gagal update profil"), backgroundColor: Colors.red),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isSubmitting = context.select<UserProvider, bool>(
-      (p) => p.isSubmitting,
-    );
+    final isSubmitting = context.select<UserProvider, bool>((p) => p.isSubmitting);
 
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.primary,
+        backgroundColor: Color(0xFF559260),
         elevation: 0,
         leading: CustomBackButton(
           color: Config.white,
@@ -110,11 +100,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         title: const Text(
           "Edit Profile",
-          style: TextStyle(
-            color: Config.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
       ),
@@ -203,38 +189,23 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
               const SizedBox(height: 32),
 
-              // Centered Update Button
-              Center(
-                child: SizedBox(
-                  width: 180,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: isSubmitting ? null : _handleUpdate,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Config.primary,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            "Update",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : _handleUpdate,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                    elevation: 2,
                   ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text("Simpan Perubahan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -248,121 +219,33 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   Widget _buildPhotoPickerRow() {
     return Row(
       children: [
-        // Avatar Circle
-        Container(
-          width: 90,
-          height: 90,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.grey.shade300,
-            image: _newProfilePhoto != null
-                ? DecorationImage(
-                    image: FileImage(File(_newProfilePhoto!.path)),
-                    fit: BoxFit.cover,
-                  )
-                : (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
-                    ? DecorationImage(
-                        image: NetworkImage(_currentPhotoUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: (_newProfilePhoto == null &&
-                  (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty))
-              ? Icon(
-                  Icons.person,
-                  size: 50,
-                  color: Colors.grey.shade500,
-                )
-              : null,
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
         ),
-        const SizedBox(width: 20),
-
-        // Buttons: Galeri & Kamera
-        Row(
-          children: [
-            ElevatedButton(
-              onPressed: () async {
-                final picker = ImagePicker();
-                final picked =
-                    await picker.pickImage(source: ImageSource.gallery);
-                if (picked != null) {
-                  setState(() => _newProfilePhoto = picked);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Config.primary,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Text(
-                'Galeri',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          minLines: minLines,
+          keyboardType: isMultiline ? TextInputType.multiline : keyboardType,
+          textAlignVertical: isMultiline ? TextAlignVertical.top : TextAlignVertical.center,
+          validator: (v) => v == null || v.isEmpty ? '$label wajib diisi' : null,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: icon != null ? Icon(icon, color: Colors.grey[600]) : null,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isMultiline ? 16 : 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              borderSide: BorderSide(color: Colors.grey.shade200),
             ),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: () async {
-                final picker = ImagePicker();
-                final picked =
-                    await picker.pickImage(source: ImageSource.camera);
-                if (picked != null) {
-                  setState(() => _newProfilePhoto = picked);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Config.primary.withValues(alpha: 0.65),
-                foregroundColor: Colors.white,
-                elevation: 2,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Text(
-                'Kamera',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRadioOption(String value) {
-    final isSelected = _gender == value;
-    return GestureDetector(
-      onTap: () => setState(() => _gender = value),
-      child: Row(
-        children: [
-          Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected ? Config.primary : Colors.transparent,
-              border: Border.all(
-                color: isSelected ? Config.primary : Colors.grey.shade400,
-                width: 2,
-              ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
             ),
           ),
           const SizedBox(width: 6),

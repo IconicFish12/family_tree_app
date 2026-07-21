@@ -127,26 +127,22 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Card Kepala Keluarga
-                _buildCardItem(
-                  context: context,
-                  name: headName,
-                  subtitle: "Kepala Keluarga",
-                  photoUrl: headUser?.avatar is String ? headUser?.avatar : null,
-                  onTap: () {
-                    if (headUser != null) {
-                      final headMember = ChildMember(
-                        id: headUser.userId,
-                        nit: headUser.familyTreeId ?? '',
-                        name: headUser.fullName ?? headName,
-                        role: "Kepala Keluarga",
-                        location: headUser.address ?? '',
-                        birthYear: headUser.birthYear ?? '',
-                        emoji: '👤',
-                        photoUrl: headUser.avatar is String ? headUser.avatar : null,
-                      );
-                      context.pushNamed('memberInfo', extra: headMember);
-                    }
+                Text(
+                  'Anak-Anak (${childrenList.length})',
+                  style: TextStyle(
+                    color: Config.textHead,
+                    fontSize: 18,
+                    fontWeight: Config.semiBold,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    context.pushNamed(
+                      'addFamilyMember',
+                      queryParameters: {
+                        if (parentId != null) 'parentId': parentId.toString(),
+                      },
+                    );
                   },
                 ),
 
@@ -290,15 +286,39 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
               ),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Config.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+          if (spouseName != null)
+            _buildMemberTile(
+              context: context,
+              name: spouseName,
+              role: "Pasangan",
+              emoji: '👩',
+              onTap: () {},
+            )
+          else
+            InkWell(
+              onTap: () {
+                context.pushNamed(
+                  'addFamily',
+                  queryParameters: {
+                    if (parentId != null) 'memberId': parentId.toString(),
+                  },
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person_add_alt_1, color: Config.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Tambah Pasangan",
+                      style: TextStyle(
+                        color: Config.primary,
+                        fontWeight: Config.semiBold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),
@@ -339,22 +359,51 @@ class _FamilyInfoPageState extends State<FamilyInfoPage> {
           ),
         ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Row(
-            children: [
-              // Photo / Placeholder Box
-              Container(
-                width: 95,
-                height: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
+      margin: const EdgeInsets.only(bottom: 12.0),
+      child: _buildMemberTile(
+        context: context,
+        name: member.name,
+        role: "Anak",
+        emoji: member.emoji,
+        onTap: () {
+          if (member.id != null) {
+            context.pushNamed(
+              'memberInfo',
+              pathParameters: {'memberId': member.id.toString()},
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildMemberTile({
+    required BuildContext context,
+    required String name,
+    required String role,
+    required String emoji,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12.0),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            MemberAvatar(emoji: emoji, size: 60, borderRadius: 8.0),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: Config.semiBold,
+                      fontSize: 16,
+                      color: Config.textHead,
+                    ),
                   ),
                   image: fullPhotoUrl != null
                       ? DecorationImage(

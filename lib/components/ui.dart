@@ -7,12 +7,7 @@ class CustomBackButton extends StatelessWidget {
   final Color? color;
   final double? size;
 
-  const CustomBackButton({
-    super.key,
-    this.onPressed,
-    this.color,
-    this.size = 24,
-  });
+  const CustomBackButton({super.key, this.onPressed, this.color, this.size = 24});
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +17,9 @@ class CustomBackButton extends StatelessWidget {
       icon: Icon(
         Icons.arrow_back,
         size: size,
-        color: canPop
-            ? (color ?? Config.textHead)
-            : Config.textSecondary.withValues(alpha: 0.5),
+        color: canPop ? (color ?? Colors.white) : Config.textSecondary.withValues(alpha: 0.5),
       ),
-      onPressed: canPop
-          ? (onPressed ?? () => Navigator.of(context).pop())
-          : null,
+      onPressed: canPop ? (onPressed ?? () => Navigator.of(context).pop()) : null,
       tooltip: canPop ? 'Kembali' : 'Tidak ada halaman sebelumnya',
     );
   }

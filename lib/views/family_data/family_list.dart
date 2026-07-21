@@ -61,12 +61,10 @@ class _FamilyListPageState extends State<FamilyListPage> {
     }
 
     final parentId = navigation.resolveCurrentParentId();
-    final parentName = navigation.resolveCurrentParentName();
-
     if (parentId != null) {
       context.pushNamed(
         'addFamilyMember',
-        extra: {'parentId': parentId, 'parentName': parentName},
+        queryParameters: {'parentId': parentId.toString()},
       );
       return;
     }
@@ -204,9 +202,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
                         _getShortName(item),
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: isLast
-                              ? Config.semiBold
-                              : Config.regular,
+                          fontWeight: isLast ? Config.semiBold : Config.regular,
                           color: isLast ? Config.primary : Config.textSecondary,
                         ),
                       ),
@@ -225,9 +221,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => context.read<UserProvider>().fetchData(
-              isRefresh: true,
-            ),
+            onRefresh: () =>
+                context.read<UserProvider>().fetchData(isRefresh: true),
             color: Config.primary,
             child: currentList.isEmpty
                 ? ListView(
@@ -250,10 +245,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
                     controller: navigation.isAtRoot ? _scrollController : null,
                     padding: const EdgeInsets.all(16),
                     itemCount: currentList.length,
-                    itemBuilder: (context, index) => _buildListItem(
-                      currentList[index],
-                      navigation,
-                    ),
+                    itemBuilder: (context, index) =>
+                        _buildListItem(currentList[index], navigation),
                   ),
           ),
         ),
@@ -261,10 +254,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
     );
   }
 
-  Widget _buildListItem(
-    dynamic item,
-    FamilyListNavigationProvider navigation,
-  ) {
+  Widget _buildListItem(dynamic item, FamilyListNavigationProvider navigation) {
     var name = '';
     var spouse = '';
     var isFolder = false;
@@ -351,7 +341,12 @@ class _FamilyListPageState extends State<FamilyListPage> {
           } else {
             return;
           }
-          context.pushNamed('memberInfo', extra: memberData);
+          if (memberData.id != null) {
+            context.pushNamed(
+              'memberInfo',
+              pathParameters: {'memberId': memberData.id.toString()},
+            );
+          }
         },
         trailing: isFolder
             ? IconButton(

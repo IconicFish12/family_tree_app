@@ -1,6 +1,8 @@
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/config/config.dart';
-import 'package:family_tree_app/data/models/helper_member.dart';
+import 'package:family_tree_app/data/models/family_directory.dart';
+import 'package:family_tree_app/data/models/family_tree_node.dart';
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +24,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     super.initState();
     _searchController = TextEditingController();
     _scrollController = ScrollController()..addListener(_handleScroll);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserProvider>().fetchData(isRefresh: true);
     });
@@ -38,26 +39,18 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
   }
 
   void _handleScroll() {
-    final provider = context.read<UserProvider>();
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 120) {
-      provider.loadMore();
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 120) {
+      context.read<UserProvider>().loadMore();
     }
   }
 
-  Future<void> _search() async {
-    await context.read<UserProvider>().fetchData(
-      isRefresh: true,
-      keyword: _searchController.text,
-    );
+  Future<void> _search() {
+    return context.read<UserProvider>().fetchData(isRefresh: true, keyword: _searchController.text);
   }
 
-  Future<void> _resetSearch() async {
+  Future<void> _resetSearch() {
     _searchController.clear();
-    await context.read<UserProvider>().fetchData(
-      isRefresh: true,
-      keyword: '',
-    );
+    return context.read<UserProvider>().fetchData(isRefresh: true, keyword: '');
   }
 
   @override
@@ -65,164 +58,79 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.white,
+        backgroundColor: Color(0xFF559260),
         elevation: 0,
         title: Text(
           'Daftar Keluarga',
-          style: TextStyle(
-            color: Config.textHead,
-            fontSize: 20,
-            fontWeight: Config.semiBold,
-          ),
+          style: TextStyle(color: Config.white, fontSize: 20, fontWeight: Config.semiBold),
         ),
         centerTitle: true,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.pushNamed('treeVisual'),
+        backgroundColor: Config.primary,
+        label: Text(
+          "Lihat pohon keluarga",
+          style: TextStyle(color: Config.white, fontSize: 14, fontWeight: Config.semiBold),
+        ),
+        icon: Icon(Icons.account_tree, color: Config.white),
+      ),
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            color: Config.white,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cari nama anggota keluarga yang ingin dilihat.',
-                  style: TextStyle(
-                    color: Config.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => _search(),
-                        decoration: InputDecoration(
-                          hintText: 'Masukkan nama anggota keluarga',
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: Config.textSecondary,
-                          ),
-                          filled: true,
-                          fillColor: Config.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _search,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
-                        ),
-                        child: const Text('Cari'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: _resetSearch,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Tampilkan Semua Keluarga'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Config.primary,
-                    side: const BorderSide(color: Config.primary),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildSearchPanel(),
           Expanded(
-            child: Consumer<UserProvider>(
-              builder: (context, provider, child) {
-                if (provider.state == ViewState.loading &&
-                    provider.directoryMembers.isEmpty) {
+            child: Consumer2<UserProvider, AuthProvider>(
+              builder: (context, provider, authProvider, child) {
+                final authenticatedId = authProvider.currentUser?.userId ?? provider.authenticatedMemberId;
+                final visibleMembers = provider.directoryMembers
+                    .where((member) => member.userId != authenticatedId)
+                    .toList();
+
+                if (provider.state == ViewState.loading && provider.directoryMembers.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
-                if (provider.state == ViewState.error &&
-                    provider.directoryMembers.isEmpty) {
+                if (provider.state == ViewState.error && provider.directoryMembers.isEmpty) {
                   return _buildPlaceholder(
                     icon: Icons.error_outline,
                     title: 'Data keluarga belum bisa dimuat',
-                    message:
-                        provider.errorMessage ??
-                        'Silakan coba lagi beberapa saat lagi.',
+                    message: provider.errorMessage ?? 'Silakan coba lagi beberapa saat lagi.',
                     actionLabel: 'Coba Lagi',
                     onPressed: _search,
                   );
                 }
-
                 if (provider.directoryMembers.isEmpty) {
                   return _buildPlaceholder(
                     icon: Icons.groups_outlined,
                     title: 'Data keluarga belum ditemukan',
-                    message:
-                        provider.keyword.isEmpty
-                            ? 'Belum ada anggota keluarga yang bisa ditampilkan.'
-                            : 'Coba gunakan kata kunci lain yang lebih sederhana.',
-                    actionLabel: provider.keyword.isEmpty
-                        ? 'Muat Ulang'
-                        : 'Tampilkan Semua',
+                    message: provider.keyword.isEmpty
+                        ? 'Belum ada anggota keluarga yang bisa ditampilkan.'
+                        : 'Coba gunakan kata kunci lain yang lebih sederhana.',
+                    actionLabel: provider.keyword.isEmpty ? 'Muat Ulang' : 'Tampilkan Semua',
                     onPressed: provider.keyword.isEmpty ? _search : _resetSearch,
+                  );
+                }
+                if (visibleMembers.isEmpty) {
+                  return _buildPlaceholder(
+                    icon: Icons.groups_outlined,
+                    title: 'Belum ada anggota lain untuk ditampilkan',
+                    message: 'Data diri Anda tidak ditampilkan di daftar agar tidak membingungkan.',
+                    actionLabel: 'Muat Ulang',
+                    onPressed: _search,
                   );
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () => context.read<UserProvider>().fetchData(
-                    isRefresh: true,
-                    keyword: provider.keyword,
-                  ),
+                  onRefresh: () => provider.fetchData(isRefresh: true, keyword: provider.keyword),
                   child: ListView.builder(
                     controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
-                    itemCount: provider.directoryMembers.length + 1,
+                    itemCount: visibleMembers.length + 1,
                     itemBuilder: (context, index) {
-                      if (index == provider.directoryMembers.length) {
-                        if (provider.isLoadingMore) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 20),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-
-                        if (provider.canLoadMore) {
-                          return const SizedBox(height: 24);
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 18,
-                            horizontal: 8,
-                          ),
-                          child: Center(
-                            child: Text(
-                              provider.directoryMembers.length < provider.perPage
-                                  ? 'Semua anggota keluarga sudah tampil.'
-                                  : 'Tidak ada data tambahan lagi.',
-                              style: TextStyle(color: Config.textSecondary),
-                            ),
-                          ),
-                        );
+                      if (index == visibleMembers.length) {
+                        return _buildListFooter(provider);
                       }
-
-                      final member = provider.directoryMembers[index];
-                      return _buildMemberCard(member);
+                      return _buildMemberCard(member: visibleMembers[index], provider: provider);
                     },
                   ),
                 );
@@ -230,6 +138,54 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchPanel() {
+    return Container(
+      width: double.infinity,
+      color: Config.white,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cari nama anggota keluarga yang ingin dilihat.',
+            style: TextStyle(color: Config.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _search(),
+            decoration: InputDecoration(
+              hintText: 'Masukkan nama anggota keluarga',
+              prefixIcon: Icon(Icons.search, color: Config.textSecondary),
+              filled: true,
+              fillColor: Config.background,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListFooter(UserProvider provider) {
+    if (provider.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (provider.canLoadMore) {
+      return const SizedBox(height: 24);
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+      child: Center(
+        child: Text('Semua anggota keluarga sudah tampil.', style: TextStyle(color: Config.textSecondary)),
       ),
     );
   }
@@ -252,11 +208,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: Config.semiBold,
-                color: Config.textHead,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: Config.semiBold, color: Config.textHead),
             ),
             const SizedBox(height: 8),
             Text(
@@ -265,17 +217,27 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
               style: TextStyle(color: Config.textSecondary),
             ),
             const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: onPressed,
-              child: Text(actionLabel),
-            ),
+            ElevatedButton(onPressed: onPressed, child: Text(actionLabel)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMemberCard(dynamic member) {
+  Widget _buildMemberCard({required FamilyDirectoryMember member, required UserProvider provider}) {
+    final memberId = member.userId;
+    final marriages = memberId == null ? null : provider.marriagesForMember(memberId);
+    final isLoading = memberId != null && provider.isLoadingMarriagesForMember(memberId);
+    final error = memberId == null ? null : provider.marriageErrorForMember(memberId);
+
+    if (memberId != null && marriages == null && !isLoading && error == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<UserProvider>().getMarriagesForMember(memberId);
+        }
+      });
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
@@ -285,31 +247,16 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         side: BorderSide(color: Colors.grey[200]!),
       ),
       child: InkWell(
-        onTap: () {
-          final childMember = ChildMember(
-            id: member.userId,
-            nit: member.nit.isNotEmpty ? member.nit : member.familyTreeId,
-            name: member.fullName,
-            spouseName: null,
-            location: member.address ?? '-',
-            emoji: '👤',
-            children: const [],
-            photoUrl: Config.getFullImageUrl(member.avatarUrl ?? member.avatar),
-            birthYear: member.birthYear,
-          );
-
-          context.pushNamed('memberInfo', extra: childMember);
-        },
+        onTap: memberId == null
+            ? null
+            : () => context.pushNamed('memberInfo', pathParameters: {'memberId': memberId.toString()}),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MemberAvatar(
-                photoUrl: Config.getFullImageUrl(member.avatarUrl ?? member.avatar),
-                emoji: '👤',
-                size: 54,
-              ),
+              MemberAvatar(photoUrl: Config.getFullImageUrl(member.avatarUrl ?? member.avatar), emoji: '👤', size: 54),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -317,48 +264,65 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                   children: [
                     Text(
                       member.fullName,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: Config.semiBold,
-                        color: Config.textHead,
-                      ),
+                      style: TextStyle(fontSize: 15, fontWeight: Config.semiBold, color: Config.textHead),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'NIT: ${member.nit.isEmpty ? '-' : member.nit}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Config.textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: Config.textSecondary),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Tingkat keluarga: ${member.level}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Config.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
                     Text(
                       'Tahun lahir: ${member.birthYear ?? '-'}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Config.textSecondary,
-                      ),
+                      style: TextStyle(fontSize: 12, color: Config.textSecondary),
                     ),
+                    const SizedBox(height: 6),
+                    _buildFamilyStatus(marriages: marriages, isLoading: isLoading, error: error),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 18,
-                color: Config.textSecondary,
-              ),
+              Icon(Icons.arrow_forward_ios, size: 18, color: Config.textSecondary),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFamilyStatus({
+    required List<FamilyTreeMarriage>? marriages,
+    required bool isLoading,
+    required String? error,
+  }) {
+    if (isLoading || (marriages == null && error == null)) {
+      return Text('Memuat status keluarga...', style: TextStyle(fontSize: 12, color: Config.textSecondary));
+    }
+    if (error != null) {
+      return Text('Status keluarga belum tersedia', style: TextStyle(fontSize: 12, color: Colors.orange[800]));
+    }
+
+    final spouseNames = marriages!
+        .map((marriage) => marriage.spouse?.fullName)
+        .whereType<String>()
+        .where((name) => name.trim().isNotEmpty)
+        .toList();
+    if (spouseNames.isEmpty) {
+      return Text('Belum berkeluarga', style: TextStyle(fontSize: 12, color: Config.textSecondary));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sudah berkeluarga',
+          style: TextStyle(fontSize: 12, fontWeight: Config.semiBold, color: Config.primary),
+        ),
+        Text(
+          'Pasangan: ${spouseNames.join(', ')}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 12, color: Config.textSecondary),
+        ),
+      ],
     );
   }
 }

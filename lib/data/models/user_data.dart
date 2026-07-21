@@ -16,7 +16,9 @@ String userDataToMap(List<UserData> data) =>
 class UserData with _$UserData {
   const factory UserData({
     @JsonKey(name: "user_id") int? userId,
+    @JsonKey(name: "nit") String? nit,
     @JsonKey(name: "family_tree_id") String? familyTreeId,
+    @JsonKey(name: "level") int? level,
     @JsonKey(name: "parent_id") int? parentId,
     @JsonKey(name: "full_name") String? fullName,
     @JsonKey(name: "address") String? address,

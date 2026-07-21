@@ -1,5 +1,6 @@
 class FamilyTreeSpouse {
   final int? userId;
+  final String? nit;
   final String familyTreeId;
   final int level;
   final String fullName;
@@ -10,6 +11,7 @@ class FamilyTreeSpouse {
 
   const FamilyTreeSpouse({
     this.userId,
+    this.nit,
     required this.familyTreeId,
     required this.level,
     required this.fullName,
@@ -22,6 +24,7 @@ class FamilyTreeSpouse {
   factory FamilyTreeSpouse.fromJson(Map<String, dynamic> json) {
     return FamilyTreeSpouse(
       userId: _toInt(json['user_id']),
+      nit: json['nit']?.toString(),
       familyTreeId: (json['family_tree_id'] ?? '').toString(),
       level: _toInt(json['level']) ?? 0,
       fullName: (json['full_name'] ?? 'Pasangan').toString(),
@@ -73,8 +76,11 @@ class FamilyTreeMarriage {
 
 class FamilyTreeNode {
   final int? userId;
+  final String? nit;
   final String familyTreeId;
   final int level;
+  final int? childOrder;
+  final int? relationId;
   final String fullName;
   final String? address;
   final String? birthYear;
@@ -84,8 +90,11 @@ class FamilyTreeNode {
 
   const FamilyTreeNode({
     this.userId,
+    this.nit,
     required this.familyTreeId,
     required this.level,
+    this.childOrder,
+    this.relationId,
     required this.fullName,
     this.address,
     this.birthYear,
@@ -97,15 +106,19 @@ class FamilyTreeNode {
   bool get hasDescendants =>
       marriages.any((marriage) => marriage.children.isNotEmpty);
 
-  int get spouseCount => marriages.where((marriage) => marriage.spouse != null).length;
+  int get spouseCount =>
+      marriages.where((marriage) => marriage.spouse != null).length;
 
   factory FamilyTreeNode.fromJson(Map<String, dynamic> json) {
     final rawMarriages = json['marriages'];
 
     return FamilyTreeNode(
       userId: _toInt(json['user_id']),
+      nit: json['nit']?.toString(),
       familyTreeId: (json['family_tree_id'] ?? '').toString(),
       level: _toInt(json['level']) ?? 0,
+      childOrder: _toInt(json['child_order']),
+      relationId: _toInt(json['relation_id']),
       fullName: (json['full_name'] ?? 'Tanpa Nama').toString(),
       address: json['address']?.toString(),
       birthYear: json['birth_year']?.toString(),

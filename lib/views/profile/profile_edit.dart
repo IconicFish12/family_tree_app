@@ -31,9 +31,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final user = context.read<AuthProvider>().currentUser;
 
     _namaController = TextEditingController(text: user?.fullName ?? "");
-    _tahunLahirController = TextEditingController(
-      text: user?.birthYear?.toString() ?? "",
-    );
+    _tahunLahirController = TextEditingController(text: user?.birthYear?.toString() ?? "");
     _alamatController = TextEditingController(text: user?.address ?? "");
 
     if (user?.avatar != null && user!.avatar is String) {
@@ -72,43 +70,31 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     // 3. Handle Hasil
     if (result != null) {
       authProvider.updateUser(result);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Profil berhasil diperbarui!"),
-          backgroundColor: Config.primary,
-        ),
-      );
-      context.pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Profil berhasil diperbarui!"), backgroundColor: Config.primary));
+      context.pop(true);
     } else {
       // GAGAL
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(userProvider.errorMessage ?? "Gagal update profil"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(userProvider.errorMessage ?? "Gagal update profil"), backgroundColor: Colors.red),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isSubmitting = context.select<UserProvider, bool>(
-      (p) => p.isSubmitting,
-    );
+    final isSubmitting = context.select<UserProvider, bool>((p) => p.isSubmitting);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Color(0xFF559260),
         elevation: 0,
         leading: CustomBackButton(onPressed: () => context.pop()),
         title: const Text(
           "Edit Profile",
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
       ),
@@ -163,27 +149,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                     elevation: 2,
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text(
-                          "Simpan Perubahan",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                      : const Text("Simpan Perubahan", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ],
@@ -209,11 +184,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -221,37 +192,23 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           maxLines: maxLines,
           minLines: minLines,
           keyboardType: isMultiline ? TextInputType.multiline : keyboardType,
-          textAlignVertical: isMultiline
-              ? TextAlignVertical.top
-              : TextAlignVertical.center,
-          validator: (v) =>
-              v == null || v.isEmpty ? '$label wajib diisi' : null,
+          textAlignVertical: isMultiline ? TextAlignVertical.top : TextAlignVertical.center,
+          validator: (v) => v == null || v.isEmpty ? '$label wajib diisi' : null,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400]),
             filled: true,
             fillColor: Colors.white,
-            prefixIcon: icon != null
-                ? Icon(icon, color: Colors.grey[600])
-                : null,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: isMultiline ? 16 : 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12.0),
-              borderSide: BorderSide.none,
-            ),
+            prefixIcon: icon != null ? Icon(icon, color: Colors.grey[600]) : null,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: isMultiline ? 16 : 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.0),
               borderSide: BorderSide(color: Colors.grey.shade200),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.0),
-              borderSide: const BorderSide(
-                color: Color(0xFF4CAF50),
-                width: 1.5,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 1.5),
             ),
           ),
         ),

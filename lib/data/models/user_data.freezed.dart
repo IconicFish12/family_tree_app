@@ -23,8 +23,12 @@ UserData _$UserDataFromJson(Map<String, dynamic> json) {
 mixin _$UserData {
   @JsonKey(name: "user_id")
   int? get userId => throw _privateConstructorUsedError;
+  @JsonKey(name: "nit")
+  String? get nit => throw _privateConstructorUsedError;
   @JsonKey(name: "family_tree_id")
   String? get familyTreeId => throw _privateConstructorUsedError;
+  @JsonKey(name: "level")
+  int? get level => throw _privateConstructorUsedError;
   @JsonKey(name: "parent_id")
   int? get parentId => throw _privateConstructorUsedError;
   @JsonKey(name: "full_name")
@@ -57,7 +61,9 @@ abstract class $UserDataCopyWith<$Res> {
   @useResult
   $Res call({
     @JsonKey(name: "user_id") int? userId,
+    @JsonKey(name: "nit") String? nit,
     @JsonKey(name: "family_tree_id") String? familyTreeId,
+    @JsonKey(name: "level") int? level,
     @JsonKey(name: "parent_id") int? parentId,
     @JsonKey(name: "full_name") String? fullName,
     @JsonKey(name: "address") String? address,
@@ -84,7 +90,9 @@ class _$UserDataCopyWithImpl<$Res, $Val extends UserData>
   @override
   $Res call({
     Object? userId = freezed,
+    Object? nit = freezed,
     Object? familyTreeId = freezed,
+    Object? level = freezed,
     Object? parentId = freezed,
     Object? fullName = freezed,
     Object? address = freezed,
@@ -99,10 +107,18 @@ class _$UserDataCopyWithImpl<$Res, $Val extends UserData>
                 ? _value.userId
                 : userId // ignore: cast_nullable_to_non_nullable
                       as int?,
+            nit: freezed == nit
+                ? _value.nit
+                : nit // ignore: cast_nullable_to_non_nullable
+                      as String?,
             familyTreeId: freezed == familyTreeId
                 ? _value.familyTreeId
                 : familyTreeId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            level: freezed == level
+                ? _value.level
+                : level // ignore: cast_nullable_to_non_nullable
+                      as int?,
             parentId: freezed == parentId
                 ? _value.parentId
                 : parentId // ignore: cast_nullable_to_non_nullable
@@ -148,7 +164,9 @@ abstract class _$$UserDataImplCopyWith<$Res>
   @useResult
   $Res call({
     @JsonKey(name: "user_id") int? userId,
+    @JsonKey(name: "nit") String? nit,
     @JsonKey(name: "family_tree_id") String? familyTreeId,
+    @JsonKey(name: "level") int? level,
     @JsonKey(name: "parent_id") int? parentId,
     @JsonKey(name: "full_name") String? fullName,
     @JsonKey(name: "address") String? address,
@@ -174,7 +192,9 @@ class __$$UserDataImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? userId = freezed,
+    Object? nit = freezed,
     Object? familyTreeId = freezed,
+    Object? level = freezed,
     Object? parentId = freezed,
     Object? fullName = freezed,
     Object? address = freezed,
@@ -189,10 +209,18 @@ class __$$UserDataImplCopyWithImpl<$Res>
             ? _value.userId
             : userId // ignore: cast_nullable_to_non_nullable
                   as int?,
+        nit: freezed == nit
+            ? _value.nit
+            : nit // ignore: cast_nullable_to_non_nullable
+                  as String?,
         familyTreeId: freezed == familyTreeId
             ? _value.familyTreeId
             : familyTreeId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        level: freezed == level
+            ? _value.level
+            : level // ignore: cast_nullable_to_non_nullable
+                  as int?,
         parentId: freezed == parentId
             ? _value.parentId
             : parentId // ignore: cast_nullable_to_non_nullable
@@ -231,7 +259,9 @@ class __$$UserDataImplCopyWithImpl<$Res>
 class _$UserDataImpl implements _UserData {
   const _$UserDataImpl({
     @JsonKey(name: "user_id") this.userId,
+    @JsonKey(name: "nit") this.nit,
     @JsonKey(name: "family_tree_id") this.familyTreeId,
+    @JsonKey(name: "level") this.level,
     @JsonKey(name: "parent_id") this.parentId,
     @JsonKey(name: "full_name") this.fullName,
     @JsonKey(name: "address") this.address,
@@ -248,8 +278,14 @@ class _$UserDataImpl implements _UserData {
   @JsonKey(name: "user_id")
   final int? userId;
   @override
+  @JsonKey(name: "nit")
+  final String? nit;
+  @override
   @JsonKey(name: "family_tree_id")
   final String? familyTreeId;
+  @override
+  @JsonKey(name: "level")
+  final int? level;
   @override
   @JsonKey(name: "parent_id")
   final int? parentId;
@@ -274,7 +310,7 @@ class _$UserDataImpl implements _UserData {
 
   @override
   String toString() {
-    return 'UserData(userId: $userId, familyTreeId: $familyTreeId, parentId: $parentId, fullName: $fullName, address: $address, birthYear: $birthYear, avatar: $avatar, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'UserData(userId: $userId, nit: $nit, familyTreeId: $familyTreeId, level: $level, parentId: $parentId, fullName: $fullName, address: $address, birthYear: $birthYear, avatar: $avatar, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -283,8 +319,10 @@ class _$UserDataImpl implements _UserData {
         (other.runtimeType == runtimeType &&
             other is _$UserDataImpl &&
             (identical(other.userId, userId) || other.userId == userId) &&
+            (identical(other.nit, nit) || other.nit == nit) &&
             (identical(other.familyTreeId, familyTreeId) ||
                 other.familyTreeId == familyTreeId) &&
+            (identical(other.level, level) || other.level == level) &&
             (identical(other.parentId, parentId) ||
                 other.parentId == parentId) &&
             (identical(other.fullName, fullName) ||
@@ -304,7 +342,9 @@ class _$UserDataImpl implements _UserData {
   int get hashCode => Object.hash(
     runtimeType,
     userId,
+    nit,
     familyTreeId,
+    level,
     parentId,
     fullName,
     address,
@@ -331,7 +371,9 @@ class _$UserDataImpl implements _UserData {
 abstract class _UserData implements UserData {
   const factory _UserData({
     @JsonKey(name: "user_id") final int? userId,
+    @JsonKey(name: "nit") final String? nit,
     @JsonKey(name: "family_tree_id") final String? familyTreeId,
+    @JsonKey(name: "level") final int? level,
     @JsonKey(name: "parent_id") final int? parentId,
     @JsonKey(name: "full_name") final String? fullName,
     @JsonKey(name: "address") final String? address,
@@ -348,8 +390,14 @@ abstract class _UserData implements UserData {
   @JsonKey(name: "user_id")
   int? get userId;
   @override
+  @JsonKey(name: "nit")
+  String? get nit;
+  @override
   @JsonKey(name: "family_tree_id")
   String? get familyTreeId;
+  @override
+  @JsonKey(name: "level")
+  int? get level;
   @override
   @JsonKey(name: "parent_id")
   int? get parentId;

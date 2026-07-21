@@ -9,7 +9,9 @@ part of 'user_data.dart';
 _$UserDataImpl _$$UserDataImplFromJson(Map<String, dynamic> json) =>
     _$UserDataImpl(
       userId: (json['user_id'] as num?)?.toInt(),
+      nit: json['nit'] as String?,
       familyTreeId: json['family_tree_id'] as String?,
+      level: (json['level'] as num?)?.toInt(),
       parentId: (json['parent_id'] as num?)?.toInt(),
       fullName: json['full_name'] as String?,
       address: json['address'] as String?,
@@ -26,7 +28,9 @@ _$UserDataImpl _$$UserDataImplFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$$UserDataImplToJson(_$UserDataImpl instance) =>
     <String, dynamic>{
       'user_id': instance.userId,
+      'nit': instance.nit,
       'family_tree_id': instance.familyTreeId,
+      'level': instance.level,
       'parent_id': instance.parentId,
       'full_name': instance.fullName,
       'address': instance.address,

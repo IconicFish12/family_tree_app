@@ -116,7 +116,12 @@ class FamilyInfoPage extends StatelessWidget {
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    context.pushNamed('addFamilyMember', extra: parentId);
+                    context.pushNamed(
+                      'addFamilyMember',
+                      queryParameters: {
+                        if (parentId != null) 'parentId': parentId.toString(),
+                      },
+                    );
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah'),
@@ -206,8 +211,10 @@ class FamilyInfoPage extends StatelessWidget {
             InkWell(
               onTap: () {
                 context.pushNamed(
-                  'addFamilyMember',
-                  extra: {'parentId': parentId, 'isSpouseOnly': true},
+                  'addFamily',
+                  queryParameters: {
+                    if (parentId != null) 'memberId': parentId.toString(),
+                  },
                 );
               },
               child: Padding(
@@ -256,7 +263,12 @@ class FamilyInfoPage extends StatelessWidget {
         role: "Anak",
         emoji: member.emoji,
         onTap: () {
-          context.pushNamed('memberInfo', extra: member);
+          if (member.id != null) {
+            context.pushNamed(
+              'memberInfo',
+              pathParameters: {'memberId': member.id.toString()},
+            );
+          }
         },
       ),
     );

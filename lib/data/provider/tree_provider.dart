@@ -7,7 +7,7 @@ enum TreeViewState { initial, loading, success, error }
 class TreeProvider extends ChangeNotifier {
   static const int visibleLevels = 3;
 
-  final UserRepositoryImpl _repository;
+  final UserRepository _repository;
 
   TreeProvider(this._repository);
 

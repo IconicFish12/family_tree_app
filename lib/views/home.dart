@@ -26,15 +26,11 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.background,
+        backgroundColor: Color(0xFF559260),
         elevation: 0,
         title: Text(
           'Silsilah Keluarga',
-          style: TextStyle(
-            color: Config.textHead,
-            fontSize: 20,
-            fontWeight: Config.semiBold,
-          ),
+          style: TextStyle(color: Config.white, fontSize: 20, fontWeight: Config.semiBold),
         ),
       ),
       body: Consumer<AuthProvider>(
@@ -46,10 +42,7 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Data user tidak ditemukan.'),
-                  ElevatedButton(
-                    onPressed: () => context.go('/login'),
-                    child: const Text('Login Ulang'),
-                  ),
+                  ElevatedButton(onPressed: () => context.go('/login'), child: const Text('Login Ulang')),
                 ],
               ),
             );
@@ -66,21 +59,10 @@ class _HomePageState extends State<HomePage> {
                     SizedBox(
                       width: double.infinity,
                       height: 180,
-                      child: Image.asset(
-                        'assets/images/family_logo.png',
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.asset('assets/images/family_logo.png', fit: BoxFit.cover),
                     ),
-                    Container(
-                      height: 180,
-                      color: Colors.black.withValues(alpha: 0.2),
-                    ),
-                    Positioned(
-                      bottom: -25,
-                      left: 20,
-                      right: 20,
-                      child: _buildSearchBar(),
-                    ),
+                    Container(height: 180, color: Colors.black.withValues(alpha: 0.2)),
+                    Positioned(bottom: -25, left: 20, right: 20, child: _buildSearchBar()),
                   ],
                 ),
                 const SizedBox(height: 45),
@@ -91,41 +73,43 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         'Selamat Datang, ${user.fullName ?? 'Keluarga'}',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: Config.semiBold,
-                          color: Config.textHead,
-                        ),
+                        style: TextStyle(fontSize: 22, fontWeight: Config.semiBold, color: Config.textHead),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Buka daftar keluarga dari menu bawah atau lihat bagan keluarga Anda dari halaman ini.',
                         style: TextStyle(color: Config.textSecondary),
                       ),
-                      const SizedBox(height: 20),
-                      FamilyInfoCard(user: user),
                       const SizedBox(height: 24),
                       Row(
                         children: [
                           Expanded(
                             child: _buildOutlinedButton(
-                              text: 'Tambah Anggota Baru',
-                              onPressed: () => context.pushNamed(
-                                'addFamilyMember',
-                                extra: user.userId,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildElevatedButton(
-                              text: 'Lihat Pohon Keluarga',
-                              onPressed: () => context.pushNamed('treeVisual'),
+                              text: 'Tambah Keluarga/Anak Baru',
+                              onPressed: () => _showAddMemberOptions(user.userId),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: user.userId == null
+                              ? null
+                              : () => context.pushNamed('memberInfo', pathParameters: {'memberId': user.userId.toString()}),
+                          icon: const Icon(Icons.manage_accounts_outlined),
+                          label: const Text('Edit atau Hapus Pasangan Saya'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Config.primary,
+                            side: BorderSide(color: Config.primary, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 30),
+                      FamilyInfoCard(user: user),
                     ],
                   ),
                 ),
@@ -137,18 +121,88 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _showAddMemberOptions(int? memberId) async {
+    if (memberId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Data diri belum lengkap. Silakan muat ulang.')));
+      return;
+    }
+
+    final choice = await showModalBottomSheet<_AddMemberChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Siapa yang ingin ditambahkan?',
+                style: TextStyle(color: Config.textHead, fontSize: 20, fontWeight: Config.semiBold),
+              ),
+              const SizedBox(height: 6),
+              Text('Pilih salah satu sesuai hubungan keluarga.', style: TextStyle(color: Config.textSecondary)),
+              const SizedBox(height: 16),
+              _buildChoiceTile(
+                icon: Icons.favorite_outline,
+                title: 'Tambah Pasangan',
+                subtitle: 'Tambahkan data suami atau istri.',
+                onTap: () => Navigator.of(sheetContext).pop(_AddMemberChoice.spouse),
+              ),
+              const SizedBox(height: 10),
+              _buildChoiceTile(
+                icon: Icons.child_care,
+                title: 'Tambah Anak',
+                subtitle: 'Pilih pasangan asal anak dan buat NIT otomatis.',
+                onTap: () => Navigator.of(sheetContext).pop(_AddMemberChoice.child),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted || choice == null) return;
+    if (choice == _AddMemberChoice.spouse) {
+      await context.pushNamed('addFamily', queryParameters: {'memberId': memberId.toString()});
+      return;
+    }
+    await context.pushNamed('addFamilyMember', queryParameters: {'parentId': memberId.toString()});
+  }
+
+  Widget _buildChoiceTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Config.primary.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: Config.primary.withValues(alpha: 0.14),
+          child: Icon(icon, color: Config.primaryDark),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
+
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
         color: Config.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Config.textHead.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Config.textHead.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: TextField(
         controller: _searchController,
@@ -156,25 +210,16 @@ class _HomePageState extends State<HomePage> {
         onTap: () => context.goNamed('familySearch'),
         decoration: InputDecoration(
           hintText: 'Cari anggota keluarga...',
-          hintStyle: TextStyle(
-            color: Config.textSecondary.withValues(alpha: 0.7),
-            fontSize: 14,
-          ),
+          hintStyle: TextStyle(color: Config.textSecondary.withValues(alpha: 0.7), fontSize: 14),
           suffixIcon: Icon(Icons.search, color: Config.textSecondary),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 15,
-            horizontal: 20,
-          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
         ),
       ),
     );
   }
 
-  Widget _buildOutlinedButton({
-    required String text,
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildOutlinedButton({required String text, required VoidCallback onPressed}) {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
@@ -190,29 +235,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  Widget _buildElevatedButton({
-    required String text,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Config.primary,
-        foregroundColor: Config.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 2,
-      ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Config.white,
-          fontSize: 14,
-          fontWeight: Config.semiBold,
-        ),
-      ),
-    );
-  }
 }
+
+enum _AddMemberChoice { spouse, child }

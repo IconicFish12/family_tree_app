@@ -1,3 +1,4 @@
+import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
@@ -17,16 +18,6 @@ class SearchFamilyPage extends StatefulWidget {
 class _SearchFamilyPageState extends State<SearchFamilyPage> {
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
-
-  String _sortOrder = 'none'; // 'none', 'asc', 'desc'
-  int? _selectedLevel;
-  bool _isFabMenuOpen = false;
-
-  void _toggleFabMenu() {
-    setState(() {
-      _isFabMenuOpen = !_isFabMenuOpen;
-    });
-  }
 
   @override
   void initState() {
@@ -48,13 +39,17 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
   }
 
   void _handleScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 120) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 120) {
       context.read<UserProvider>().loadMore();
     }
   }
 
   Future<void> _search() {
-    return context.read<UserProvider>().fetchData(isRefresh: true, keyword: _searchController.text);
+    return context.read<UserProvider>().fetchData(
+      isRefresh: true,
+      keyword: _searchController.text,
+    );
   }
 
   Future<void> _resetSearch() {
@@ -64,8 +59,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasActiveFilter = _sortOrder != 'none' || _selectedLevel != null;
-
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
@@ -73,7 +66,11 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         elevation: 0,
         title: Text(
           'Daftar Keluarga',
-          style: TextStyle(color: Config.white, fontSize: 20, fontWeight: Config.semiBold),
+          style: TextStyle(
+            color: Config.white,
+            fontSize: 20,
+            fontWeight: Config.semiBold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -82,7 +79,11 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         backgroundColor: Config.primary,
         label: Text(
           "Lihat pohon keluarga",
-          style: TextStyle(color: Config.white, fontSize: 14, fontWeight: Config.semiBold),
+          style: TextStyle(
+            color: Config.white,
+            fontSize: 14,
+            fontWeight: Config.semiBold,
+          ),
         ),
         icon: Icon(Icons.account_tree, color: Config.white),
       ),
@@ -92,19 +93,25 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
           Expanded(
             child: Consumer2<UserProvider, AuthProvider>(
               builder: (context, provider, authProvider, child) {
-                final authenticatedId = authProvider.currentUser?.userId ?? provider.authenticatedMemberId;
+                final authenticatedId =
+                    authProvider.currentUser?.userId ??
+                    provider.authenticatedMemberId;
                 final visibleMembers = provider.directoryMembers
                     .where((member) => member.userId != authenticatedId)
                     .toList();
 
-                if (provider.state == ViewState.loading && provider.directoryMembers.isEmpty) {
+                if (provider.state == ViewState.loading &&
+                    provider.directoryMembers.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (provider.state == ViewState.error && provider.directoryMembers.isEmpty) {
+                if (provider.state == ViewState.error &&
+                    provider.directoryMembers.isEmpty) {
                   return _buildPlaceholder(
                     icon: Icons.error_outline,
                     title: 'Data keluarga belum bisa dimuat',
-                    message: provider.errorMessage ?? 'Silakan coba lagi beberapa saat lagi.',
+                    message:
+                        provider.errorMessage ??
+                        'Silakan coba lagi beberapa saat lagi.',
                     actionLabel: 'Coba Lagi',
                     onPressed: _search,
                   );
@@ -116,22 +123,30 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                     message: provider.keyword.isEmpty
                         ? 'Belum ada anggota keluarga yang bisa ditampilkan.'
                         : 'Coba gunakan kata kunci lain yang lebih sederhana.',
-                    actionLabel: provider.keyword.isEmpty ? 'Muat Ulang' : 'Tampilkan Semua',
-                    onPressed: provider.keyword.isEmpty ? _search : _resetSearch,
+                    actionLabel: provider.keyword.isEmpty
+                        ? 'Muat Ulang'
+                        : 'Tampilkan Semua',
+                    onPressed: provider.keyword.isEmpty
+                        ? _search
+                        : _resetSearch,
                   );
                 }
                 if (visibleMembers.isEmpty) {
                   return _buildPlaceholder(
                     icon: Icons.groups_outlined,
                     title: 'Belum ada anggota lain untuk ditampilkan',
-                    message: 'Data diri Anda tidak ditampilkan di daftar agar tidak membingungkan.',
+                    message:
+                        'Data diri Anda tidak ditampilkan di daftar agar tidak membingungkan.',
                     actionLabel: 'Muat Ulang',
                     onPressed: _search,
                   );
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () => provider.fetchData(isRefresh: true, keyword: provider.keyword),
+                  onRefresh: () => provider.fetchData(
+                    isRefresh: true,
+                    keyword: provider.keyword,
+                  ),
                   child: ListView.builder(
                     controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -141,12 +156,16 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                       if (index == visibleMembers.length) {
                         return _buildListFooter(provider);
                       }
-                      return _buildMemberCard(member: visibleMembers[index], provider: provider);
+                      return _buildMemberCard(
+                        member: visibleMembers[index],
+                        provider: provider,
+                      );
                     },
                   ),
-                ],
-              ),
+                );
+              },
             ),
+          ),
         ],
       ),
     );
@@ -174,7 +193,10 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
               prefixIcon: Icon(Icons.search, color: Config.textSecondary),
               filled: true,
               fillColor: Config.background,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
         ],
@@ -195,7 +217,10 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
       child: Center(
-        child: Text('Semua anggota keluarga sudah tampil.', style: TextStyle(color: Config.textSecondary)),
+        child: Text(
+          'Semua anggota keluarga sudah tampil.',
+          style: TextStyle(color: Config.textSecondary),
+        ),
       ),
     );
   }
@@ -218,7 +243,11 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: Config.semiBold, color: Config.textHead),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: Config.semiBold,
+                color: Config.textHead,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -234,11 +263,19 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     );
   }
 
-  Widget _buildMemberCard({required FamilyDirectoryMember member, required UserProvider provider}) {
+  Widget _buildMemberCard({
+    required FamilyDirectoryMember member,
+    required UserProvider provider,
+  }) {
     final memberId = member.userId;
-    final marriages = memberId == null ? null : provider.marriagesForMember(memberId);
-    final isLoading = memberId != null && provider.isLoadingMarriagesForMember(memberId);
-    final error = memberId == null ? null : provider.marriageErrorForMember(memberId);
+    final marriages = memberId == null
+        ? null
+        : provider.marriagesForMember(memberId);
+    final isLoading =
+        memberId != null && provider.isLoadingMarriagesForMember(memberId);
+    final error = memberId == null
+        ? null
+        : provider.marriageErrorForMember(memberId);
 
     if (memberId != null && marriages == null && !isLoading && error == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -259,14 +296,23 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
       child: InkWell(
         onTap: memberId == null
             ? null
-            : () => context.pushNamed('memberInfo', pathParameters: {'memberId': memberId.toString()}),
+            : () => context.pushNamed(
+                'memberInfo',
+                pathParameters: {'memberId': memberId.toString()},
+              ),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MemberAvatar(photoUrl: Config.getFullImageUrl(member.avatarUrl ?? member.avatar), emoji: '👤', size: 54),
+              MemberAvatar(
+                photoUrl: Config.getFullImageUrl(
+                  member.avatarUrl ?? member.avatar,
+                ),
+                emoji: '👤',
+                size: 54,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -274,23 +320,41 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                   children: [
                     Text(
                       member.fullName,
-                      style: TextStyle(fontSize: 15, fontWeight: Config.semiBold, color: Config.textHead),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: Config.semiBold,
+                        color: Config.textHead,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'NIT: ${member.nit.isEmpty ? '-' : member.nit}',
-                      style: TextStyle(fontSize: 12, color: Config.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Config.textSecondary,
+                      ),
                     ),
                     Text(
                       'Tahun lahir: ${member.birthYear ?? '-'}',
-                      style: TextStyle(fontSize: 12, color: Config.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Config.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 6),
-                    _buildFamilyStatus(marriages: marriages, isLoading: isLoading, error: error),
+                    _buildFamilyStatus(
+                      marriages: marriages,
+                      isLoading: isLoading,
+                      error: error,
+                    ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 18, color: Config.textSecondary),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+                color: Config.textSecondary,
+              ),
             ],
           ),
         ),
@@ -304,10 +368,16 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     required String? error,
   }) {
     if (isLoading || (marriages == null && error == null)) {
-      return Text('Memuat status keluarga...', style: TextStyle(fontSize: 12, color: Config.textSecondary));
+      return Text(
+        'Memuat status keluarga...',
+        style: TextStyle(fontSize: 12, color: Config.textSecondary),
+      );
     }
     if (error != null) {
-      return Text('Status keluarga belum tersedia', style: TextStyle(fontSize: 12, color: Colors.orange[800]));
+      return Text(
+        'Status keluarga belum tersedia',
+        style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+      );
     }
 
     final spouseNames = marriages!
@@ -316,7 +386,10 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         .where((name) => name.trim().isNotEmpty)
         .toList();
     if (spouseNames.isEmpty) {
-      return Text('Belum berkeluarga', style: TextStyle(fontSize: 12, color: Config.textSecondary));
+      return Text(
+        'Belum berkeluarga',
+        style: TextStyle(fontSize: 12, color: Config.textSecondary),
+      );
     }
 
     return Column(
@@ -324,7 +397,11 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
       children: [
         Text(
           'Sudah berkeluarga',
-          style: TextStyle(fontSize: 12, fontWeight: Config.semiBold, color: Config.primary),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: Config.semiBold,
+            color: Config.primary,
+          ),
         ),
         Text(
           'Pasangan: ${spouseNames.join(', ')}',

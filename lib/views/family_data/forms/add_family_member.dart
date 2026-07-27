@@ -7,7 +7,6 @@ import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class AddFamilyMemberPage extends StatefulWidget {
@@ -24,11 +23,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _birthYearController = TextEditingController();
-  final _descriptionController = TextEditingController();
   final FamilyMemberFormProvider _formProvider = FamilyMemberFormProvider();
-
-  String _gender = 'Laki – Laki';
-  String _relationshipRole = 'Anak';
 
   @override
   void initState() {
@@ -52,7 +47,6 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     _nameController.dispose();
     _addressController.dispose();
     _birthYearController.dispose();
-    _descriptionController.dispose();
     _formProvider.dispose();
     super.dispose();
   }
@@ -61,8 +55,14 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     if (!_formKey.currentState!.validate()) return;
     final parent = _formProvider.selectedParent;
     final marriageId = _formProvider.selectedMarriageId;
-    if (parent?.userId == null || parent!.nit.trim().isEmpty || marriageId == null || _formProvider.generatedNit == null) {
-      _showError(_formProvider.contextError ?? 'NIT belum dapat dibuat. Silakan muat ulang data dan coba kembali.');
+    if (parent?.userId == null ||
+        parent!.nit.trim().isEmpty ||
+        marriageId == null ||
+        _formProvider.generatedNit == null) {
+      _showError(
+        _formProvider.contextError ??
+            'NIT belum dapat dibuat. Silakan muat ulang data dan coba kembali.',
+      );
       return;
     }
 
@@ -88,7 +88,9 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Anak berhasil ditambahkan dengan NIT ${createdChild.nit ?? _formProvider.generatedNit}.'),
+        content: Text(
+          'Anak berhasil ditambahkan dengan NIT ${createdChild.nit ?? _formProvider.generatedNit}.',
+        ),
         backgroundColor: Config.primary,
       ),
     );
@@ -101,12 +103,16 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isSubmitting = context.select<UserProvider, bool>((provider) => provider.isSubmitting);
+    final isSubmitting = context.select<UserProvider, bool>(
+      (provider) => provider.isSubmitting,
+    );
 
     return ChangeNotifierProvider<FamilyMemberFormProvider>.value(
       value: _formProvider,
@@ -117,7 +123,10 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
             appBar: AppBar(
               title: const Text(
                 'Tambah Anak',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
               centerTitle: true,
               leading: CustomBackButton(
@@ -127,7 +136,9 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
               backgroundColor: Config.primary,
               elevation: 0,
             ),
-            body: formProvider.isLoadingContext && formProvider.availableParents.isEmpty
+            body:
+                formProvider.isLoadingContext &&
+                    formProvider.availableParents.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -140,7 +151,8 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                           const SizedBox(height: 20),
                           _buildParentDropdown(formProvider),
                           const SizedBox(height: 16),
-                          if (formProvider.isLoadingContext) const LinearProgressIndicator(),
+                          if (formProvider.isLoadingContext)
+                            const LinearProgressIndicator(),
                           if (formProvider.contextError != null) ...[
                             _buildErrorBox(formProvider.contextError!),
                             const SizedBox(height: 16),
@@ -187,7 +199,10 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                                   ? const SizedBox(
                                       height: 20,
                                       width: 20,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Text('Simpan Anak'),
                             ),
@@ -231,15 +246,24 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
       key: ValueKey('parent-${provider.selectedParentId}'),
       initialValue: provider.selectedParentId,
       isExpanded: true,
-      decoration: _inputDecoration(label: 'Anggota yang menjadi orang tua', icon: Icons.family_restroom),
+      decoration: _inputDecoration(
+        label: 'Anggota yang menjadi orang tua',
+        icon: Icons.family_restroom,
+      ),
       items: provider.availableParents
           .map(
-            (member) => DropdownMenuItem<int>(value: member.userId, child: Text('${member.fullName} • NIT ${member.nit}')),
+            (member) => DropdownMenuItem<int>(
+              value: member.userId,
+              child: Text('${member.fullName} • NIT ${member.nit}'),
+            ),
           )
           .toList(),
       onChanged: provider.isLoadingContext
           ? null
-          : (value) => provider.selectParent(value, userProvider: context.read<UserProvider>()),
+          : (value) => provider.selectParent(
+              value,
+              userProvider: context.read<UserProvider>(),
+            ),
       validator: (value) => value == null ? 'Pilih orang tua anak.' : null,
     );
   }
@@ -249,9 +273,13 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
       key: ValueKey('marriage-${provider.selectedMarriageId}'),
       initialValue: provider.selectedMarriageId,
       isExpanded: true,
-      decoration: _inputDecoration(label: 'Pasangan asal anak', icon: Icons.favorite_outline),
+      decoration: _inputDecoration(
+        label: 'Pasangan asal anak',
+        icon: Icons.favorite_outline,
+      ),
       items: provider.marriages.map((marriage) {
-        final spouseName = marriage.spouse?.fullName ?? 'Pasangan belum diketahui';
+        final spouseName =
+            marriage.spouse?.fullName ?? 'Pasangan belum diketahui';
         return DropdownMenuItem<int>(
           value: marriage.marriageId,
           child: Text('Pasangan ${marriage.marriageOrder}: $spouseName'),
@@ -267,9 +295,15 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
       key: ValueKey('nit-$generatedNit'),
       initialValue: generatedNit ?? '',
       readOnly: true,
-      decoration: _inputDecoration(label: 'NIT Anak', icon: Icons.badge_outlined).copyWith(
-        helperText: generatedNit == null ? 'NIT belum dapat dibuat.' : 'NIT dibuat otomatis dan tidak dapat diubah.',
-      ),
+      decoration:
+          _inputDecoration(
+            label: 'NIT Anak',
+            icon: Icons.badge_outlined,
+          ).copyWith(
+            helperText: generatedNit == null
+                ? 'NIT belum dapat dibuat.'
+                : 'NIT dibuat otomatis dan tidak dapat diubah.',
+          ),
     );
   }
 
@@ -292,11 +326,18 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           Wrap(
             spacing: 8,
             children: [
-              OutlinedButton.icon(onPressed: _initialize, icon: const Icon(Icons.refresh), label: const Text('Muat Ulang')),
+              OutlinedButton.icon(
+                onPressed: _initialize,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Muat Ulang'),
+              ),
               if (_formProvider.hasNoMarriage && parentId != null)
                 ElevatedButton.icon(
                   onPressed: () async {
-                    await context.pushNamed('addFamily', queryParameters: {'memberId': '$parentId'});
+                    await context.pushNamed(
+                      'addFamily',
+                      queryParameters: {'memberId': '$parentId'},
+                    );
                     if (mounted) await _initialize();
                   },
                   icon: const Icon(Icons.favorite_outline),
@@ -309,9 +350,10 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     );
   }
 
-  Widget _buildStyledCardInput({
+  Widget _buildTextField({
+    required String label,
     required TextEditingController controller,
-    required String hintText,
+    IconData? icon,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
     bool isRequired = false,

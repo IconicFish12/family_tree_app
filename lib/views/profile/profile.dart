@@ -54,18 +54,21 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, UserData user) {
-    final photoUrl = user.avatar is String
-        ? Config.getFullImageUrl(user.avatar as String)
-        : null;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildProfileHeader(user),
           const SizedBox(height: 24),
           _buildInfoSection(user),
+          const SizedBox(height: 14),
+          _buildKeyValueCard(label: 'NIT', value: user.nit?.trim().isNotEmpty == true ? user.nit! : '-'),
+          const SizedBox(height: 14),
+          _buildNoteCard(
+            title: 'Tempat Tinggal',
+            content: user.address?.trim().isNotEmpty == true ? user.address! : 'Belum ada data tempat tinggal.',
+          ),
           const SizedBox(height: 24),
           Text(
             'Unduh Data Keluarga',
@@ -110,13 +113,17 @@ class ProfilePage extends StatelessWidget {
 
     return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.grey[300],
-            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-            child: photoUrl == null ? Icon(Icons.person, size: 60, color: Colors.grey[600]) : null,
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey.shade300,
+              image: photoUrl == null ? null : DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover),
+            ),
+            child: photoUrl == null ? Icon(Icons.person, size: 54, color: Colors.grey.shade500) : null,
           ),
           const SizedBox(height: 12),
           Text(
@@ -124,7 +131,10 @@ class ProfilePage extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87),
           ),
           const SizedBox(height: 4),
-          Text('NIT: ${user.nit ?? '-'}', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+          Text(
+            user.parentId == null ? 'Kepala Keluarga' : 'Anggota Keluarga',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Config.primary),
+          ),
         ],
       ),
     );
@@ -172,11 +182,64 @@ class ProfilePage extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _buildInfoCard(title: 'Nama Lengkap', value: user.fullName ?? '-'),
+              child: _buildSmallInfoCard(
+                title: 'Nama Lengkap',
+                value: user.fullName?.trim().isNotEmpty == true ? user.fullName! : '-',
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
-              child: _buildInfoCard(title: 'Tahun Lahir', value: user.birthYear?.toString() ?? '-'),
+              child: _buildSmallInfoCard(
+                title: 'Tahun Lahir',
+                value: user.birthYear?.trim().isNotEmpty == true ? user.birthYear! : '-',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSmallInfoCard({required String title, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.textHead),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeyValueCard({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: _cardDecoration(),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.textHead),
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.primary),
             ),
           ),
         ],
@@ -184,29 +247,30 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildNoteCard({
-    required String title,
-    required String content,
-  }) {
+  Widget _buildNoteCard({required String title, required String content}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3, offset: const Offset(0, 2)),
-        ],
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.black87),
+            title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.textHead),
           ),
+          const SizedBox(height: 6),
+          Text(content, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4)),
         ],
       ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Config.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
     );
   }
 }

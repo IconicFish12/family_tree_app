@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
@@ -22,7 +21,6 @@ class AddFamilyPage extends StatefulWidget {
 class _AddFamilyPageState extends State<AddFamilyPage> {
   final _formKey = GlobalKey<FormState>();
   final _spouseNameController = TextEditingController();
-  final _nikController = TextEditingController();
   final _locationController = TextEditingController();
   final _birthYearController = TextEditingController();
   final MarriageFormProvider _formProvider = MarriageFormProvider();
@@ -44,13 +42,9 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     );
   }
 
-  String _gender = 'Perempuan';
-  String _relationshipRole = 'Pasangan';
-
   @override
   void dispose() {
     _spouseNameController.dispose();
-    _nikController.dispose();
     _locationController.dispose();
     _birthYearController.dispose();
     _formProvider.dispose();

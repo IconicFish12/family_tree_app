@@ -59,10 +59,10 @@ class _HomePageState extends State<HomePage> {
                     Container(
                       height: 220,
                       width: double.infinity,
-                      height: 180,
+                      decoration: const BoxDecoration(borderRadius: BorderRadius.vertical(bottom: Radius.circular(24))),
+                      clipBehavior: Clip.antiAlias,
                       child: Image.asset('assets/images/family_logo.png', fit: BoxFit.cover),
                     ),
-                    Container(height: 180, color: Colors.black.withValues(alpha: 0.2)),
                     Positioned(bottom: -25, left: 20, right: 20, child: _buildSearchBar()),
                   ],
                 ),
@@ -79,10 +79,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 8),
                       Text(
                         'Kelola dan lihat informasi silsilah keluarga Anda di sini.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Config.textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Config.textSecondary),
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -93,7 +90,7 @@ class _HomePageState extends State<HomePage> {
                               onPressed: () => _showAddMemberOptions(user.userId),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       SizedBox(

@@ -14,7 +14,6 @@ import 'package:family_tree_app/views/family_data/search_family.dart';
 import 'package:family_tree_app/views/family_data/tree_visual.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family.dart';
 import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
-import 'package:family_tree_app/views/family_data/forms/edit_family_member.dart';
 import 'package:family_tree_app/views/home.dart';
 import 'package:family_tree_app/views/profile/profile.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';
@@ -67,12 +66,10 @@ class MainNavigationShell extends StatelessWidget {
     if (location.startsWith('/home')) {
       return 0;
     }
-    if (location.startsWith('/family-search') ||
-        location.startsWith('/family-list')) {
+    if (location.startsWith('/family-search') || location.startsWith('/family-list')) {
       return 1;
     }
-    if (location.startsWith('/profile') ||
-        location.startsWith('/profile-edit')) {
+    if (location.startsWith('/profile') || location.startsWith('/profile-edit')) {
       return 2;
     }
     return 0;
@@ -145,73 +142,39 @@ class MyApp extends StatelessWidget {
       return isAtLogin ? null : '/login';
     },
     routes: [
-      GoRoute(
-        path: '/',
-        name: 'splashScreen',
-        builder: (context, state) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        name: 'login',
-        builder: (context, state) => const LoginPage(),
-      ),
+      GoRoute(path: '/', name: 'splashScreen', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/login', name: 'login', builder: (context, state) => const LoginPage()),
       ShellRoute(
         builder: (context, state, child) {
           return MainNavigationShell(child: child);
         },
         routes: [
-          GoRoute(
-            path: '/home',
-            name: 'home',
-            builder: (context, state) => const HomePage(),
-          ),
-          GoRoute(
-            path: '/family-list',
-            name: 'familyList',
-            builder: (context, state) => const SearchFamilyPage(),
-          ),
-          GoRoute(
-            path: '/family-search',
-            name: 'familySearch',
-            builder: (context, state) => const SearchFamilyPage(),
-          ),
-          GoRoute(
-            path: '/profile',
-            name: 'profile',
-            builder: (context, state) => const ProfilePage(),
-          ),
+          GoRoute(path: '/home', name: 'home', builder: (context, state) => const HomePage()),
+          GoRoute(path: '/family-list', name: 'familyList', builder: (context, state) => const SearchFamilyPage()),
+          GoRoute(path: '/family-search', name: 'familySearch', builder: (context, state) => const SearchFamilyPage()),
+          GoRoute(path: '/profile', name: 'profile', builder: (context, state) => const ProfilePage()),
         ],
       ),
       GoRoute(
         path: '/add-family',
         name: 'addFamily',
-        builder: (context, state) => AddFamilyPage(
-          initialMemberId: int.tryParse(
-            state.uri.queryParameters['memberId'] ?? '',
-          ),
-        ),
+        builder: (context, state) =>
+            AddFamilyPage(initialMemberId: int.tryParse(state.uri.queryParameters['memberId'] ?? '')),
       ),
       GoRoute(
         path: '/add-family-member',
         name: 'addFamilyMember',
-        builder: (context, state) => AddFamilyMemberPage(
-          initialParentId: int.tryParse(
-            state.uri.queryParameters['parentId'] ?? '',
-          ),
-        ),
+        builder: (context, state) =>
+            AddFamilyMemberPage(initialParentId: int.tryParse(state.uri.queryParameters['parentId'] ?? '')),
       ),
       GoRoute(
         path: '/family-info',
         name: 'familyInfo',
         builder: (context, state) {
           final extra = state.extra;
-          final args = extra is Map<String, dynamic>
-              ? extra
-              : const <String, dynamic>{};
+          final args = extra is Map<String, dynamic> ? extra : const <String, dynamic>{};
           return FamilyInfoPage(
-            parentId:
-                int.tryParse(state.uri.queryParameters['parentId'] ?? '') ??
-                args['parentId'] as int?,
+            parentId: int.tryParse(state.uri.queryParameters['parentId'] ?? '') ?? args['parentId'] as int?,
             initialHeadName: args['headName'] as String?,
           );
         },
@@ -222,23 +185,13 @@ class MyApp extends StatelessWidget {
         builder: (context, state) {
           final memberId = int.tryParse(state.pathParameters['memberId'] ?? '');
           if (memberId == null) {
-            return const Scaffold(
-              body: Center(child: Text('Data anggota tidak valid.')),
-            );
+            return const Scaffold(body: Center(child: Text('Data anggota tidak valid.')));
           }
           return MemberInfoPage(memberId: memberId);
         },
       ),
-      GoRoute(
-        path: '/tree-visual',
-        name: 'treeVisual',
-        builder: (context, state) => const TreeVisualPage(),
-      ),
-      GoRoute(
-        path: '/profile-edit',
-        name: 'profileEdit',
-        builder: (context, state) => const ProfileEditPage(),
-      ),
+      GoRoute(path: '/tree-visual', name: 'treeVisual', builder: (context, state) => const TreeVisualPage()),
+      GoRoute(path: '/profile-edit', name: 'profileEdit', builder: (context, state) => const ProfileEditPage()),
     ],
   );
 

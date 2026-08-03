@@ -31,14 +31,33 @@ mixin _$UserData {
   int? get level => throw _privateConstructorUsedError;
   @JsonKey(name: "parent_id")
   int? get parentId => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: "parent_relation",
+    fromJson: parentChildRelationFromJson,
+    toJson: parentChildRelationToJson,
+  )
+  ParentChildRelationData? get parentRelation =>
+      throw _privateConstructorUsedError;
   @JsonKey(name: "full_name")
   String? get fullName => throw _privateConstructorUsedError;
+  @JsonKey(
+    name: "gender",
+    fromJson: personGenderFromJson,
+    toJson: personGenderToJson,
+  )
+  PersonGender? get gender => throw _privateConstructorUsedError;
   @JsonKey(name: "address")
   String? get address => throw _privateConstructorUsedError;
-  @JsonKey(name: "birth_year")
+  @JsonKey(
+    name: "birth_year",
+    fromJson: familyStringFromJson,
+    toJson: familyStringToJson,
+  )
   String? get birthYear => throw _privateConstructorUsedError;
   @JsonKey(name: "avatar")
   dynamic get avatar => throw _privateConstructorUsedError;
+  @JsonKey(name: "avatar_url")
+  String? get avatarUrl => throw _privateConstructorUsedError;
   @JsonKey(name: "created_at")
   DateTime? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(name: "updated_at")
@@ -65,10 +84,28 @@ abstract class $UserDataCopyWith<$Res> {
     @JsonKey(name: "family_tree_id") String? familyTreeId,
     @JsonKey(name: "level") int? level,
     @JsonKey(name: "parent_id") int? parentId,
+    @JsonKey(
+      name: "parent_relation",
+      fromJson: parentChildRelationFromJson,
+      toJson: parentChildRelationToJson,
+    )
+    ParentChildRelationData? parentRelation,
     @JsonKey(name: "full_name") String? fullName,
+    @JsonKey(
+      name: "gender",
+      fromJson: personGenderFromJson,
+      toJson: personGenderToJson,
+    )
+    PersonGender? gender,
     @JsonKey(name: "address") String? address,
-    @JsonKey(name: "birth_year") String? birthYear,
+    @JsonKey(
+      name: "birth_year",
+      fromJson: familyStringFromJson,
+      toJson: familyStringToJson,
+    )
+    String? birthYear,
     @JsonKey(name: "avatar") dynamic avatar,
+    @JsonKey(name: "avatar_url") String? avatarUrl,
     @JsonKey(name: "created_at") DateTime? createdAt,
     @JsonKey(name: "updated_at") DateTime? updatedAt,
   });
@@ -94,10 +131,13 @@ class _$UserDataCopyWithImpl<$Res, $Val extends UserData>
     Object? familyTreeId = freezed,
     Object? level = freezed,
     Object? parentId = freezed,
+    Object? parentRelation = freezed,
     Object? fullName = freezed,
+    Object? gender = freezed,
     Object? address = freezed,
     Object? birthYear = freezed,
     Object? avatar = freezed,
+    Object? avatarUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -123,10 +163,18 @@ class _$UserDataCopyWithImpl<$Res, $Val extends UserData>
                 ? _value.parentId
                 : parentId // ignore: cast_nullable_to_non_nullable
                       as int?,
+            parentRelation: freezed == parentRelation
+                ? _value.parentRelation
+                : parentRelation // ignore: cast_nullable_to_non_nullable
+                      as ParentChildRelationData?,
             fullName: freezed == fullName
                 ? _value.fullName
                 : fullName // ignore: cast_nullable_to_non_nullable
                       as String?,
+            gender: freezed == gender
+                ? _value.gender
+                : gender // ignore: cast_nullable_to_non_nullable
+                      as PersonGender?,
             address: freezed == address
                 ? _value.address
                 : address // ignore: cast_nullable_to_non_nullable
@@ -139,6 +187,10 @@ class _$UserDataCopyWithImpl<$Res, $Val extends UserData>
                 ? _value.avatar
                 : avatar // ignore: cast_nullable_to_non_nullable
                       as dynamic,
+            avatarUrl: freezed == avatarUrl
+                ? _value.avatarUrl
+                : avatarUrl // ignore: cast_nullable_to_non_nullable
+                      as String?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -168,10 +220,28 @@ abstract class _$$UserDataImplCopyWith<$Res>
     @JsonKey(name: "family_tree_id") String? familyTreeId,
     @JsonKey(name: "level") int? level,
     @JsonKey(name: "parent_id") int? parentId,
+    @JsonKey(
+      name: "parent_relation",
+      fromJson: parentChildRelationFromJson,
+      toJson: parentChildRelationToJson,
+    )
+    ParentChildRelationData? parentRelation,
     @JsonKey(name: "full_name") String? fullName,
+    @JsonKey(
+      name: "gender",
+      fromJson: personGenderFromJson,
+      toJson: personGenderToJson,
+    )
+    PersonGender? gender,
     @JsonKey(name: "address") String? address,
-    @JsonKey(name: "birth_year") String? birthYear,
+    @JsonKey(
+      name: "birth_year",
+      fromJson: familyStringFromJson,
+      toJson: familyStringToJson,
+    )
+    String? birthYear,
     @JsonKey(name: "avatar") dynamic avatar,
+    @JsonKey(name: "avatar_url") String? avatarUrl,
     @JsonKey(name: "created_at") DateTime? createdAt,
     @JsonKey(name: "updated_at") DateTime? updatedAt,
   });
@@ -196,10 +266,13 @@ class __$$UserDataImplCopyWithImpl<$Res>
     Object? familyTreeId = freezed,
     Object? level = freezed,
     Object? parentId = freezed,
+    Object? parentRelation = freezed,
     Object? fullName = freezed,
+    Object? gender = freezed,
     Object? address = freezed,
     Object? birthYear = freezed,
     Object? avatar = freezed,
+    Object? avatarUrl = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -225,10 +298,18 @@ class __$$UserDataImplCopyWithImpl<$Res>
             ? _value.parentId
             : parentId // ignore: cast_nullable_to_non_nullable
                   as int?,
+        parentRelation: freezed == parentRelation
+            ? _value.parentRelation
+            : parentRelation // ignore: cast_nullable_to_non_nullable
+                  as ParentChildRelationData?,
         fullName: freezed == fullName
             ? _value.fullName
             : fullName // ignore: cast_nullable_to_non_nullable
                   as String?,
+        gender: freezed == gender
+            ? _value.gender
+            : gender // ignore: cast_nullable_to_non_nullable
+                  as PersonGender?,
         address: freezed == address
             ? _value.address
             : address // ignore: cast_nullable_to_non_nullable
@@ -241,6 +322,10 @@ class __$$UserDataImplCopyWithImpl<$Res>
             ? _value.avatar
             : avatar // ignore: cast_nullable_to_non_nullable
                   as dynamic,
+        avatarUrl: freezed == avatarUrl
+            ? _value.avatarUrl
+            : avatarUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -263,10 +348,28 @@ class _$UserDataImpl implements _UserData {
     @JsonKey(name: "family_tree_id") this.familyTreeId,
     @JsonKey(name: "level") this.level,
     @JsonKey(name: "parent_id") this.parentId,
+    @JsonKey(
+      name: "parent_relation",
+      fromJson: parentChildRelationFromJson,
+      toJson: parentChildRelationToJson,
+    )
+    this.parentRelation,
     @JsonKey(name: "full_name") this.fullName,
+    @JsonKey(
+      name: "gender",
+      fromJson: personGenderFromJson,
+      toJson: personGenderToJson,
+    )
+    this.gender,
     @JsonKey(name: "address") this.address,
-    @JsonKey(name: "birth_year") this.birthYear,
+    @JsonKey(
+      name: "birth_year",
+      fromJson: familyStringFromJson,
+      toJson: familyStringToJson,
+    )
+    this.birthYear,
     @JsonKey(name: "avatar") this.avatar,
+    @JsonKey(name: "avatar_url") this.avatarUrl,
     @JsonKey(name: "created_at") this.createdAt,
     @JsonKey(name: "updated_at") this.updatedAt,
   });
@@ -290,17 +393,38 @@ class _$UserDataImpl implements _UserData {
   @JsonKey(name: "parent_id")
   final int? parentId;
   @override
+  @JsonKey(
+    name: "parent_relation",
+    fromJson: parentChildRelationFromJson,
+    toJson: parentChildRelationToJson,
+  )
+  final ParentChildRelationData? parentRelation;
+  @override
   @JsonKey(name: "full_name")
   final String? fullName;
+  @override
+  @JsonKey(
+    name: "gender",
+    fromJson: personGenderFromJson,
+    toJson: personGenderToJson,
+  )
+  final PersonGender? gender;
   @override
   @JsonKey(name: "address")
   final String? address;
   @override
-  @JsonKey(name: "birth_year")
+  @JsonKey(
+    name: "birth_year",
+    fromJson: familyStringFromJson,
+    toJson: familyStringToJson,
+  )
   final String? birthYear;
   @override
   @JsonKey(name: "avatar")
   final dynamic avatar;
+  @override
+  @JsonKey(name: "avatar_url")
+  final String? avatarUrl;
   @override
   @JsonKey(name: "created_at")
   final DateTime? createdAt;
@@ -310,7 +434,7 @@ class _$UserDataImpl implements _UserData {
 
   @override
   String toString() {
-    return 'UserData(userId: $userId, nit: $nit, familyTreeId: $familyTreeId, level: $level, parentId: $parentId, fullName: $fullName, address: $address, birthYear: $birthYear, avatar: $avatar, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'UserData(userId: $userId, nit: $nit, familyTreeId: $familyTreeId, level: $level, parentId: $parentId, parentRelation: $parentRelation, fullName: $fullName, gender: $gender, address: $address, birthYear: $birthYear, avatar: $avatar, avatarUrl: $avatarUrl, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -325,12 +449,17 @@ class _$UserDataImpl implements _UserData {
             (identical(other.level, level) || other.level == level) &&
             (identical(other.parentId, parentId) ||
                 other.parentId == parentId) &&
+            (identical(other.parentRelation, parentRelation) ||
+                other.parentRelation == parentRelation) &&
             (identical(other.fullName, fullName) ||
                 other.fullName == fullName) &&
+            (identical(other.gender, gender) || other.gender == gender) &&
             (identical(other.address, address) || other.address == address) &&
             (identical(other.birthYear, birthYear) ||
                 other.birthYear == birthYear) &&
             const DeepCollectionEquality().equals(other.avatar, avatar) &&
+            (identical(other.avatarUrl, avatarUrl) ||
+                other.avatarUrl == avatarUrl) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -346,10 +475,13 @@ class _$UserDataImpl implements _UserData {
     familyTreeId,
     level,
     parentId,
+    parentRelation,
     fullName,
+    gender,
     address,
     birthYear,
     const DeepCollectionEquality().hash(avatar),
+    avatarUrl,
     createdAt,
     updatedAt,
   );
@@ -375,10 +507,28 @@ abstract class _UserData implements UserData {
     @JsonKey(name: "family_tree_id") final String? familyTreeId,
     @JsonKey(name: "level") final int? level,
     @JsonKey(name: "parent_id") final int? parentId,
+    @JsonKey(
+      name: "parent_relation",
+      fromJson: parentChildRelationFromJson,
+      toJson: parentChildRelationToJson,
+    )
+    final ParentChildRelationData? parentRelation,
     @JsonKey(name: "full_name") final String? fullName,
+    @JsonKey(
+      name: "gender",
+      fromJson: personGenderFromJson,
+      toJson: personGenderToJson,
+    )
+    final PersonGender? gender,
     @JsonKey(name: "address") final String? address,
-    @JsonKey(name: "birth_year") final String? birthYear,
+    @JsonKey(
+      name: "birth_year",
+      fromJson: familyStringFromJson,
+      toJson: familyStringToJson,
+    )
+    final String? birthYear,
     @JsonKey(name: "avatar") final dynamic avatar,
+    @JsonKey(name: "avatar_url") final String? avatarUrl,
     @JsonKey(name: "created_at") final DateTime? createdAt,
     @JsonKey(name: "updated_at") final DateTime? updatedAt,
   }) = _$UserDataImpl;
@@ -402,17 +552,38 @@ abstract class _UserData implements UserData {
   @JsonKey(name: "parent_id")
   int? get parentId;
   @override
+  @JsonKey(
+    name: "parent_relation",
+    fromJson: parentChildRelationFromJson,
+    toJson: parentChildRelationToJson,
+  )
+  ParentChildRelationData? get parentRelation;
+  @override
   @JsonKey(name: "full_name")
   String? get fullName;
+  @override
+  @JsonKey(
+    name: "gender",
+    fromJson: personGenderFromJson,
+    toJson: personGenderToJson,
+  )
+  PersonGender? get gender;
   @override
   @JsonKey(name: "address")
   String? get address;
   @override
-  @JsonKey(name: "birth_year")
+  @JsonKey(
+    name: "birth_year",
+    fromJson: familyStringFromJson,
+    toJson: familyStringToJson,
+  )
   String? get birthYear;
   @override
   @JsonKey(name: "avatar")
   dynamic get avatar;
+  @override
+  @JsonKey(name: "avatar_url")
+  String? get avatarUrl;
   @override
   @JsonKey(name: "created_at")
   DateTime? get createdAt;

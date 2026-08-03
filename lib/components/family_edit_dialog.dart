@@ -1,3 +1,4 @@
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/family_edit_form_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
@@ -21,6 +22,7 @@ Future<bool?> showFamilyEditDialog({
     builder: (dialogContext) => ChangeNotifierProvider(
       create: (_) => FamilyEditFormProvider(
         initialName: initialData.fullName ?? '',
+        initialGender: initialData.gender,
         initialAddress: initialData.address,
         initialBirthYear: initialData.birthYear,
       ),
@@ -83,6 +85,33 @@ class FamilyEditDialog extends StatelessWidget {
                         labelText: 'Nama Lengkap',
                       ),
                       validator: formProvider.validateName,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: formProvider.gender?.apiValue ?? '',
+                      decoration: const InputDecoration(
+                        labelText: 'Gender (opsional)',
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('Tidak diisi'),
+                        ),
+                        ...PersonGender.values.map(
+                          (gender) => DropdownMenuItem<String>(
+                            value: gender.apiValue,
+                            child: Text(gender.label),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        final gender = value == null || value.isEmpty
+                            ? null
+                            : PersonGender.values.firstWhere(
+                                (item) => item.apiValue == value,
+                              );
+                        formProvider.selectGender(gender);
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(

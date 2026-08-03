@@ -1,5 +1,6 @@
 import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
@@ -179,11 +180,6 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Cari nama anggota keluarga yang ingin dilihat.',
-            style: TextStyle(color: Config.textSecondary, fontSize: 13),
-          ),
-          const SizedBox(height: 12),
           TextField(
             controller: _searchController,
             textInputAction: TextInputAction.search,
@@ -341,11 +337,24 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
                         color: Config.textSecondary,
                       ),
                     ),
+                    Text(
+                      'Gender: ${member.gender?.label ?? 'Belum diisi'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Config.textSecondary,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     _buildFamilyStatus(
                       marriages: marriages,
                       isLoading: isLoading,
                       error: error,
+                      onRetry: memberId == null
+                          ? null
+                          : () => provider.getMarriagesForMember(
+                              memberId,
+                              forceRefresh: true,
+                            ),
                     ),
                   ],
                 ),
@@ -366,6 +375,7 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
     required List<FamilyTreeMarriage>? marriages,
     required bool isLoading,
     required String? error,
+    required VoidCallback? onRetry,
   }) {
     if (isLoading || (marriages == null && error == null)) {
       return Text(
@@ -374,9 +384,24 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
       );
     }
     if (error != null) {
-      return Text(
-        'Status keluarga belum tersedia',
-        style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Data pernikahan gagal dimuat.',
+              style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+            ),
+          ),
+          if (onRetry != null)
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              child: const Text('Coba lagi'),
+            ),
+        ],
       );
     }
 
@@ -385,6 +410,9 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
         .whereType<String>()
         .where((name) => name.trim().isNotEmpty)
         .toList();
+    final hasUnclassifiedMarriage = marriages.any(
+      (marriage) => !marriage.isRoleClassified,
+    );
     if (spouseNames.isEmpty) {
       return Text(
         'Belum berkeluarga',
@@ -409,6 +437,11 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontSize: 12, color: Config.textSecondary),
         ),
+        if (hasUnclassifiedMarriage)
+          Text(
+            'Status pasangan lama belum diklasifikasikan',
+            style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+          ),
       ],
     );
   }

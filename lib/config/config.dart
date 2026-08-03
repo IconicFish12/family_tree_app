@@ -100,7 +100,9 @@ class Config {
       return cleanPath;
     }
 
-    String relative = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+    String relative = cleanPath.startsWith('/')
+        ? cleanPath.substring(1)
+        : cleanPath;
     String storageBase = baseStorageUrl;
 
     if (storageBase.endsWith('/storage/') && relative.startsWith('storage/')) {

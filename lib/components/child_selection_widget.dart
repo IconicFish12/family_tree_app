@@ -104,7 +104,9 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                                     padding: const EdgeInsets.only(right: 12),
                                     child: CircleAvatar(
                                       radius: 20,
-                                      backgroundImage: NetworkImage(child['photo']),
+                                      backgroundImage: NetworkImage(
+                                        child['photo'],
+                                      ),
                                       onBackgroundImageError: (_, _) {},
                                       child: Icon(
                                         Icons.person,
@@ -130,7 +132,8 @@ class _ChildSelectionWidgetState extends State<ChildSelectionWidget> {
                                   ),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         child['name'] ?? 'Tanpa Nama',

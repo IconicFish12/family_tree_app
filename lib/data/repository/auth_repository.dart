@@ -14,11 +14,7 @@ class AuthRepository {
       final response = await Config.dio.post(
         '/users/login',
         options: Options(extra: const {'skipUnauthorizedHandler': true}),
-        data: {
-          'nit': nit,
-          'password': password,
-          'device_name': deviceName,
-        },
+        data: {'nit': nit, 'password': password, 'device_name': deviceName},
       );
 
       if (response.statusCode == 200 && response.data is Map) {
@@ -39,10 +35,14 @@ class AuthRepository {
         return Left(Failure('Data login belum lengkap atau tidak valid.'));
       }
       if (e.response?.statusCode == 429) {
-        return Left(Failure('Terlalu banyak percobaan login. Coba lagi nanti.'));
+        return Left(
+          Failure('Terlalu banyak percobaan login. Coba lagi nanti.'),
+        );
       }
       if (e.response?.statusCode == 503) {
-        return Left(Failure('Layanan login sedang belum siap. Coba lagi nanti.'));
+        return Left(
+          Failure('Layanan login sedang belum siap. Coba lagi nanti.'),
+        );
       }
       return Left(Failure(_extractMessage(e) ?? 'Gagal terhubung ke server.'));
     } catch (_) {

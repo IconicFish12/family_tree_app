@@ -49,34 +49,16 @@ class FamilyInfoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Keluarga Saya',
+                      'Keluarga ${user.fullName}',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: Config.semiBold,
                         color: Config.white,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'ID Pohon: ${user.familyTreeId ?? "-"}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: Config.regular,
-                        color: Config.white.withValues(alpha: 0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user.fullName ?? 'Tanpa Nama',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: Config.regular,
-                        color: Config.white.withValues(alpha: 0.9),
-                      ),
-                    ),
                     const SizedBox(height: 10),
                     Text(
-                      'Ketuk kartu ini untuk membuka bagan keluarga.',
+                      'Ketuk untuk membuka bagan keluarga.',
                       style: TextStyle(
                         fontSize: 12,
                         color: Config.white.withValues(alpha: 0.88),

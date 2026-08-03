@@ -1,5 +1,6 @@
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/family_member_form_provider.dart';
@@ -54,25 +55,29 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   Future<void> _saveData() async {
     if (!_formKey.currentState!.validate()) return;
     final parent = _formProvider.selectedParent;
-    final marriageId = _formProvider.selectedMarriageId;
-    if (parent?.userId == null ||
-        parent!.nit.trim().isEmpty ||
-        marriageId == null ||
-        _formProvider.generatedNit == null) {
+    final parentId = parent?.userId;
+    if (parentId == null || !_formProvider.canSubmit) {
       _showError(
         _formProvider.contextError ??
-            'NIT belum dapat dibuat. Silakan muat ulang data dan coba kembali.',
+            _formProvider.childCreationBlockingMessage ??
+            _formProvider.marriageError ??
+            (_formProvider.isBiological
+                ? 'Anak kandung wajib memilih pernikahan.'
+                : 'Lengkapi pilihan relasi anak terlebih dahulu.'),
       );
       return;
     }
 
     final provider = context.read<UserProvider>();
     final createdChild = await provider.addChild(
-      parentId: parent.userId!,
-      parentNit: parent.nit,
-      marriageId: marriageId,
+      parentId: parentId,
+      relationshipType: _formProvider.relationshipType,
+      marriageId: _formProvider.usesMarriage
+          ? _formProvider.selectedMarriageId
+          : null,
       childData: UserData(
         fullName: _nameController.text.trim(),
+        gender: _formProvider.gender,
         address: _emptyToNull(_addressController.text),
         birthYear: _emptyToNull(_birthYearController.text),
       ),
@@ -89,7 +94,9 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Anak berhasil ditambahkan dengan NIT ${createdChild.nit ?? _formProvider.generatedNit}.',
+          createdChild.nit?.trim().isNotEmpty == true
+              ? 'Anak berhasil ditambahkan. NIT ${createdChild.nit} sudah dibuat.'
+              : 'Anak berhasil ditambahkan. NIT otomatis generate.',
         ),
         backgroundColor: Config.primary,
       ),
@@ -125,7 +132,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                 'Tambah Anak',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
               centerTitle: true,
@@ -133,7 +140,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                 color: Config.white,
                 onPressed: () => context.pop(),
               ),
-              backgroundColor: Config.primary,
+              backgroundColor: Color(0xFF559260),
               elevation: 0,
             ),
             body:
@@ -154,21 +161,31 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                           if (formProvider.isLoadingContext)
                             const LinearProgressIndicator(),
                           if (formProvider.contextError != null) ...[
-                            _buildErrorBox(formProvider.contextError!),
+                            _buildErrorBox(
+                              formProvider.contextError!,
+                              onRetry: _initialize,
+                            ),
                             const SizedBox(height: 16),
                           ],
-                          if (formProvider.marriages.isNotEmpty) ...[
-                            _buildMarriageDropdown(formProvider),
+                          _buildRelationshipTypeDropdown(formProvider),
+                          const SizedBox(height: 16),
+                          if (!formProvider.isBiological) ...[
+                            _buildAdoptedMarriageChoice(formProvider),
                             const SizedBox(height: 16),
                           ],
-                          _buildGeneratedNit(formProvider.generatedNit),
+                          _buildMarriageContext(formProvider),
+                          const SizedBox(height: 32),
+                          _buildSystemNitInfo(),
                           const SizedBox(height: 20),
                           _buildTextField(
                             label: 'Nama Lengkap Anak',
                             controller: _nameController,
                             icon: Icons.person_outline,
                             isRequired: true,
+                            enabled: formProvider.childDataInputsEnabled,
                           ),
+                          const SizedBox(height: 16),
+                          _buildGenderDropdown(formProvider),
                           const SizedBox(height: 16),
                           _buildTextField(
                             label: 'Tahun Lahir (opsional)',
@@ -176,6 +193,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                             icon: Icons.calendar_today_outlined,
                             keyboardType: TextInputType.number,
                             validateYear: true,
+                            enabled: formProvider.childDataInputsEnabled,
                           ),
                           const SizedBox(height: 16),
                           _buildTextField(
@@ -183,16 +201,13 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                             controller: _addressController,
                             icon: Icons.location_on_outlined,
                             maxLines: 3,
+                            enabled: formProvider.childDataInputsEnabled,
                           ),
                           const SizedBox(height: 28),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed:
-                                  isSubmitting ||
-                                      formProvider.isLoadingContext ||
-                                      formProvider.generatedNit == null ||
-                                      formProvider.selectedMarriageId == null
+                              onPressed: isSubmitting || !formProvider.canSubmit
                                   ? null
                                   : _saveData,
                               child: isSubmitting
@@ -232,7 +247,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Pilih orang tua dan pasangannya. NIT anak dihitung otomatis dari seluruh anak langsung milik orang tua tersebut.',
+              'Pilih jenis hubungan anak. Anak kandung wajib terkait dengan pernikahan, sedangkan anak adopsi dapat dicatat tanpa pernikahan.',
               style: TextStyle(height: 1.4),
             ),
           ),
@@ -268,13 +283,100 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     );
   }
 
+  Widget _buildRelationshipTypeDropdown(FamilyMemberFormProvider provider) {
+    return DropdownButtonFormField<ChildRelationshipType>(
+      key: ValueKey('relationship-${provider.relationshipType.apiValue}'),
+      initialValue: provider.relationshipType,
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Jenis hubungan anak',
+        icon: Icons.account_tree_outlined,
+      ),
+      items: ChildRelationshipType.values
+          .map((type) => DropdownMenuItem(value: type, child: Text(type.label)))
+          .toList(),
+      onChanged: provider.childDataInputsEnabled
+          ? (value) {
+              if (value != null) provider.selectRelationshipType(value);
+            }
+          : null,
+    );
+  }
+
+  Widget _buildAdoptedMarriageChoice(FamilyMemberFormProvider provider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      child: SwitchListTile(
+        value: provider.linkAdoptedToMarriage,
+        onChanged: provider.childDataInputsEnabled
+            ? provider.setAdoptedMarriageLink
+            : null,
+        title: const Text('Gabungkan ke pernikahan tertentu'),
+        subtitle: const Text(
+          '(OPSIONAL) Pilih jika anda sudah mempunyai status pernikahan.',
+        ),
+        secondary: const Icon(Icons.link_outlined),
+      ),
+    );
+  }
+
+  Widget _buildMarriageContext(FamilyMemberFormProvider provider) {
+    switch (provider.marriageLoadState) {
+      case MarriageLoadState.initial:
+      case MarriageLoadState.loading:
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LinearProgressIndicator(),
+            SizedBox(height: 8),
+            Text('Memuat data pernikahan orang tua...'),
+          ],
+        );
+      case MarriageLoadState.error:
+        return _buildErrorBox(
+          provider.marriageError ?? 'Data pernikahan gagal dimuat.',
+          onRetry: () => provider.retryMarriages(
+            userProvider: context.read<UserProvider>(),
+          ),
+          isBlocking: provider.usesMarriage,
+        );
+      case MarriageLoadState.success:
+        if (provider.childCreationBlockingMessage != null) {
+          return _buildRoleIntegrityBlock(
+            provider.childCreationBlockingMessage!,
+          );
+        }
+        if (!provider.usesMarriage) {
+          return _buildInfoBox(
+            'Anak adopsi akan dicatat tanpa dikaitkan ke pernikahan.',
+          );
+        }
+        if (provider.marriages.isEmpty) {
+          return _buildErrorBox(
+            provider.isBiological
+                ? 'Anak kandung wajib terkait dengan pernikahan. Tambahkan pasangan terlebih dahulu.'
+                : 'Belum ada pernikahan yang dapat dipilih.',
+            onRetry: () => provider.retryMarriages(
+              userProvider: context.read<UserProvider>(),
+            ),
+            showAddMarriage: true,
+          );
+        }
+        return _buildMarriageDropdown(provider);
+    }
+  }
+
   Widget _buildMarriageDropdown(FamilyMemberFormProvider provider) {
     return DropdownButtonFormField<int>(
       key: ValueKey('marriage-${provider.selectedMarriageId}'),
       initialValue: provider.selectedMarriageId,
       isExpanded: true,
       decoration: _inputDecoration(
-        label: 'Pasangan asal anak',
+        label: 'Pernikahan terkait',
         icon: Icons.favorite_outline,
       ),
       items: provider.marriages.map((marriage) {
@@ -285,38 +387,118 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           child: Text('Pasangan ${marriage.marriageOrder}: $spouseName'),
         );
       }).toList(),
-      onChanged: provider.selectMarriage,
-      validator: (value) => value == null ? 'Pilih pasangan asal anak.' : null,
+      onChanged: provider.childDataInputsEnabled
+          ? provider.selectMarriage
+          : null,
+      validator: (value) => value == null ? 'Pilih pernikahan terkait.' : null,
     );
   }
 
-  Widget _buildGeneratedNit(String? generatedNit) {
-    return TextFormField(
-      key: ValueKey('nit-$generatedNit'),
-      initialValue: generatedNit ?? '',
-      readOnly: true,
-      decoration:
-          _inputDecoration(
-            label: 'NIT Anak',
-            icon: Icons.badge_outlined,
-          ).copyWith(
-            helperText: generatedNit == null
-                ? 'NIT belum dapat dibuat.'
-                : 'NIT dibuat otomatis dan tidak dapat diubah.',
+  Widget _buildSystemNitInfo() {
+    return _buildInfoBox(
+      'NIT anak otomatis dibuat setelah berhasil disimpan.',
+      icon: Icons.badge_outlined,
+    );
+  }
+
+  Widget _buildGenderDropdown(FamilyMemberFormProvider provider) {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('gender-${provider.gender?.apiValue ?? 'empty'}'),
+      initialValue: provider.gender?.apiValue ?? '',
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Gender anak (opsional)',
+        icon: Icons.wc_outlined,
+      ),
+      items: [
+        const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
+        ...PersonGender.values.map(
+          (gender) => DropdownMenuItem(
+            value: gender.apiValue,
+            child: Text(gender.label),
           ),
+        ),
+      ],
+      onChanged: provider.childDataInputsEnabled
+          ? (value) => provider.selectGender(_genderFromApiValue(value))
+          : null,
     );
   }
 
-  Widget _buildErrorBox(String message) {
-    final parentId = _formProvider.selectedParentId;
+  PersonGender? _genderFromApiValue(String? value) {
+    for (final gender in PersonGender.values) {
+      if (gender.apiValue == value) return gender;
+    }
+    return null;
+  }
+
+  Widget _buildInfoBox(String message, {IconData icon = Icons.info_outline}) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.12),
+        color: Config.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+        border: Border.all(color: Config.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Config.primary),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: const TextStyle(height: 1.4))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleIntegrityBlock(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.block_outlined, color: Colors.red),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Data keluarga perlu dirapikan terlebih dahulu',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(message, style: const TextStyle(height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorBox(
+    String message, {
+    required VoidCallback onRetry,
+    bool showAddMarriage = false,
+    bool isBlocking = true,
+  }) {
+    final parentId = _formProvider.selectedParentId;
+    final color = isBlocking ? Colors.orange : Colors.blue;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,18 +509,22 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
             spacing: 8,
             children: [
               OutlinedButton.icon(
-                onPressed: _initialize,
+                onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Muat Ulang'),
               ),
-              if (_formProvider.hasNoMarriage && parentId != null)
+              if (showAddMarriage && parentId != null)
                 ElevatedButton.icon(
                   onPressed: () async {
                     await context.pushNamed(
                       'addFamily',
                       queryParameters: {'memberId': '$parentId'},
                     );
-                    if (mounted) await _initialize();
+                    if (mounted) {
+                      await _formProvider.retryMarriages(
+                        userProvider: context.read<UserProvider>(),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.favorite_outline),
                   label: const Text('Tambah Pasangan'),
@@ -358,9 +544,11 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     TextInputType keyboardType = TextInputType.text,
     bool isRequired = false,
     bool validateYear = false,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
+      enabled: enabled,
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: (value) {

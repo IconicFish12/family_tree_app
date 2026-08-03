@@ -122,20 +122,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void updateUser(UserData updatedUser) {
-    final current = _currentUser;
-    if (current == null) return;
-
-    dynamic nextAvatar = current.avatar;
-    if (updatedUser.avatar != null) {
-      nextAvatar = updatedUser.avatar;
-    }
-
-    _currentUser = current.copyWith(
-      fullName: updatedUser.fullName ?? current.fullName,
-      address: updatedUser.address ?? current.address,
-      birthYear: updatedUser.birthYear ?? current.birthYear,
-      avatar: nextAvatar,
-    );
+    if (_currentUser == null) return;
+    _currentUser = updatedUser;
     notifyListeners();
   }
 

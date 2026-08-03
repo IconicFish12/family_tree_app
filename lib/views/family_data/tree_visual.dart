@@ -1,6 +1,8 @@
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
+import 'package:family_tree_app/data/models/marriage_role_policy.dart';
 import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -56,10 +58,17 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
         appBar: AppBar(
           backgroundColor: Color(0xFF559260),
           elevation: 0,
-          leading: CustomBackButton(color: Config.white, onPressed: _restorePreviousTreeOrClose),
+          leading: CustomBackButton(
+            color: Config.white,
+            onPressed: _restorePreviousTreeOrClose,
+          ),
           title: Text(
             'Pohon Keluarga',
-            style: TextStyle(color: Config.white, fontWeight: Config.semiBold, fontSize: 20),
+            style: TextStyle(
+              color: Config.white,
+              fontWeight: Config.semiBold,
+              fontSize: 20,
+            ),
           ),
           centerTitle: true,
           bottom: PreferredSize(
@@ -71,13 +80,17 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                   Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, fontWeight: Config.semiBold, color: Config.white),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: Config.semiBold,
+                      color: Config.white,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Tampilan maksimal 3 tingkat. Pasangan berada sejajar dengan anggota keluarga. Cabang anak dipisahkan per pasangan agar lebih mudah dibaca.',
+                    'Maksimal sampai 3 tingkat. ZOOM OUT atau REFRESH ketika tidak melihat bagan nya',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: Config.white),
                   ),
@@ -92,7 +105,8 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
   }
 
   Widget _buildBody(TreeProvider provider) {
-    if (provider.state == TreeViewState.loading || provider.state == TreeViewState.initial) {
+    if (provider.state == TreeViewState.loading ||
+        provider.state == TreeViewState.initial) {
       return Center(
         key: const ValueKey('tree-loading'),
         child: Column(
@@ -100,7 +114,10 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
           children: [
             const CircularProgressIndicator(color: Config.primary),
             const SizedBox(height: 16),
-            Text('Memuat bagan silsilah keluarga...', style: TextStyle(color: Config.textSecondary)),
+            Text(
+              'Memuat bagan silsilah keluarga...',
+              style: TextStyle(color: Config.textSecondary),
+            ),
           ],
         ),
       );
@@ -114,12 +131,20 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.account_tree_outlined, size: 56, color: Config.textSecondary.withValues(alpha: 0.7)),
+              Icon(
+                Icons.account_tree_outlined,
+                size: 56,
+                color: Config.textSecondary.withValues(alpha: 0.7),
+              ),
               const SizedBox(height: 16),
               Text(
                 'Bagan keluarga belum bisa dimuat',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, fontWeight: Config.semiBold, color: Config.textHead),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: Config.semiBold,
+                  color: Config.textHead,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -143,12 +168,18 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
     if (currentRoot == null) {
       return Center(
         key: const ValueKey('tree-empty'),
-        child: Text('Data silsilah belum tersedia.', style: TextStyle(color: Config.textSecondary)),
+        child: Text(
+          'Data silsilah belum tersedia.',
+          style: TextStyle(color: Config.textSecondary),
+        ),
       );
     }
 
     final graphData = _buildGraphData(provider, currentRoot);
-    final algorithm = BuchheimWalkerAlgorithm(graphData.configuration, TreeEdgeRenderer(graphData.configuration));
+    final algorithm = BuchheimWalkerAlgorithm(
+      graphData.configuration,
+      TreeEdgeRenderer(graphData.configuration),
+    );
 
     return Column(
       key: ValueKey('tree-${currentRoot.userId}-${currentRoot.familyTreeId}'),
@@ -161,7 +192,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
               child: OutlinedButton.icon(
                 onPressed: _restorePreviousTreeOrClose,
                 icon: const Icon(Icons.arrow_back),
-                label: const Text('Kembali ke cabang sebelumnya'),
+                label: const Text('Generasi keluarga sebelumnya'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Config.primary,
                   side: const BorderSide(color: Config.primary),
@@ -179,7 +210,9 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
               maxScale: 2.2,
               child: ExcludeSemantics(
                 child: GraphView(
-                  key: ValueKey('graph-${currentRoot.userId}-${currentRoot.familyTreeId}'),
+                  key: ValueKey(
+                    'graph-${currentRoot.userId}-${currentRoot.familyTreeId}',
+                  ),
                   graph: graphData.graph,
                   algorithm: algorithm,
                   animated: false,
@@ -228,7 +261,11 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
 
       for (final marriage in node.marriages.where((item) => item.hasChildren)) {
         final branchId = _branchNodeId(node, marriage);
-        nodes[branchId] ??= _TreeGraphNodeData.branch(id: branchId, familyNode: node, marriage: marriage);
+        nodes[branchId] ??= _TreeGraphNodeData.marriageBranch(
+          id: branchId,
+          familyNode: node,
+          marriage: marriage,
+        );
 
         graph.addEdge(
           Node.Id(familyId),
@@ -251,10 +288,43 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
           );
         }
       }
+
+      if (node.adoptedChildren.isNotEmpty) {
+        final branchId = _adoptionBranchNodeId(node);
+        nodes[branchId] ??= _TreeGraphNodeData.adoptionBranch(
+          id: branchId,
+          familyNode: node,
+        );
+
+        graph.addEdge(
+          Node.Id(familyId),
+          Node.Id(branchId),
+          paint: Paint()
+            ..color = Config.primary.withValues(alpha: 0.75)
+            ..strokeWidth = 1.8
+            ..style = PaintingStyle.stroke,
+        );
+
+        for (final child in node.adoptedChildren) {
+          ensureFamilyNode(child, isCurrentRoot: false);
+          graph.addEdge(
+            Node.Id(branchId),
+            Node.Id(_familyNodeId(child)),
+            paint: Paint()
+              ..color = Config.primaryDark
+              ..strokeWidth = 1.8
+              ..style = PaintingStyle.stroke,
+          );
+        }
+      }
     }
 
     ensureFamilyNode(root, isCurrentRoot: true);
-    return _TreeGraphData(graph: graph, nodes: nodes, configuration: configuration);
+    return _TreeGraphData(
+      graph: graph,
+      nodes: nodes,
+      configuration: configuration,
+    );
   }
 
   Widget _buildGraphNode(TreeProvider provider, _TreeGraphNodeData nodeData) {
@@ -272,7 +342,11 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                   : Config.textSecondary.withValues(alpha: 0.14),
             ),
             boxShadow: [
-              BoxShadow(color: Config.textHead.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4)),
+              BoxShadow(
+                color: Config.textHead.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
           child: Column(
@@ -283,41 +357,57 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildPersonCard(
-                    badge: nodeData.isCurrentRoot ? 'Akar Keluarga' : 'Anggota Keluarga',
+                    badge: nodeData.isCurrentRoot
+                        ? 'Root Keluarga'
+                        : node.relationshipType?.label ?? 'Anggota Keluarga',
                     title: node.fullName,
-                    subtitle: node.familyTreeId.isEmpty ? '-' : node.familyTreeId,
                     meta: [
-                      if (node.birthYear != null && node.birthYear!.isNotEmpty) 'Lahir ${node.birthYear}',
-                      if (node.address != null && node.address!.isNotEmpty) node.address!,
+                      'NIT: ${node.nit?.trim().isNotEmpty == true ? node.nit : '-'}',
+                      (node.gender?.label ?? 'Jenis kelamin: Belum diketahui'),
+                      if (node.birthYear != null && node.birthYear!.isNotEmpty)
+                        'Lahir ${node.birthYear}',
+                      if (node.address != null && node.address!.isNotEmpty)
+                        node.address!,
                     ],
-                    avatarUrl: Config.getFullImageUrl(node.avatarUrl ?? node.avatar),
+                    avatarUrl: Config.getFullImageUrl(
+                      node.avatarUrl ?? node.avatar,
+                    ),
                     footer: _buildMemberFooter(provider, node, nodeData),
-                    role: nodeData.isCurrentRoot ? _PersonCardRole.root : _PersonCardRole.member,
+                    role: nodeData.isCurrentRoot
+                        ? _PersonCardRole.root
+                        : _PersonCardRole.member,
+                    statusBadges: _memberStatusBadges(node),
                   ),
                   for (final marriage in node.marriages) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 102, 10, 0),
-                      child: Container(width: 24, height: 2, color: const Color(0xFFE1B44A)),
+                      child: Container(
+                        width: 24,
+                        height: 2,
+                        color: const Color(0xFFE1B44A),
+                      ),
                     ),
                     _buildPersonCard(
                       badge: 'Pasangan ${marriage.marriageOrder}',
-                      title: marriage.spouse?.fullName ?? 'Pasangan belum diketahui',
-                      subtitle: marriage.spouse?.familyTreeId.isNotEmpty == true
-                          ? marriage.spouse!.familyTreeId
-                          : 'Cabang pasangan',
+                      title:
+                          marriage.spouse?.fullName ??
+                          'Pasangan belum diketahui',
                       meta: [
-                        if (marriage.spouse?.birthYear != null && marriage.spouse!.birthYear!.isNotEmpty)
+                        'NIT: ${marriage.spouse?.nit?.trim().isNotEmpty == true ? marriage.spouse!.nit : '-'}',
+                        'Jenis kelamin: ${marriage.spouse?.gender?.label ?? 'Belum diketahui'}',
+                        if (marriage.spouse?.birthYear != null &&
+                            marriage.spouse!.birthYear!.isNotEmpty)
                           'Lahir ${marriage.spouse!.birthYear}',
-                        if (marriage.spouse?.address != null && marriage.spouse!.address!.isNotEmpty)
+                        if (marriage.spouse?.address != null &&
+                            marriage.spouse!.address!.isNotEmpty)
                           marriage.spouse!.address!,
                       ],
-                      avatarUrl: Config.getFullImageUrl(marriage.spouse?.avatarUrl ?? marriage.spouse?.avatar),
-                      footer: _buildFooterText(
-                        marriage.children.isEmpty
-                            ? 'Belum ada anak pada pasangan ini.'
-                            : 'Anak pasangan ini berada di cabang bawah.',
+                      avatarUrl: Config.getFullImageUrl(
+                        marriage.spouse?.avatarUrl ?? marriage.spouse?.avatar,
                       ),
+                      footer: Container(),
                       role: _PersonCardRole.spouse,
+                      statusBadges: _spouseStatusBadges(marriage),
                       width: 210,
                     ),
                   ],
@@ -325,12 +415,14 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
               ),
               if (!nodeData.canOpenSubtree && node.marriages.length > 1) ...[
                 const SizedBox(height: 10),
-                _buildLegendText('Setiap pasangan disusun sejajar. Cabang anak di bawah label pasangan masing-masing.'),
+                _buildLegendText(
+                  'Setiap pasangan disusun sejajar. Cabang anak di bawah label pasangan masing-masing.',
+                ),
               ],
             ],
           ),
         );
-      case _TreeGraphNodeType.branch:
+      case _TreeGraphNodeType.marriageBranch:
         final marriage = nodeData.marriage!;
         final spouseName = marriage.spouse?.fullName ?? 'pasangan ini';
         final childCount = marriage.children.length;
@@ -342,32 +434,116 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE1B44A)),
             boxShadow: [
-              BoxShadow(color: const Color(0xFFE1B44A).withValues(alpha: 0.14), blurRadius: 8, offset: const Offset(0, 3)),
+              BoxShadow(
+                color: const Color(0xFFE1B44A).withValues(alpha: 0.14),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
             ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: const Color(0xFFFFEDBE), borderRadius: BorderRadius.circular(999)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEDBE),
+                  borderRadius: BorderRadius.circular(999),
+                ),
                 child: Text(
                   'Cabang Pasangan ${marriage.marriageOrder}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF8A6200)),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF8A6200),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Anak dari $spouseName',
+                'Pernikahan $spouseName',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF7B5800)),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7B5800),
+                ),
               ),
               const SizedBox(height: 4),
               Text(
-                childCount == 1 ? 'Cabang ini berisi 1 anak' : 'Cabang ini berisi $childCount anak',
+                childCount == 1
+                    ? 'berisi 1 anak'
+                    : 'berisi $childCount anak',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11.5, color: Color(0xFF9B7A28)),
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFF9B7A28),
+                ),
+              ),
+            ],
+          ),
+        );
+      case _TreeGraphNodeType.adoptionBranch:
+        final parent = nodeData.familyNode!;
+        final childCount = parent.adoptedChildren.length;
+        return Container(
+          constraints: const BoxConstraints(minWidth: 180, maxWidth: 210),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Config.secondarySoft,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Config.primary.withValues(alpha: 0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: Config.primary.withValues(alpha: 0.10),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Config.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Cabang Anak Adopsi',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: Config.primaryDark,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Adopsi langsung dari ${parent.fullName}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Config.primaryDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                childCount == 1
+                    ? 'Cabang ini berisi 1 anak'
+                    : 'Cabang ini berisi $childCount anak',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, color: Config.textSecondary),
               ),
             ],
           ),
@@ -375,26 +551,80 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
     }
   }
 
-  Widget _buildMemberFooter(TreeProvider provider, FamilyTreeNode node, _TreeGraphNodeData nodeData) {
+  Widget _buildMemberFooter(
+    TreeProvider provider,
+    FamilyTreeNode node,
+    _TreeGraphNodeData nodeData,
+  ) {
     if (nodeData.canOpenSubtree) {
       return _buildOpenButton(() => provider.openSubtree(node));
     }
 
-    if (node.marriages.isEmpty) {
-      return _buildFooterText('Belum ada pasangan atau turunan lagi.');
+    return Container();
+  }
+
+  List<_PersonStatusBadge> _memberStatusBadges(FamilyTreeNode node) {
+    final badges = <_PersonStatusBadge>[];
+    final policy = MarriageRolePolicy.fromMarriages(node.marriages);
+
+    switch (policy.state) {
+      case MarriageRolePolicyState.conflicting:
+        badges.add(const _PersonStatusBadge.conflict());
+        break;
+      case MarriageRolePolicyState.legacyUnclassified:
+        badges.add(const _PersonStatusBadge.unclassified());
+        break;
+      case MarriageRolePolicyState.lockedHusband:
+      case MarriageRolePolicyState.lockedWife:
+        badges.add(_PersonStatusBadge.role(policy.lockedRole!.label));
+        if (node.marriages.any(
+          (marriage) =>
+              marriage.isRoleClassified &&
+              marriage.familyHeadPosition == FamilyHeadPosition.member,
+        )) {
+          badges.add(const _PersonStatusBadge.familyHead());
+        }
+        break;
+      case MarriageRolePolicyState.unset:
+        break;
     }
 
-    return _buildFooterText('Pasangan berada di samping. Turunan keluarga ditampilkan di cabang bawah.');
+    return badges;
+  }
+
+  List<_PersonStatusBadge> _spouseStatusBadges(FamilyTreeMarriage marriage) {
+    final badges = <_PersonStatusBadge>[];
+    final policy = MarriageRolePolicy.fromMarriages([marriage]);
+
+    switch (policy.state) {
+      case MarriageRolePolicyState.conflicting:
+        badges.add(const _PersonStatusBadge.conflict());
+        break;
+      case MarriageRolePolicyState.legacyUnclassified:
+        badges.add(const _PersonStatusBadge.unclassified());
+        break;
+      case MarriageRolePolicyState.lockedHusband:
+      case MarriageRolePolicyState.lockedWife:
+        badges.add(_PersonStatusBadge.role(marriage.spouseRole!.label));
+        if (marriage.familyHeadPosition == FamilyHeadPosition.spouse) {
+          badges.add(const _PersonStatusBadge.familyHead());
+        }
+        break;
+      case MarriageRolePolicyState.unset:
+        break;
+    }
+
+    return badges;
   }
 
   Widget _buildPersonCard({
     required String badge,
     required String title,
-    required String subtitle,
     required List<String> meta,
     required String? avatarUrl,
     required Widget footer,
     required _PersonCardRole role,
+    List<_PersonStatusBadge> statusBadges = const [],
     double width = 230,
   }) {
     return Container(
@@ -403,7 +633,10 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
       decoration: BoxDecoration(
         color: Config.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _borderColor(role), width: role == _PersonCardRole.root ? 1.5 : 1.1),
+        border: Border.all(
+          color: _borderColor(role),
+          width: role == _PersonCardRole.root ? 1.5 : 1.1,
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -412,40 +645,87 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
             alignment: Alignment.center,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: _badgeBackgroundColor(role), borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(
+                color: _badgeBackgroundColor(role),
+                borderRadius: BorderRadius.circular(999),
+              ),
               child: Text(
                 badge,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, color: _badgeTextColor(role), fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: _badgeTextColor(role),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
+          if (statusBadges.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
+              children: statusBadges
+                  .map(
+                    (status) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: status.backgroundColor,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        status.label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: status.textColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
           const SizedBox(height: 12),
           Container(
             width: 68,
             height: 68,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: _avatarBackgroundColor(role)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _avatarBackgroundColor(role),
+            ),
             child: ClipOval(
               child: avatarUrl != null && avatarUrl.isNotEmpty
                   ? Image.network(
                       avatarUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(_avatarIcon(role), size: 34, color: _badgeTextColor(role)),
+                      errorBuilder: (_, _, _) => Icon(
+                        _avatarIcon(role),
+                        size: 34,
+                        color: _badgeTextColor(role),
+                      ),
                     )
-                  : Icon(_avatarIcon(role), size: 34, color: _badgeTextColor(role)),
+                  : Icon(
+                      _avatarIcon(role),
+                      size: 34,
+                      color: _badgeTextColor(role),
+                    ),
             ),
           ),
           const SizedBox(height: 10),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, fontWeight: Config.semiBold, color: Config.textHead),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: _badgeTextColor(role), fontWeight: Config.medium),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: Config.semiBold,
+              color: Config.textHead,
+            ),
           ),
           if (meta.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -455,7 +735,11 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                 child: Text(
                   item,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11.5, color: Config.textSecondary, height: 1.35),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Config.textSecondary,
+                    height: 1.35,
+                  ),
                 ),
               ),
             ),
@@ -472,25 +756,19 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
       constraints: const BoxConstraints(maxWidth: 360),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: Config.background, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Config.background,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11.5, color: Config.textSecondary, fontWeight: Config.medium),
+          style: TextStyle(
+            fontSize: 11.5,
+            color: Config.textSecondary,
+            fontWeight: Config.medium,
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildFooterText(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(color: Config.background, borderRadius: BorderRadius.circular(10)),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: Config.textSecondary, fontWeight: Config.medium),
       ),
     );
   }
@@ -512,11 +790,15 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
   }
 
   String _familyNodeId(FamilyTreeNode node) {
-    return 'family:${node.userId ?? node.familyTreeId}';
+    return 'family:${node.userId ?? node.relationId ?? node.familyTreeId}';
   }
 
   String _branchNodeId(FamilyTreeNode node, FamilyTreeMarriage marriage) {
-    return 'branch:${node.userId ?? node.familyTreeId}:${marriage.marriageId}:${marriage.marriageOrder}';
+    return 'branch:${node.userId ?? node.relationId ?? node.familyTreeId}:${marriage.marriageId}:${marriage.marriageOrder}';
+  }
+
+  String _adoptionBranchNodeId(FamilyTreeNode node) {
+    return 'adoption:${node.userId ?? node.relationId ?? node.familyTreeId}';
   }
 
   Color _borderColor(_PersonCardRole role) {
@@ -576,7 +858,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
 
 enum _PersonCardRole { root, member, spouse }
 
-enum _TreeGraphNodeType { family, branch }
+enum _TreeGraphNodeType { family, marriageBranch, adoptionBranch }
 
 class _TreeGraphNodeData {
   final String id;
@@ -594,10 +876,62 @@ class _TreeGraphNodeData {
   }) : type = _TreeGraphNodeType.family,
        marriage = null;
 
-  const _TreeGraphNodeData.branch({required this.id, required this.familyNode, required this.marriage})
-    : type = _TreeGraphNodeType.branch,
-      isCurrentRoot = false,
-      canOpenSubtree = false;
+  const _TreeGraphNodeData.marriageBranch({
+    required this.id,
+    required this.familyNode,
+    required this.marriage,
+  }) : type = _TreeGraphNodeType.marriageBranch,
+       isCurrentRoot = false,
+       canOpenSubtree = false;
+
+  const _TreeGraphNodeData.adoptionBranch({
+    required this.id,
+    required this.familyNode,
+  }) : type = _TreeGraphNodeType.adoptionBranch,
+       marriage = null,
+       isCurrentRoot = false,
+       canOpenSubtree = false;
+}
+
+class _PersonStatusBadge {
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+
+  const _PersonStatusBadge._({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+  });
+
+  factory _PersonStatusBadge.role(String label) {
+    return _PersonStatusBadge._(
+      label: label,
+      backgroundColor: Config.background,
+      textColor: Config.primaryDark,
+    );
+  }
+
+  const _PersonStatusBadge.familyHead()
+    : this._(
+        label: 'Kepala Keluarga',
+        backgroundColor: Config.secondarySoft,
+        textColor: Config.primaryDark,
+      );
+
+  const _PersonStatusBadge.unclassified()
+    : this._(
+        label: 'Belum diklasifikasikan',
+        backgroundColor: const Color(0xFFFFF4DA),
+        textColor: const Color(0xFF8A6200),
+      );
+
+  const _PersonStatusBadge.conflict()
+    : this._(
+        label: 'Konflik peran',
+        backgroundColor: const Color(0xFFFFE5E5),
+        textColor: const Color(0xFFB42318),
+      );
 }
 
 class _TreeGraphData {
@@ -605,5 +939,9 @@ class _TreeGraphData {
   final Map<String, _TreeGraphNodeData> nodes;
   final BuchheimWalkerConfiguration configuration;
 
-  const _TreeGraphData({required this.graph, required this.nodes, required this.configuration});
+  const _TreeGraphData({
+    required this.graph,
+    required this.nodes,
+    required this.configuration,
+  });
 }

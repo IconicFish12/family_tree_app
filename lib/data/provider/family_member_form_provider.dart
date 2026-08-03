@@ -1,25 +1,26 @@
 import 'dart:collection';
 
-import 'package:family_tree_app/core/family_permission_service.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
+import 'package:family_tree_app/data/models/marriage_role_policy.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/foundation.dart';
 
+enum MarriageLoadState { initial, loading, success, error }
+
 class FamilyMemberFormProvider extends ChangeNotifier {
-  final FamilyPermissionService _permissionService;
-
-  FamilyMemberFormProvider({
-    FamilyPermissionService permissionService = const FamilyPermissionService(),
-  }) : _permissionService = permissionService;
-
   bool _isLoadingContext = false;
   List<FamilyDirectoryMember> _availableParents = const [];
   List<FamilyTreeMarriage> _marriages = const [];
   int? _selectedParentId;
   int? _selectedMarriageId;
-  String? _generatedNit;
+  ChildRelationshipType _relationshipType = ChildRelationshipType.biological;
+  PersonGender? _gender;
+  bool _linkAdoptedToMarriage = false;
+  MarriageLoadState _marriageLoadState = MarriageLoadState.initial;
+  String? _marriageError;
   String? _contextError;
 
   bool get isLoadingContext => _isLoadingContext;
@@ -29,12 +30,45 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       UnmodifiableListView(_marriages);
   int? get selectedParentId => _selectedParentId;
   int? get selectedMarriageId => _selectedMarriageId;
-  String? get generatedNit => _generatedNit;
+  ChildRelationshipType get relationshipType => _relationshipType;
+  PersonGender? get gender => _gender;
+  bool get linkAdoptedToMarriage => _linkAdoptedToMarriage;
+  MarriageLoadState get marriageLoadState => _marriageLoadState;
+  String? get marriageError => _marriageError;
   String? get contextError => _contextError;
+
+  MarriageRolePolicy? get marriageRolePolicy =>
+      _marriageLoadState == MarriageLoadState.success
+      ? MarriageRolePolicy.fromMarriages(_marriages)
+      : null;
+
+  String? get childCreationBlockingMessage =>
+      marriageRolePolicy?.childCreationBlockingMessage;
+
+  bool get childDataInputsEnabled =>
+      _marriageLoadState == MarriageLoadState.error ||
+      (_marriageLoadState == MarriageLoadState.success &&
+          (marriageRolePolicy?.canAddChild ?? false));
+
+  bool get isBiological =>
+      _relationshipType == ChildRelationshipType.biological;
+
+  bool get usesMarriage => isBiological || _linkAdoptedToMarriage;
+
   bool get hasNoMarriage =>
-      !_isLoadingContext &&
-      _marriages.isEmpty &&
-      (_contextError?.contains('Tambahkan pasangan') ?? false);
+      _marriageLoadState == MarriageLoadState.success && _marriages.isEmpty;
+
+  bool get canSubmit {
+    if (_isLoadingContext || _selectedParentId == null) return false;
+    if (_marriageLoadState == MarriageLoadState.initial ||
+        _marriageLoadState == MarriageLoadState.loading) {
+      return false;
+    }
+    if (marriageRolePolicy?.canAddChild == false) return false;
+    if (!usesMarriage) return true;
+    return _marriageLoadState == MarriageLoadState.success &&
+        _selectedMarriageId != null;
+  }
 
   FamilyDirectoryMember? get selectedParent {
     for (final member in _availableParents) {
@@ -52,6 +86,7 @@ class FamilyMemberFormProvider extends ChangeNotifier {
   }) async {
     _isLoadingContext = true;
     _contextError = null;
+    _marriageError = null;
     notifyListeners();
 
     await userProvider.fetchData(isRefresh: true, keyword: '');
@@ -59,32 +94,28 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       await userProvider.loadMore();
     }
 
-    final actorNit = actor.nit?.trim();
+    if (userProvider.state == ViewState.error &&
+        userProvider.directoryMembers.isEmpty) {
+      _contextError =
+          userProvider.errorMessage ??
+          'Data anggota gagal dimuat. Silakan coba lagi.';
+      _availableParents = const [];
+      _isLoadingContext = false;
+      notifyListeners();
+      return;
+    }
+
     _availableParents =
         userProvider.directoryMembers
-            .where(
-              (member) =>
-                  member.userId != null &&
-                  member.nit.trim().isNotEmpty &&
-                  _permissionService.canManageMember(
-                    actorNit: actorNit,
-                    targetNit: member.nit,
-                  ),
-            )
+            .where((member) => member.userId != null)
             .toList()
           ..sort((a, b) => a.nit.compareTo(b.nit));
 
     if (initialParentId != null &&
         !_availableParents.any((member) => member.userId == initialParentId)) {
       final target = await userProvider.fetchMemberById(initialParentId);
-      if (target != null &&
-          target.userId != null &&
-          target.nit?.trim().isNotEmpty == true &&
-          _permissionService.canManageMember(
-            actorNit: actorNit,
-            targetNit: target.nit,
-          )) {
-        _availableParents.add(_fromUserData(target));
+      if (target?.userId != null) {
+        _availableParents.add(_fromUserData(target!));
       }
     }
 
@@ -115,45 +146,91 @@ class FamilyMemberFormProvider extends ChangeNotifier {
   }) async {
     _selectedParentId = parentId;
     _selectedMarriageId = null;
-    _generatedNit = null;
     _marriages = const [];
+    _marriageLoadState = MarriageLoadState.initial;
+    _marriageError = null;
     _contextError = null;
 
-    final parent = selectedParent;
-    if (parentId == null || parent == null || parent.nit.trim().isEmpty) {
-      _contextError =
-          'NIT belum dapat dibuat. Silakan muat ulang data dan coba kembali.';
+    if (parentId == null || selectedParent == null) {
+      _contextError = 'Pilih anggota yang akan menjadi orang tua.';
       notifyListeners();
       return;
     }
 
-    _isLoadingContext = true;
+    await _loadMarriages(userProvider, forceRefresh: true);
+  }
+
+  Future<void> retryMarriages({required UserProvider userProvider}) async {
+    if (_selectedParentId == null) return;
+    await _loadMarriages(userProvider, forceRefresh: true);
+  }
+
+  Future<void> _loadMarriages(
+    UserProvider userProvider, {
+    required bool forceRefresh,
+  }) async {
+    final parentId = _selectedParentId;
+    if (parentId == null) return;
+
+    _marriageLoadState = MarriageLoadState.loading;
+    _marriageError = null;
     notifyListeners();
-    final preparation = await userProvider.prepareChildCreation(
-      parentId: parentId,
-      parentNit: parent.nit,
-    );
-    _isLoadingContext = false;
 
-    if (preparation == null) {
-      _contextError =
-          userProvider.errorMessage ??
-          'NIT belum dapat dibuat. Silakan muat ulang data dan coba kembali.';
+    final marriages = await userProvider.getMarriagesForMember(
+      parentId,
+      forceRefresh: forceRefresh,
+    );
+    if (_selectedParentId != parentId) return;
+
+    if (marriages == null) {
+      _marriages = const [];
+      _selectedMarriageId = null;
+      _marriageLoadState = MarriageLoadState.error;
+      _marriageError =
+          userProvider.marriageErrorForMember(parentId) ??
+          'Data pernikahan gagal dimuat. Silakan coba lagi.';
       notifyListeners();
       return;
     }
 
-    _marriages = preparation.marriages;
-    _generatedNit = preparation.generatedNit;
-    _selectedMarriageId = _marriages.length == 1
-        ? _marriages.first.marriageId
-        : null;
+    _marriages = marriages;
+    _marriageLoadState = MarriageLoadState.success;
+    _marriageError = null;
+    if (isBiological && _marriages.length == 1) {
+      _selectedMarriageId = _marriages.first.marriageId;
+    } else {
+      _selectedMarriageId = null;
+    }
+    notifyListeners();
+  }
+
+  void selectRelationshipType(ChildRelationshipType type) {
+    if (_relationshipType == type) return;
+    _relationshipType = type;
+    _selectedMarriageId = null;
+    _linkAdoptedToMarriage = false;
+    if (isBiological && _marriages.length == 1) {
+      _selectedMarriageId = _marriages.first.marriageId;
+    }
+    notifyListeners();
+  }
+
+  void setAdoptedMarriageLink(bool linkToMarriage) {
+    if (_linkAdoptedToMarriage == linkToMarriage) return;
+    _linkAdoptedToMarriage = linkToMarriage;
+    _selectedMarriageId = null;
     notifyListeners();
   }
 
   void selectMarriage(int? marriageId) {
     if (_selectedMarriageId == marriageId) return;
     _selectedMarriageId = marriageId;
+    notifyListeners();
+  }
+
+  void selectGender(PersonGender? gender) {
+    if (_gender == gender) return;
+    _gender = gender;
     notifyListeners();
   }
 
@@ -164,10 +241,11 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       nit: data.nit ?? '',
       level: data.level ?? 0,
       fullName: data.fullName ?? 'Tanpa Nama',
+      gender: data.gender,
       address: data.address,
       birthYear: data.birthYear,
       avatar: data.avatar is String ? data.avatar as String : null,
-      avatarUrl: null,
+      avatarUrl: data.avatarUrl,
     );
   }
 }

@@ -3,11 +3,10 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
 class ChildSelectionProvider extends ChangeNotifier {
-  ChildSelectionProvider({
-    List<Map<String, dynamic>>? initialSelectedChildren,
-  }) : _selectedChildren = List<Map<String, dynamic>>.from(
-         initialSelectedChildren ?? const [],
-       );
+  ChildSelectionProvider({List<Map<String, dynamic>>? initialSelectedChildren})
+    : _selectedChildren = List<Map<String, dynamic>>.from(
+        initialSelectedChildren ?? const [],
+      );
 
   final List<Map<String, dynamic>> _selectedChildren;
 

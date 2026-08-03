@@ -1,4 +1,5 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
@@ -21,7 +22,11 @@ class ProfilePage extends StatelessWidget {
         automaticallyImplyLeading: false,
         title: const Text(
           'Profil',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         centerTitle: true,
         actions: [
@@ -42,7 +47,10 @@ class ProfilePage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Data profil tidak ditemukan.'),
-                  ElevatedButton(onPressed: () => context.go('/login'), child: const Text('Login Ulang')),
+                  ElevatedButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Login Ulang'),
+                  ),
                 ],
               ),
             );
@@ -63,29 +71,53 @@ class ProfilePage extends StatelessWidget {
           const SizedBox(height: 24),
           _buildInfoSection(user),
           const SizedBox(height: 14),
-          _buildKeyValueCard(label: 'NIT', value: user.nit?.trim().isNotEmpty == true ? user.nit! : '-'),
+          _buildKeyValueCard(
+            label: 'NIT',
+            value: user.nit?.trim().isNotEmpty == true ? user.nit! : '-',
+          ),
           const SizedBox(height: 14),
           _buildNoteCard(
             title: 'Tempat Tinggal',
-            content: user.address?.trim().isNotEmpty == true ? user.address! : 'Belum ada data tempat tinggal.',
+            content: user.address?.trim().isNotEmpty == true
+                ? user.address!
+                : 'Belum ada data tempat tinggal.',
           ),
           const SizedBox(height: 24),
           Text(
             'Unduh Data Keluarga',
-            style: TextStyle(fontSize: 17, fontWeight: Config.semiBold, color: Config.textHead),
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: Config.semiBold,
+              color: Config.textHead,
+            ),
           ),
           const SizedBox(height: 6),
-          Text('Simpan daftar keluarga dalam bentuk dokumen Excel.', style: TextStyle(color: Config.textSecondary)),
+          Text(
+            'Simpan daftar keluarga dalam bentuk dokumen Excel.',
+            style: TextStyle(color: Config.textSecondary),
+          ),
           const SizedBox(height: 12),
           Consumer<UserProvider>(
             builder: (context, provider, child) {
               return OutlinedButton.icon(
-                onPressed: provider.isExporting ? null : () => _downloadExcel(context),
+                onPressed: provider.isExporting
+                    ? null
+                    : () => _downloadExcel(context),
                 icon: provider.isExporting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.download_outlined),
-                label: Text(provider.isExporting ? 'Menyiapkan dokumen...' : 'Unduh Excel'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                label: Text(
+                  provider.isExporting
+                      ? 'Menyiapkan dokumen...'
+                      : 'Unduh Excel',
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               );
             },
           ),
@@ -98,10 +130,15 @@ class ProfilePage extends StatelessWidget {
               backgroundColor: Colors.red[400],
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 2,
             ),
-            child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            child: const Text(
+              'Logout',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
         ],
       ),
@@ -109,7 +146,10 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(UserData user) {
-    final photoUrl = user.avatar is String ? Config.getFullImageUrl(user.avatar as String) : null;
+    final avatarPath =
+        user.avatarUrl ??
+        (user.avatar is String ? user.avatar as String : null);
+    final photoUrl = Config.getFullImageUrl(avatarPath);
 
     return Center(
       child: Column(
@@ -121,19 +161,34 @@ class ProfilePage extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.grey.shade300,
-              image: photoUrl == null ? null : DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover),
+              image: photoUrl == null
+                  ? null
+                  : DecorationImage(
+                      image: NetworkImage(photoUrl),
+                      fit: BoxFit.cover,
+                    ),
             ),
-            child: photoUrl == null ? Icon(Icons.person, size: 54, color: Colors.grey.shade500) : null,
+            child: photoUrl == null
+                ? Icon(Icons.person, size: 54, color: Colors.grey.shade500)
+                : null,
           ),
           const SizedBox(height: 12),
           Text(
             user.fullName ?? 'Tanpa Nama',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            user.parentId == null ? 'Kepala Keluarga' : 'Anggota Keluarga',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Config.primary),
+            'Jenis kelamin: ${user.gender?.label ?? 'Belum diketahui'}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Config.primary,
+            ),
           ),
         ],
       ),
@@ -147,7 +202,12 @@ class ProfilePage extends StatelessWidget {
 
     if (file == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Dokumen Excel belum dapat diunduh.'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(
+            provider.errorMessage ?? 'Dokumen Excel belum dapat diunduh.',
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -163,14 +223,20 @@ class ProfilePage extends StatelessWidget {
       if (!context.mounted) return;
 
       if (kIsWeb || savedPath != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Dokumen Excel berhasil diunduh.'), backgroundColor: Config.primary));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dokumen Excel berhasil diunduh.'),
+            backgroundColor: Config.primary,
+          ),
+        );
       }
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dokumen belum dapat disimpan. Silakan coba lagi.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Dokumen belum dapat disimpan. Silakan coba lagi.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -184,14 +250,18 @@ class ProfilePage extends StatelessWidget {
             Expanded(
               child: _buildSmallInfoCard(
                 title: 'Nama Lengkap',
-                value: user.fullName?.trim().isNotEmpty == true ? user.fullName! : '-',
+                value: user.fullName?.trim().isNotEmpty == true
+                    ? user.fullName!
+                    : '-',
               ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: _buildSmallInfoCard(
                 title: 'Tahun Lahir',
-                value: user.birthYear?.trim().isNotEmpty == true ? user.birthYear! : '-',
+                value: user.birthYear?.trim().isNotEmpty == true
+                    ? user.birthYear!
+                    : '-',
               ),
             ),
           ],
@@ -209,7 +279,11 @@ class ProfilePage extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.textHead),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Config.textHead,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -232,14 +306,22 @@ class ProfilePage extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.textHead),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Config.textHead,
+            ),
           ),
           const SizedBox(width: 16),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.primary),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Config.primary,
+              ),
             ),
           ),
         ],
@@ -257,10 +339,21 @@ class ProfilePage extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Config.textHead),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Config.textHead,
+            ),
           ),
           const SizedBox(height: 6),
-          Text(content, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4)),
+          Text(
+            content,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
     );
@@ -270,7 +363,13 @@ class ProfilePage extends StatelessWidget {
     return BoxDecoration(
       color: Config.white,
       borderRadius: BorderRadius.circular(16),
-      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 }

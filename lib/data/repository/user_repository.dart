@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:family_tree_app/config/config.dart';
 import 'package:family_tree_app/data/models/export_file_data.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
@@ -12,24 +13,39 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 abstract class UserRepository {
-  Future<Either<Failure, FamilyDirectoryResponse>> getFamilyMembers({String keyword = '', int perPage = 25});
+  Future<Either<Failure, FamilyDirectoryResponse>> getFamilyMembers({
+    String keyword = '',
+    int perPage = 25,
+  });
 
   Future<Either<Failure, UserData>> getById(String id);
-  Future<Either<Failure, FamilyTreeNode>> getTree();
+  Future<Either<Failure, FamilyTreeResponse>> getTree();
   Future<Either<Failure, Map<String, dynamic>>> countFamilyMembers();
   Future<Either<Failure, UserData>> updateProfile(UserData data);
-  Future<Either<Failure, List<FamilyTreeMarriage>>> getMarriages(String memberId);
+  Future<Either<Failure, List<FamilyTreeMarriage>>> getMarriages(
+    String memberId,
+  );
   Future<Either<Failure, FamilyTreeMarriage>> getMarriage(String marriageId);
-  Future<Either<Failure, bool>> createMarriage({required String memberId, required UserData spouseData});
-  Future<Either<Failure, bool>> updateMarriage({required String marriageId, required UserData spouseData});
-  Future<Either<Failure, bool>> deleteMarriage(String marriageId);
-  Future<Either<Failure, UserData>> createChild({
+  Future<Either<Failure, FamilyTreeMarriage>> createMarriage({
     required String memberId,
-    required int marriageId,
-    required String nit,
+    required MarriageRole memberRole,
+    required UserData spouseData,
+  });
+  Future<Either<Failure, bool>> updateMarriage({
+    required String marriageId,
+    required UserData spouseData,
+  });
+  Future<Either<Failure, bool>> deleteMarriage(String marriageId);
+  Future<Either<Failure, FamilyTreeNode>> createChild({
+    required String memberId,
+    required ChildRelationshipType relationshipType,
+    int? marriageId,
     required UserData childData,
   });
-  Future<Either<Failure, UserData>> updateFamilyMember({required String memberId, required UserData memberData});
+  Future<Either<Failure, UserData>> updateFamilyMember({
+    required String memberId,
+    required UserData memberData,
+  });
   Future<Either<Failure, bool>> deleteFamilyMember(String memberId);
   Future<Either<Failure, ExportFileData>> exportFamilyMembers();
 }
@@ -37,6 +53,12 @@ abstract class UserRepository {
 class UserRepositoryImpl implements UserRepository {
   String _errorMessage(DioException error) {
     final responseData = error.response?.data;
+    if (error.response?.statusCode == 422 && responseData is Map) {
+      final validationMessage = _firstValidationMessage(responseData['errors']);
+      if (validationMessage != null) {
+        return validationMessage;
+      }
+    }
     if (responseData is Map && responseData['message'] != null) {
       return responseData['message'].toString();
     }
@@ -54,6 +76,27 @@ class UserRepositoryImpl implements UserRepository {
     return error.message ?? 'Terjadi kesalahan saat terhubung ke server.';
   }
 
+  String? _firstValidationMessage(dynamic errors) {
+    if (errors is Map) {
+      for (final value in errors.values) {
+        final message = _firstValidationMessage(value);
+        if (message != null) return message;
+      }
+      return null;
+    }
+    if (errors is Iterable) {
+      for (final value in errors) {
+        final message = _firstValidationMessage(value);
+        if (message != null) return message;
+      }
+      return null;
+    }
+    if (errors is String && errors.trim().isNotEmpty) {
+      return errors.trim();
+    }
+    return null;
+  }
+
   Map<String, dynamic> _sanitizeUserData(Map<String, dynamic> data) {
     final sanitized = Map<String, dynamic>.from(data);
     if (sanitized['user_id'] is String) {
@@ -68,7 +111,8 @@ class UserRepositoryImpl implements UserRepository {
     if (sanitized['nit'] != null && sanitized['nit'] is! String) {
       sanitized['nit'] = sanitized['nit'].toString();
     }
-    if (sanitized['family_tree_id'] != null && sanitized['family_tree_id'] is! String) {
+    if (sanitized['family_tree_id'] != null &&
+        sanitized['family_tree_id'] is! String) {
       sanitized['family_tree_id'] = sanitized['family_tree_id'].toString();
     }
     if (sanitized['birth_year'] != null && sanitized['birth_year'] is! String) {
@@ -78,7 +122,10 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, FamilyDirectoryResponse>> getFamilyMembers({String keyword = '', int perPage = 25}) async {
+  Future<Either<Failure, FamilyDirectoryResponse>> getFamilyMembers({
+    String keyword = '',
+    int perPage = 25,
+  }) async {
     try {
       final response = await Config.dio.get(
         '/family-members',
@@ -86,7 +133,11 @@ class UserRepositoryImpl implements UserRepository {
       );
 
       if (response.statusCode == 200 && response.data is Map) {
-        return Right(FamilyDirectoryResponse.fromJson(Map<String, dynamic>.from(response.data as Map)));
+        return Right(
+          FamilyDirectoryResponse.fromJson(
+            Map<String, dynamic>.from(response.data as Map),
+          ),
+        );
       }
 
       return Left(Failure('Daftar keluarga tidak dapat dimuat.'));
@@ -104,7 +155,9 @@ class UserRepositoryImpl implements UserRepository {
 
       if (response.statusCode == 200 && response.data is Map) {
         final body = Map<String, dynamic>.from(response.data as Map);
-        final rawData = body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : body;
+        final rawData = body['data'] is Map
+            ? Map<String, dynamic>.from(body['data'] as Map)
+            : body;
         return Right(UserData.fromJson(_sanitizeUserData(rawData)));
       }
 
@@ -117,16 +170,13 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, FamilyTreeNode>> getTree() async {
+  Future<Either<Failure, FamilyTreeResponse>> getTree() async {
     try {
       final response = await Config.dio.get('/family-tree');
 
       if (response.statusCode == 200 && response.data is Map) {
         final body = Map<String, dynamic>.from(response.data as Map);
-        final rawData = body['data'];
-        if (rawData is Map) {
-          return Right(FamilyTreeNode.fromJson(Map<String, dynamic>.from(rawData)));
-        }
+        return Right(FamilyTreeResponse.fromJson(body));
       }
 
       return Left(Failure('Bagan keluarga tidak dapat dimuat.'));
@@ -150,7 +200,9 @@ class UserRepositoryImpl implements UserRepository {
     } on DioException catch (e) {
       return Left(Failure(_errorMessage(e)));
     } catch (_) {
-      return Left(Failure('Terjadi kesalahan saat menghitung anggota keluarga.'));
+      return Left(
+        Failure('Terjadi kesalahan saat menghitung anggota keluarga.'),
+      );
     }
   }
 
@@ -160,9 +212,11 @@ class UserRepositoryImpl implements UserRepository {
       if (data.avatar is XFile) {
         final formData = FormData.fromMap({
           '_method': 'PATCH',
-          if (data.fullName != null) 'full_name': data.fullName,
-          if (data.address != null) 'address': data.address,
-          if (data.birthYear != null) 'birth_year': data.birthYear,
+          if (data.fullName?.trim().isNotEmpty == true)
+            'full_name': data.fullName!.trim(),
+          'gender': data.gender?.apiValue ?? '',
+          'address': data.address?.trim() ?? '',
+          'birth_year': data.birthYear?.trim() ?? '',
         });
 
         final image = data.avatar as XFile;
@@ -176,7 +230,11 @@ class UserRepositoryImpl implements UserRepository {
         formData.files.add(
           MapEntry(
             'avatar',
-            MultipartFile.fromBytes(await image.readAsBytes(), filename: fileName, contentType: MediaType.parse(mimeType)),
+            MultipartFile.fromBytes(
+              await image.readAsBytes(),
+              filename: fileName,
+              contentType: MediaType.parse(mimeType),
+            ),
           ),
         );
 
@@ -187,9 +245,11 @@ class UserRepositoryImpl implements UserRepository {
       final response = await Config.dio.patch(
         '/profile',
         data: {
-          if (data.fullName != null) 'full_name': data.fullName,
-          if (data.address != null) 'address': data.address,
-          if (data.birthYear != null) 'birth_year': data.birthYear,
+          if (data.fullName?.trim().isNotEmpty == true)
+            'full_name': data.fullName!.trim(),
+          'gender': data.gender?.apiValue,
+          'address': _nullableTrim(data.address),
+          'birth_year': _nullableTrim(data.birthYear),
         },
       );
       return _parseProfileResponse(response);
@@ -203,7 +263,9 @@ class UserRepositoryImpl implements UserRepository {
   Either<Failure, UserData> _parseProfileResponse(Response<dynamic> response) {
     if (response.statusCode == 200 && response.data is Map) {
       final body = Map<String, dynamic>.from(response.data as Map);
-      final rawData = body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : body;
+      final rawData = body['data'] is Map
+          ? Map<String, dynamic>.from(body['data'] as Map)
+          : body;
       return Right(UserData.fromJson(_sanitizeUserData(rawData)));
     }
 
@@ -211,9 +273,13 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, List<FamilyTreeMarriage>>> getMarriages(String memberId) async {
+  Future<Either<Failure, List<FamilyTreeMarriage>>> getMarriages(
+    String memberId,
+  ) async {
     try {
-      final response = await Config.dio.get('/family-members/$memberId/marriages');
+      final response = await Config.dio.get(
+        '/family-members/$memberId/marriages',
+      );
 
       if (response.statusCode == 200 && response.data is Map) {
         final body = Map<String, dynamic>.from(response.data as Map);
@@ -221,7 +287,11 @@ class UserRepositoryImpl implements UserRepository {
         if (rawData is List) {
           final marriages = rawData
               .whereType<Map>()
-              .map((item) => FamilyTreeMarriage.fromJson(Map<String, dynamic>.from(item)))
+              .map(
+                (item) => FamilyTreeMarriage.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
               .toList();
           return Right(marriages);
         }
@@ -236,14 +306,18 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, FamilyTreeMarriage>> getMarriage(String marriageId) async {
+  Future<Either<Failure, FamilyTreeMarriage>> getMarriage(
+    String marriageId,
+  ) async {
     try {
       final response = await Config.dio.get('/marriages/$marriageId');
       if (response.statusCode == 200 && response.data is Map) {
         final body = Map<String, dynamic>.from(response.data as Map);
         final rawData = body['data'];
         if (rawData is Map) {
-          return Right(FamilyTreeMarriage.fromJson(Map<String, dynamic>.from(rawData)));
+          return Right(
+            FamilyTreeMarriage.fromJson(Map<String, dynamic>.from(rawData)),
+          );
         }
       }
       return Left(Failure('Detail pernikahan tidak dapat dimuat.'));
@@ -255,21 +329,34 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, bool>> createMarriage({required String memberId, required UserData spouseData}) async {
+  Future<Either<Failure, FamilyTreeMarriage>> createMarriage({
+    required String memberId,
+    required MarriageRole memberRole,
+    required UserData spouseData,
+  }) async {
     try {
       final response = await Config.dio.post(
         '/family-members/$memberId/marriages',
         data: {
+          'member_role': memberRole.apiValue,
           'spouse': {
-            'full_name': spouseData.fullName,
-            if (spouseData.address?.trim().isNotEmpty == true) 'address': spouseData.address!.trim(),
-            if (spouseData.birthYear?.trim().isNotEmpty == true) 'birth_year': spouseData.birthYear!.trim(),
+            'full_name': spouseData.fullName?.trim(),
+            'gender': spouseData.gender?.apiValue,
+            'address': _nullableTrim(spouseData.address),
+            'birth_year': _nullableTrim(spouseData.birthYear),
           },
         },
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return const Right(true);
+      if ((response.statusCode == 201 || response.statusCode == 200) &&
+          response.data is Map) {
+        final body = Map<String, dynamic>.from(response.data as Map);
+        final rawData = body['data'];
+        if (rawData is Map) {
+          return Right(
+            FamilyTreeMarriage.fromJson(Map<String, dynamic>.from(rawData)),
+          );
+        }
       }
 
       return Left(Failure('Pasangan tidak dapat ditambahkan.'));
@@ -281,15 +368,20 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, bool>> updateMarriage({required String marriageId, required UserData spouseData}) async {
+  Future<Either<Failure, bool>> updateMarriage({
+    required String marriageId,
+    required UserData spouseData,
+  }) async {
     try {
       final response = await Config.dio.patch(
         '/marriages/$marriageId',
         data: {
           'spouse': {
-            if (spouseData.fullName?.trim().isNotEmpty == true) 'full_name': spouseData.fullName!.trim(),
-            if (spouseData.address != null) 'address': spouseData.address!.trim(),
-            if (spouseData.birthYear != null) 'birth_year': spouseData.birthYear!.trim(),
+            if (spouseData.fullName?.trim().isNotEmpty == true)
+              'full_name': spouseData.fullName!.trim(),
+            'gender': spouseData.gender?.apiValue,
+            'address': _nullableTrim(spouseData.address),
+            'birth_year': _nullableTrim(spouseData.birthYear),
           },
         },
       );
@@ -320,29 +412,45 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, UserData>> createChild({
+  Future<Either<Failure, FamilyTreeNode>> createChild({
     required String memberId,
-    required int marriageId,
-    required String nit,
+    required ChildRelationshipType relationshipType,
+    int? marriageId,
     required UserData childData,
   }) async {
+    if (relationshipType == ChildRelationshipType.biological &&
+        marriageId == null) {
+      return Left(Failure('Anak kandung wajib memilih pernikahan.'));
+    }
+
     try {
       final payload = <String, dynamic>{
-        'marriage_id': marriageId,
-        'nit': nit,
-        'full_name': childData.fullName,
-        if (childData.address?.trim().isNotEmpty == true) 'address': childData.address!.trim(),
-        if (childData.birthYear?.trim().isNotEmpty == true) 'birth_year': childData.birthYear!.trim(),
+        'relationship_type': relationshipType.apiValue,
+        if (marriageId != null) 'marriage_id': marriageId,
+        'full_name': childData.fullName?.trim(),
+        'gender': childData.gender?.apiValue,
+        'address': _nullableTrim(childData.address),
+        'birth_year': _nullableTrim(childData.birthYear),
       };
 
-      final response = await Config.dio.post('/family-members/$memberId/children', data: payload);
+      final response = await Config.dio.post(
+        '/family-members/$memberId/children',
+        data: payload,
+      );
 
-      if ((response.statusCode == 201 || response.statusCode == 200) && response.data is Map) {
-        return _parseUserResponse(
-          response,
-          failureMessage: 'Data anak dari server belum lengkap.',
-          requireStructuralIdentity: true,
-        );
+      if ((response.statusCode == 201 || response.statusCode == 200) &&
+          response.data is Map) {
+        final body = Map<String, dynamic>.from(response.data as Map);
+        final rawData = body['data'];
+        if (rawData is Map) {
+          final child = Map<String, dynamic>.from(rawData);
+          if (child['user_id'] != null &&
+              child['nit'] != null &&
+              child['family_tree_id'] != null) {
+            return Right(FamilyTreeNode.fromJson(child));
+          }
+        }
+        return Left(Failure('Data anak dari server belum lengkap.'));
       }
 
       return Left(Failure('Anak tidak dapat ditambahkan.'));
@@ -354,18 +462,26 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<Either<Failure, UserData>> updateFamilyMember({required String memberId, required UserData memberData}) async {
+  Future<Either<Failure, UserData>> updateFamilyMember({
+    required String memberId,
+    required UserData memberData,
+  }) async {
     try {
       final response = await Config.dio.patch(
         '/family-members/$memberId',
         data: {
-          if (memberData.fullName?.trim().isNotEmpty == true) 'full_name': memberData.fullName!.trim(),
-          if (memberData.address != null) 'address': memberData.address!.trim(),
-          if (memberData.birthYear != null) 'birth_year': memberData.birthYear!.trim(),
+          if (memberData.fullName?.trim().isNotEmpty == true)
+            'full_name': memberData.fullName!.trim(),
+          'gender': memberData.gender?.apiValue,
+          'address': _nullableTrim(memberData.address),
+          'birth_year': _nullableTrim(memberData.birthYear),
         },
       );
       if (response.statusCode == 200 && response.data is Map) {
-        return _parseUserResponse(response, failureMessage: 'Data anggota dari server belum lengkap.');
+        return _parseUserResponse(
+          response,
+          failureMessage: 'Data anggota dari server belum lengkap.',
+        );
       }
       return Left(Failure('Data anggota tidak dapat diperbarui.'));
     } on DioException catch (e) {
@@ -378,7 +494,10 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, bool>> deleteFamilyMember(String memberId) async {
     try {
-      final response = await Config.dio.delete('/family-members/$memberId', data: const {'confirm': true});
+      final response = await Config.dio.delete(
+        '/family-members/$memberId',
+        queryParameters: const {'confirm': true},
+      );
       if (response.statusCode == 200 || response.statusCode == 204) {
         return const Right(true);
       }
@@ -393,10 +512,18 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, ExportFileData>> exportFamilyMembers() async {
     try {
-      final response = await Config.dio.get<List<int>>('/export-users', options: Options(responseType: ResponseType.bytes));
+      final response = await Config.dio.get<List<int>>(
+        '/export-users',
+        options: Options(responseType: ResponseType.bytes),
+      );
       final data = response.data;
       if (response.statusCode == 200 && data != null && data.isNotEmpty) {
-        return Right(ExportFileData(fileName: _exportFileName(response.headers), bytes: Uint8List.fromList(data)));
+        return Right(
+          ExportFileData(
+            fileName: _exportFileName(response.headers),
+            bytes: Uint8List.fromList(data),
+          ),
+        );
       }
       return Left(Failure('File Excel tidak dapat diunduh.'));
     } on DioException catch (e) {
@@ -409,27 +536,38 @@ class UserRepositoryImpl implements UserRepository {
   Either<Failure, UserData> _parseUserResponse(
     Response<dynamic> response, {
     required String failureMessage,
-    bool requireStructuralIdentity = false,
   }) {
     if (response.data is! Map) {
       return Left(Failure(failureMessage));
     }
     final body = Map<String, dynamic>.from(response.data as Map);
-    final rawData = body['data'] is Map ? Map<String, dynamic>.from(body['data'] as Map) : body;
-    if (rawData['user_id'] == null ||
-        (requireStructuralIdentity && (rawData['nit'] == null || rawData['family_tree_id'] == null))) {
+    final rawData = body['data'] is Map
+        ? Map<String, dynamic>.from(body['data'] as Map)
+        : body;
+    if (rawData['user_id'] == null) {
       return Left(Failure(failureMessage));
     }
     return Right(UserData.fromJson(_sanitizeUserData(rawData)));
   }
 
+  String? _nullableTrim(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
   String _exportFileName(Headers headers) {
     final disposition = headers.value('content-disposition') ?? '';
-    final encodedMatch = RegExp(r"filename\*=UTF-8''([^;]+)", caseSensitive: false).firstMatch(disposition);
+    final encodedMatch = RegExp(
+      r"filename\*=UTF-8''([^;]+)",
+      caseSensitive: false,
+    ).firstMatch(disposition);
     if (encodedMatch != null) {
       return Uri.decodeComponent(encodedMatch.group(1)!).replaceAll('"', '');
     }
-    final plainMatch = RegExp(r'filename="?([^";]+)"?', caseSensitive: false).firstMatch(disposition);
+    final plainMatch = RegExp(
+      r'filename="?([^";]+)"?',
+      caseSensitive: false,
+    ).firstMatch(disposition);
     return plainMatch?.group(1) ?? 'silsilah-keluarga.xlsx';
   }
 }

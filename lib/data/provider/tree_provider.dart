@@ -17,6 +17,9 @@ class TreeProvider extends ChangeNotifier {
   FamilyTreeNode? _fullTree;
   FamilyTreeNode? get fullTree => _fullTree;
 
+  FamilyTreeMeta? _meta;
+  FamilyTreeMeta? get meta => _meta;
+
   FamilyTreeNode? _currentRoot;
   FamilyTreeNode? get currentRoot => _currentRoot;
 
@@ -25,26 +28,40 @@ class TreeProvider extends ChangeNotifier {
 
   final List<FamilyTreeNode> _history = [];
   bool get canGoBack => _history.isNotEmpty;
+  int _requestEpoch = 0;
+  bool _isDisposed = false;
 
-  Future<void> initialize() async {
+  Future<void> initialize({bool preserveNavigation = false}) async {
+    if (_isDisposed) return;
+    final epoch = ++_requestEpoch;
+    final previousRootId = preserveNavigation ? _currentRoot?.userId : null;
+    final previousHistoryIds = preserveNavigation
+        ? _history.map((node) => node.userId).whereType<int>().toList()
+        : const <int>[];
+
     _state = TreeViewState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _notifyListeners();
 
     final result = await _repository.getTree();
+    if (!_isCurrent(epoch)) return;
     result.fold(
       (failure) {
         _state = TreeViewState.error;
         _errorMessage = failure.message;
       },
-      (tree) {
-        _fullTree = tree;
-        _currentRoot = tree;
-        _history.clear();
+      (response) {
+        _fullTree = response.root;
+        _meta = response.meta;
+        _restoreNavigation(
+          response.root,
+          previousRootId: previousRootId,
+          previousHistoryIds: previousHistoryIds,
+        );
         _state = TreeViewState.success;
       },
     );
-    notifyListeners();
+    _notifyListeners();
   }
 
   int relativeLevel(FamilyTreeNode node) {
@@ -64,7 +81,8 @@ class TreeProvider extends ChangeNotifier {
   }
 
   Future<void> openSubtree(FamilyTreeNode node) async {
-    final matchedNode = _findNodeByUserId(_fullTree, node.userId);
+    if (_isDisposed) return;
+    final matchedNode = _fullTree?.findByUserId(node.userId);
     if (matchedNode == null || !matchedNode.hasDescendants) {
       return;
     }
@@ -75,47 +93,74 @@ class TreeProvider extends ChangeNotifier {
 
     _currentRoot = matchedNode;
     _state = TreeViewState.success;
-    notifyListeners();
+    _notifyListeners();
   }
 
   bool restorePreviousTree() {
-    if (_history.isEmpty) return false;
+    if (_isDisposed || _history.isEmpty) return false;
     _currentRoot = _history.removeLast();
     _state = TreeViewState.success;
-    notifyListeners();
+    _notifyListeners();
     return true;
   }
 
   Future<void> refreshCurrentTree() async {
-    await initialize();
+    await initialize(preserveNavigation: true);
   }
 
   void reset({bool shouldNotify = true}) {
+    if (_isDisposed) return;
+    _requestEpoch++;
     _state = TreeViewState.initial;
     _fullTree = null;
+    _meta = null;
     _currentRoot = null;
     _errorMessage = null;
     _history.clear();
     if (shouldNotify) {
-      notifyListeners();
+      _notifyListeners();
     }
   }
 
-  FamilyTreeNode? _findNodeByUserId(FamilyTreeNode? node, int? userId) {
-    if (node == null || userId == null) return null;
-    if (node.userId == userId) {
-      return node;
+  void _restoreNavigation(
+    FamilyTreeNode freshRoot, {
+    required int? previousRootId,
+    required List<int> previousHistoryIds,
+  }) {
+    if (previousRootId == null) {
+      _currentRoot = freshRoot;
+      _history.clear();
+      return;
     }
 
-    for (final marriage in node.marriages) {
-      for (final child in marriage.children) {
-        final result = _findNodeByUserId(child, userId);
-        if (result != null) {
-          return result;
-        }
-      }
+    final restoredRoot = freshRoot.findByUserId(previousRootId);
+    if (restoredRoot == null) {
+      _currentRoot = freshRoot;
+      _history.clear();
+      return;
     }
 
-    return null;
+    _currentRoot = restoredRoot;
+    _history
+      ..clear()
+      ..addAll(
+        previousHistoryIds
+            .map(freshRoot.findByUserId)
+            .whereType<FamilyTreeNode>()
+            .where((node) => node.userId != restoredRoot.userId),
+      );
+  }
+
+  bool _isCurrent(int epoch) => !_isDisposed && epoch == _requestEpoch;
+
+  void _notifyListeners() {
+    if (!_isDisposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _requestEpoch++;
+    super.dispose();
   }
 }

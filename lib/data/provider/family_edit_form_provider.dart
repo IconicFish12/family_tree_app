@@ -1,3 +1,4 @@
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
@@ -5,9 +6,11 @@ import 'package:flutter/material.dart';
 class FamilyEditFormProvider extends ChangeNotifier {
   FamilyEditFormProvider({
     required String initialName,
+    PersonGender? initialGender,
     String? initialAddress,
     String? initialBirthYear,
-  }) : nameController = TextEditingController(text: initialName),
+  }) : _gender = initialGender,
+       nameController = TextEditingController(text: initialName),
        addressController = TextEditingController(text: initialAddress ?? ''),
        birthYearController = TextEditingController(
          text: initialBirthYear ?? '',
@@ -17,6 +20,9 @@ class FamilyEditFormProvider extends ChangeNotifier {
   final TextEditingController nameController;
   final TextEditingController addressController;
   final TextEditingController birthYearController;
+
+  PersonGender? _gender;
+  PersonGender? get gender => _gender;
 
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
@@ -42,6 +48,12 @@ class FamilyEditFormProvider extends ChangeNotifier {
       return 'Masukkan tahun yang benar.';
     }
     return null;
+  }
+
+  void selectGender(PersonGender? gender) {
+    if (_gender == gender) return;
+    _gender = gender;
+    notifyListeners();
   }
 
   Future<bool> updateMember({
@@ -76,6 +88,7 @@ class FamilyEditFormProvider extends ChangeNotifier {
 
   UserData get _formData => UserData(
     fullName: nameController.text.trim(),
+    gender: _gender,
     address: _emptyToNull(addressController.text),
     birthYear: _emptyToNull(birthYearController.text),
   );

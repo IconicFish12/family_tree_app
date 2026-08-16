@@ -10,9 +10,11 @@ class ImagePickerProvider extends ChangeNotifier {
   final ImagePicker _picker = ImagePicker();
 
   XFile? _pickedFile;
+  Uint8List? _pickedBytes;
   String? _networkImageUrl;
 
   XFile? get pickedFile => _pickedFile;
+  Uint8List? get pickedBytes => _pickedBytes;
   String? get networkImageUrl => _networkImageUrl;
 
   Future<XFile?> pickImage(ImageSource source) async {
@@ -27,6 +29,7 @@ class ImagePickerProvider extends ChangeNotifier {
     }
 
     _pickedFile = image;
+    _pickedBytes = await image.readAsBytes();
     _networkImageUrl = null;
     notifyListeners();
     return image;

@@ -1,11 +1,10 @@
+import 'package:family_tree_app/data/models/family_contract.dart';
+
 class FamilyDirectoryResponse {
   final List<FamilyDirectoryMember> members;
   final FamilyDirectoryMeta meta;
 
-  const FamilyDirectoryResponse({
-    required this.members,
-    required this.meta,
-  });
+  const FamilyDirectoryResponse({required this.members, required this.meta});
 
   factory FamilyDirectoryResponse.fromJson(Map<String, dynamic> json) {
     final rawMembers = json['data'];
@@ -64,10 +63,12 @@ class FamilyDirectoryMember {
   final String nit;
   final int level;
   final String fullName;
+  final PersonGender? gender;
   final String? address;
   final String? birthYear;
   final String? avatar;
   final String? avatarUrl;
+  final ParentChildRelationData? parentRelation;
 
   const FamilyDirectoryMember({
     this.userId,
@@ -75,10 +76,12 @@ class FamilyDirectoryMember {
     required this.nit,
     required this.level,
     required this.fullName,
+    this.gender,
     this.address,
     this.birthYear,
     this.avatar,
     this.avatarUrl,
+    this.parentRelation,
   });
 
   factory FamilyDirectoryMember.fromJson(Map<String, dynamic> json) {
@@ -88,16 +91,19 @@ class FamilyDirectoryMember {
       nit: (json['nit'] ?? '').toString(),
       level: _toInt(json['level']) ?? 0,
       fullName: (json['full_name'] ?? 'Tanpa Nama').toString(),
+      gender: personGenderFromJson(json['gender']),
       address: json['address']?.toString(),
       birthYear: json['birth_year']?.toString(),
       avatar: json['avatar']?.toString(),
       avatarUrl: json['avatar_url']?.toString(),
+      parentRelation: parentChildRelationFromJson(json['parent_relation']),
     );
   }
 }
 
 int? _toInt(dynamic value) {
   if (value is int) return value;
+  if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value);
   return null;
 }

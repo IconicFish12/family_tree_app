@@ -109,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'NIT / ID Anggota Inti',
+                          'NIT / ID Keluarga Inti',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -122,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _nitController,
                         textInputAction: TextInputAction.next,
                         decoration: _inputDecoration(
-                          hintText: 'Contoh: DEMO-ROOT-1',
+                          hintText: 'Masukan Email atau Username',
                         ),
                       ),
                       const SizedBox(height: 20),

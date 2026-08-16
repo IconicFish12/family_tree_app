@@ -26,7 +26,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Config.background,
       appBar: AppBar(
-        backgroundColor: Config.primary,
+        backgroundColor: Color(0xFF559260),
         elevation: 0,
         title: Text(
           'Silsilah Keluarga',
@@ -74,8 +74,6 @@ class _HomePageState extends State<HomePage> {
                       clipBehavior: Clip.antiAlias,
                       child: Image.asset(
                         'assets/images/family_logo.png',
-                        width: double.infinity,
-                        height: 220,
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -94,10 +92,10 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Selamat Datang, ${user.fullName ?? 'Keluarga'}!',
+                        'Selamat Datang, ${user.fullName ?? 'Keluarga'}',
                         style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          fontWeight: Config.semiBold,
                           color: Config.textHead,
                         ),
                       ),
@@ -110,19 +108,43 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      FamilyInfoCard(user: user),
-                      const SizedBox(height: 28),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildOutlinedButton(
+                              text: 'Tambah Keluarga/Anak Baru',
+                              onPressed: () =>
+                                  _showAddMemberOptions(user.userId),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
-                        child: _buildOutlinedButton(
-                          text: 'Tambah Anggota Baru',
-                          onPressed: () => context.pushNamed(
-                            'addFamilyMember',
-                            extra: user.userId,
+                        child: OutlinedButton.icon(
+                          onPressed: user.userId == null
+                              ? null
+                              : () => context.pushNamed(
+                                  'memberInfo',
+                                  pathParameters: {
+                                    'memberId': user.userId.toString(),
+                                  },
+                                ),
+                          icon: const Icon(Icons.manage_accounts_outlined),
+                          label: const Text('Edit atau Hapus Pasangan Saya'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Config.primary,
+                            side: BorderSide(color: Config.primary, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 35),
+                      const SizedBox(height: 30),
+                      FamilyInfoCard(user: user),
                     ],
                   ),
                 ),
@@ -134,15 +156,109 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _showAddMemberOptions(int? memberId) async {
+    if (memberId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data diri belum lengkap. Silakan muat ulang.'),
+        ),
+      );
+      return;
+    }
+
+    final choice = await showModalBottomSheet<_AddMemberChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Siapa yang ingin ditambahkan?',
+                style: TextStyle(
+                  color: Config.textHead,
+                  fontSize: 20,
+                  fontWeight: Config.semiBold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Pilih salah satu.',
+                style: TextStyle(color: Config.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              _buildChoiceTile(
+                icon: Icons.favorite_outline,
+                title: 'Tambah Pasangan',
+                subtitle: 'Tambahkan data suami atau istri.',
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_AddMemberChoice.spouse),
+              ),
+              const SizedBox(height: 10),
+              _buildChoiceTile(
+                icon: Icons.child_care,
+                title: 'Tambah Anak',
+                subtitle:
+                    'Catat anak kandung atau adopsi. NIT dibuat otomatis.',
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_AddMemberChoice.child),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted || choice == null) return;
+    if (choice == _AddMemberChoice.spouse) {
+      await context.pushNamed(
+        'addFamily',
+        queryParameters: {'memberId': memberId.toString()},
+      );
+      return;
+    }
+    await context.pushNamed(
+      'addFamilyMember',
+      queryParameters: {'parentId': memberId.toString()},
+    );
+  }
+
+  Widget _buildChoiceTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Config.primary.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: Config.primary.withValues(alpha: 0.14),
+          child: Icon(icon, color: Config.primaryDark),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
+
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
         color: Config.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
+            color: Config.textHead.withValues(alpha: 0.08),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -152,13 +268,16 @@ class _HomePageState extends State<HomePage> {
         readOnly: true,
         onTap: () => context.goNamed('familySearch'),
         decoration: InputDecoration(
-          hintText: 'Cari berdasarkan nama, nik atau hal lainnya..',
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          hintText: 'Cari anggota keluarga...',
+          hintStyle: TextStyle(
+            color: Config.textSecondary.withValues(alpha: 0.7),
+            fontSize: 14,
+          ),
           suffixIcon: Icon(Icons.search, color: Config.textSecondary),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            vertical: 16,
-            horizontal: 24,
+            vertical: 15,
+            horizontal: 20,
           ),
         ),
       ),
@@ -181,8 +300,10 @@ class _HomePageState extends State<HomePage> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: 14, fontWeight: Config.semiBold),
       ),
     );
   }
 }
+
+enum _AddMemberChoice { spouse, child }

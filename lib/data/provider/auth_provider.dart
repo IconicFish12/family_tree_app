@@ -6,18 +6,18 @@ import 'package:family_tree_app/core/session_storage.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/auth_repository.dart';
 
-enum AuthStatus {
-  initializing,
-  unauthenticated,
-  authenticating,
-  authenticated,
-}
+enum AuthStatus { initializing, unauthenticated, authenticating, authenticated }
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository;
   final SessionStorage _sessionStorage;
+  final FutureOr<void> Function()? _onSessionCleared;
 
-  AuthProvider(this._authRepository, this._sessionStorage) {
+  AuthProvider(
+    this._authRepository,
+    this._sessionStorage, {
+    FutureOr<void> Function()? onSessionCleared,
+  }) : _onSessionCleared = onSessionCleared {
     Config.registerUnauthorizedHandler(handleUnauthorized);
     unawaited(initializeSession());
   }
@@ -54,13 +54,10 @@ class AuthProvider extends ChangeNotifier {
         await _clearLocalSession(notify: false);
         _status = AuthStatus.unauthenticated;
       } else {
-        profileResult.fold(
-          (_) => null,
-          (profile) {
-            _currentUser = profile;
-            _status = AuthStatus.authenticated;
-          },
-        );
+        profileResult.fold((_) => null, (profile) {
+          _currentUser = profile;
+          _status = AuthStatus.authenticated;
+        });
       }
     } catch (_) {
       await _clearLocalSession(notify: false);
@@ -125,20 +122,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void updateUser(UserData updatedUser) {
-    final current = _currentUser;
-    if (current == null) return;
-
-    dynamic nextAvatar = current.avatar;
-    if (updatedUser.avatar != null) {
-      nextAvatar = updatedUser.avatar;
-    }
-
-    _currentUser = current.copyWith(
-      fullName: updatedUser.fullName ?? current.fullName,
-      address: updatedUser.address ?? current.address,
-      birthYear: updatedUser.birthYear ?? current.birthYear,
-      avatar: nextAvatar,
-    );
+    if (_currentUser == null) return;
+    _currentUser = updatedUser;
     notifyListeners();
   }
 
@@ -146,6 +131,7 @@ class AuthProvider extends ChangeNotifier {
     _currentUser = null;
     Config.setAccessToken(null);
     await _sessionStorage.clear();
+    await _onSessionCleared?.call();
     _status = AuthStatus.unauthenticated;
     if (notify) {
       notifyListeners();

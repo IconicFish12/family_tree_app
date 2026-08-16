@@ -1,19 +1,19 @@
-import 'dart:io';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
+import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/family_member_form_provider.dart';
+import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class AddFamilyMemberPage extends StatefulWidget {
-  final int? parentId;
-  final String? parentName;
+  final int? initialParentId;
 
-  const AddFamilyMemberPage({super.key, this.parentId, this.parentName});
+  const AddFamilyMemberPage({super.key, this.initialParentId});
 
   @override
   State<AddFamilyMemberPage> createState() => _AddFamilyMemberPageState();
@@ -21,92 +21,95 @@ class AddFamilyMemberPage extends StatefulWidget {
 
 class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nitController = TextEditingController();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _birthYearController = TextEditingController();
-  final _descriptionController = TextEditingController();
   final FamilyMemberFormProvider _formProvider = FamilyMemberFormProvider();
-
-  String _gender = 'Laki – Laki';
-  String _relationshipRole = 'Anak';
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _formProvider.loadMarriages(
-        context.read<UserProvider>().getMarriagesForMember,
-        widget.parentId,
-      );
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
+  }
+
+  Future<void> _initialize() async {
+    if (!mounted) return;
+    final actor = context.read<AuthProvider>().currentUser;
+    if (actor == null) return;
+    await _formProvider.initialize(
+      userProvider: context.read<UserProvider>(),
+      actor: actor,
+      initialParentId: widget.initialParentId,
+    );
   }
 
   @override
   void dispose() {
-    _nitController.dispose();
     _nameController.dispose();
     _addressController.dispose();
     _birthYearController.dispose();
-    _descriptionController.dispose();
     _formProvider.dispose();
     super.dispose();
   }
 
   Future<void> _saveData() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (widget.parentId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: ID orang tua tidak ditemukan')),
+    final parent = _formProvider.selectedParent;
+    final parentId = parent?.userId;
+    if (parentId == null || !_formProvider.canSubmit) {
+      _showError(
+        _formProvider.contextError ??
+            _formProvider.childCreationBlockingMessage ??
+            _formProvider.marriageError ??
+            (_formProvider.isBiological
+                ? 'Pilih pernikahan terkait untuk anak kandung.'
+                : 'Pilih pernikahan terkait untuk anak adopsi.'),
       );
       return;
     }
-
-    if (_formProvider.marriages.length > 1 &&
-        _formProvider.selectedMarriageId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan pilih pasangan/orang tua yang sesuai.'),
-        ),
-      );
-      return;
-    }
-
-    final newChild = UserData(
-      fullName: _nameController.text,
-      address: _addressController.text,
-      birthYear: _birthYearController.text,
-      parentId: widget.parentId,
-      avatar: _formProvider.memberPhoto,
-    );
 
     final provider = context.read<UserProvider>();
-    final success = await provider.addChild(
-      childData: newChild,
-      nit: _nitController.text.trim(),
+    final createdChild = await provider.addChild(
+      parentId: parentId,
+      relationshipType: _formProvider.relationshipType,
       marriageId: _formProvider.selectedMarriageId,
+      childData: UserData(
+        fullName: _nameController.text.trim(),
+        gender: _formProvider.gender,
+        address: _emptyToNull(_addressController.text),
+        birthYear: _emptyToNull(_birthYearController.text),
+      ),
     );
 
     if (!mounted) return;
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Anggota berhasil ditambahkan.'),
-          backgroundColor: Config.primary,
-        ),
-      );
-      context.pop();
+    if (createdChild == null) {
+      _showError(provider.errorMessage ?? 'Gagal menyimpan data anak.');
       return;
     }
 
+    await context.read<TreeProvider>().refreshCurrentTree();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(provider.errorMessage ?? 'Gagal menyimpan data anggota.'),
-        backgroundColor: Colors.red,
+        content: Text(
+          createdChild.nit?.trim().isNotEmpty == true
+              ? 'Anak berhasil ditambahkan. NIT ${createdChild.nit} sudah dibuat.'
+              : 'Anak berhasil ditambahkan. NIT otomatis generate.',
+        ),
+        backgroundColor: Config.primary,
       ),
+    );
+    context.pop(true);
+  }
+
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -124,11 +127,10 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
             backgroundColor: Config.background,
             appBar: AppBar(
               title: const Text(
-                'Tambah Anggota',
+                'Tambah Anak',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Config.white,
-                  fontSize: 20,
+                  color: Colors.white,
                 ),
               ),
               centerTitle: true,
@@ -136,432 +138,406 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                 color: Config.white,
                 onPressed: () => context.pop(),
               ),
-              backgroundColor: Config.primary,
+              backgroundColor: Color(0xFF559260),
               elevation: 0,
             ),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (widget.parentName != null)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Config.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Config.primary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.child_care, color: Config.primary),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Menambahkan anggota untuk:',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Config.textSecondary,
-                                    ),
-                                  ),
-                                  Text(
-                                    widget.parentName!,
-                                    style: TextStyle(
-                                      fontWeight: Config.bold,
-                                      color: Config.textHead,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
-                              ),
+            body:
+                formProvider.isLoadingContext &&
+                    formProvider.availableParents.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildGuidance(),
+                          const SizedBox(height: 20),
+                          _buildParentDropdown(formProvider),
+                          const SizedBox(height: 16),
+                          if (formProvider.isLoadingContext)
+                            const LinearProgressIndicator(),
+                          if (formProvider.contextError != null) ...[
+                            _buildErrorBox(
+                              formProvider.contextError!,
+                              onRetry: _initialize,
                             ),
+                            const SizedBox(height: 16),
                           ],
-                        ),
-                      ),
-                    if (formProvider.isLoadingMarriages)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 16),
-                        child: LinearProgressIndicator(),
-                      ),
-                    if (formProvider.marriages.length > 1) ...[
-                      _buildDropdownMarriage(formProvider),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Top Avatar & Basic Info Row
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildAvatarPicker(
-                          imageFile: formProvider.memberPhoto,
-                          onImageSelected: formProvider.setMemberPhoto,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildStyledCardInput(
-                                controller: _nameController,
-                                hintText: 'Nama Lengkap',
-                                validator: (v) => v == null || v.trim().isEmpty
-                                    ? 'Nama wajib diisi'
-                                    : null,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildStyledCardInput(
-                                controller: _nitController,
-                                hintText: 'Masukan NIT',
-                                keyboardType: TextInputType.text,
-                              ),
-                            ],
+                          _buildAdoptedMarriageChoice(formProvider),
+                          const SizedBox(height: 16),
+                          _buildMarriageContext(formProvider),
+                          const SizedBox(height: 32),
+                          _buildSystemNitInfo(),
+                          const SizedBox(height: 20),
+                          _buildTextField(
+                            label: 'Nama Lengkap Anak',
+                            controller: _nameController,
+                            icon: Icons.person_outline,
+                            isRequired: true,
+                            enabled: formProvider.childDataInputsEnabled,
                           ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Jenis Kelamin Row
-                    Row(
-                      children: [
-                        const Text(
-                          'Jenis Kelamin',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Config.textHead,
+                          const SizedBox(height: 16),
+                          _buildGenderDropdown(formProvider),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            label: 'Tahun Lahir (opsional)',
+                            controller: _birthYearController,
+                            icon: Icons.calendar_today_outlined,
+                            keyboardType: TextInputType.number,
+                            validateYear: true,
+                            enabled: formProvider.childDataInputsEnabled,
                           ),
-                        ),
-                        const Spacer(),
-                        _buildRadioOption('Laki – Laki'),
-                        const SizedBox(width: 12),
-                        _buildRadioOption('Perempuan'),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Hubungan Keluarga Dropdown
-                    _buildLabel('Hubungan Keluarga'),
-                    _buildStyledDropdownCard(
-                      value: _relationshipRole,
-                      items: const ['Anak', 'Kepala Keluarga', 'Pasangan'],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _relationshipRole = val);
-                        }
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Informasi Lanjutan Section Header
-                    const Text(
-                      'Informasi Lanjutan',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Config.textHead,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Tanggal Lahir
-                    _buildLabel('Tanggal Lahir'),
-                    _buildStyledCardInput(
-                      controller: _birthYearController,
-                      hintText: 'Tempat, Tanggal Lahir (cth: 1995)',
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Alamat tempat tinggal
-                    _buildLabel('Alamat tempat tinggal'),
-                    _buildStyledCardInput(
-                      controller: _addressController,
-                      hintText: 'masukan alamat',
-                      maxLines: 2,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Deskripsi Pribadi
-                    _buildLabel('Deskripsi Pribadi'),
-                    _buildStyledCardInput(
-                      controller: _descriptionController,
-                      hintText: 'Tambahkan Deskripsi',
-                      maxLines: 3,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Submit Button
-                    Center(
-                      child: SizedBox(
-                        width: 180,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: isSubmitting ? null : _saveData,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Config.primary,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            label: 'Alamat (opsional)',
+                            controller: _addressController,
+                            icon: Icons.location_on_outlined,
+                            maxLines: 3,
+                            enabled: formProvider.childDataInputsEnabled,
+                          ),
+                          const SizedBox(height: 28),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: isSubmitting || !formProvider.canSubmit
+                                  ? null
+                                  : _saveData,
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('Simpan Anak'),
                             ),
                           ),
-                          child: isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Tambah',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
+                  ),
           );
         },
       ),
     );
   }
 
-  Widget _buildAvatarPicker({
-    required XFile? imageFile,
-    required Function(XFile?) onImageSelected,
-  }) {
-    return GestureDetector(
-      onTap: () async {
-        final picker = ImagePicker();
-        final picked = await picker.pickImage(source: ImageSource.gallery);
-        if (picked != null) {
-          onImageSelected(picked);
-        }
-      },
-      child: Stack(
+  Widget _buildGuidance() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Config.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Config.primary.withValues(alpha: 0.25)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey.shade300,
-              image: imageFile != null
-                  ? DecorationImage(
-                      image: FileImage(File(imageFile.path)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+          Icon(Icons.info_outline, color: Config.primary),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Anak otomatis dikaitkan ke pernikahan yang dipilih. Aktifkan toggle untuk menandai anak sebagai anak adopsi.',
+              style: TextStyle(height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParentDropdown(FamilyMemberFormProvider provider) {
+    return DropdownButtonFormField<int>(
+      key: ValueKey('parent-${provider.selectedParentId}'),
+      initialValue: provider.selectedParentId,
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Anggota yang menjadi orang tua',
+        icon: Icons.family_restroom,
+      ),
+      items: provider.availableParents
+          .map(
+            (member) => DropdownMenuItem<int>(
+              value: member.userId,
+              child: Text('${member.fullName} • NIT ${member.nit}'),
+            ),
+          )
+          .toList(),
+      onChanged: provider.isLoadingContext
+          ? null
+          : (value) => provider.selectParent(
+              value,
+              userProvider: context.read<UserProvider>(),
+            ),
+      validator: (value) => value == null ? 'Pilih orang tua anak.' : null,
+    );
+  }
+
+  Widget _buildAdoptedMarriageChoice(FamilyMemberFormProvider provider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.black),
+      ),
+      child: SwitchListTile(
+        value: provider.linkAdoptedToMarriage,
+        onChanged: provider.childDataInputsEnabled
+            ? provider.setAdoptedMarriageLink
+            : null,
+        title: const Text('Anak adopsi'),
+        subtitle: const Text('Aktif = anak adopsi. Nonaktif = anak kandung.'),
+        secondary: const Icon(Icons.link_outlined),
+      ),
+    );
+  }
+
+  Widget _buildMarriageContext(FamilyMemberFormProvider provider) {
+    switch (provider.marriageLoadState) {
+      case MarriageLoadState.initial:
+      case MarriageLoadState.loading:
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LinearProgressIndicator(),
+            SizedBox(height: 8),
+            Text('Memuat data pernikahan orang tua...'),
+          ],
+        );
+      case MarriageLoadState.error:
+        return _buildErrorBox(
+          provider.marriageError ?? 'Data pernikahan gagal dimuat.',
+          onRetry: () => provider.retryMarriages(
+            userProvider: context.read<UserProvider>(),
+          ),
+          isBlocking: true,
+        );
+      case MarriageLoadState.success:
+        if (provider.childCreationBlockingMessage != null) {
+          return _buildRoleIntegrityBlock(
+            provider.childCreationBlockingMessage!,
+          );
+        }
+        if (provider.marriages.isEmpty) {
+          return _buildErrorBox(
+            'Pilih pernikahan terkait. Tambahkan pasangan terlebih dahulu jika belum ada.',
+            onRetry: () => provider.retryMarriages(
+              userProvider: context.read<UserProvider>(),
+            ),
+            showAddMarriage: true,
+          );
+        }
+        return _buildMarriageDropdown(provider);
+    }
+  }
+
+  Widget _buildMarriageDropdown(FamilyMemberFormProvider provider) {
+    return DropdownButtonFormField<int>(
+      key: ValueKey('marriage-${provider.selectedMarriageId}'),
+      initialValue: provider.selectedMarriageId,
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Pernikahan terkait',
+        icon: Icons.favorite_outline,
+      ),
+      items: provider.marriages.map((marriage) {
+        final spouseName =
+            marriage.spouse?.fullName ?? 'Pasangan belum diketahui';
+        return DropdownMenuItem<int>(
+          value: marriage.marriageId,
+          child: Text('Pasangan ${marriage.marriageOrder}: $spouseName'),
+        );
+      }).toList(),
+      onChanged: provider.childDataInputsEnabled
+          ? provider.selectMarriage
+          : null,
+      validator: (value) => value == null ? 'Pilih pernikahan terkait.' : null,
+    );
+  }
+
+  Widget _buildSystemNitInfo() {
+    return _buildInfoBox(
+      'NIT anak otomatis dibuat setelah berhasil disimpan.',
+      icon: Icons.badge_outlined,
+    );
+  }
+
+  Widget _buildGenderDropdown(FamilyMemberFormProvider provider) {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('gender-${provider.gender?.apiValue ?? 'empty'}'),
+      initialValue: provider.gender?.apiValue ?? '',
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Gender anak (opsional)',
+        icon: Icons.wc_outlined,
+      ),
+      items: [
+        const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
+        ...PersonGender.values.map(
+          (gender) => DropdownMenuItem(
+            value: gender.apiValue,
+            child: Text(gender.label),
+          ),
+        ),
+      ],
+      onChanged: provider.childDataInputsEnabled
+          ? (value) => provider.selectGender(_genderFromApiValue(value))
+          : null,
+    );
+  }
+
+  PersonGender? _genderFromApiValue(String? value) {
+    for (final gender in PersonGender.values) {
+      if (gender.apiValue == value) return gender;
+    }
+    return null;
+  }
+
+  Widget _buildInfoBox(String message, {IconData icon = Icons.info_outline}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Config.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Config.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Config.primary),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: const TextStyle(height: 1.4))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleIntegrityBlock(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.block_outlined, color: Colors.red),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Data keluarga perlu dirapikan terlebih dahulu',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 4),
+                Text(message, style: const TextStyle(height: 1.4)),
               ],
             ),
-            child: imageFile == null
-                ? Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.grey.shade500,
-                  )
-                : null,
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Config.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRadioOption(String value) {
-    final isSelected = _gender == value;
-    return GestureDetector(
-      onTap: () => setState(() => _gender = value),
-      child: Row(
+  Widget _buildErrorBox(
+    String message, {
+    required VoidCallback onRetry,
+    bool showAddMarriage = false,
+    bool isBlocking = true,
+  }) {
+    final parentId = _formProvider.selectedParentId;
+    final color = isBlocking ? Colors.orange : Colors.blue;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected ? Config.primary : Colors.transparent,
-              border: Border.all(
-                color: isSelected ? Config.primary : Colors.grey.shade400,
-                width: 2,
+          Text(message, style: const TextStyle(height: 1.4)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Muat Ulang'),
               ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Config.textHead,
-            ),
+              if (showAddMarriage && parentId != null)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await context.pushNamed(
+                      'addFamily',
+                      queryParameters: {'memberId': '$parentId'},
+                    );
+                    if (mounted) {
+                      await _formProvider.retryMarriages(
+                        userProvider: context.read<UserProvider>(),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.favorite_outline),
+                  label: const Text('Tambah Pasangan'),
+                ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: Config.textHead,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStyledCardInput({
+  Widget _buildTextField({
+    required String label,
     required TextEditingController controller,
-    required String hintText,
+    IconData? icon,
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
+    bool isRequired = false,
+    bool validateYear = false,
+    bool enabled = true,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        validator: validator,
-        style: const TextStyle(fontSize: 14, color: Config.textHead),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-      ),
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: (value) {
+        final text = value?.trim() ?? '';
+        if (isRequired && text.isEmpty) return '$label wajib diisi.';
+        if (validateYear && text.isNotEmpty) {
+          final year = int.tryParse(text);
+          if (year == null || year < 1900 || year > DateTime.now().year) {
+            return 'Masukkan tahun yang benar.';
+          }
+        }
+        return null;
+      },
+      decoration: _inputDecoration(label: label, icon: icon),
     );
   }
 
-  Widget _buildStyledDropdownCard({
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
-          isExpanded: true,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-          items: items.map((String item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(item),
-            );
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdownMarriage(FamilyMemberFormProvider formProvider) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Config.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButtonFormField<String>(
-          key: ValueKey(formProvider.selectedMarriageId),
-          initialValue: formProvider.selectedMarriageId,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            labelText: 'Pilih Cabang Pasangan',
-          ),
-          items: formProvider.marriages.map((marriage) {
-            final spouseName =
-                marriage.spouse?.fullName ?? 'Pasangan belum diketahui';
-            return DropdownMenuItem<String>(
-              value: marriage.marriageId.toString(),
-              child: Text('Pasangan ${marriage.marriageOrder}: $spouseName'),
-            );
-          }).toList(),
-          onChanged: formProvider.selectMarriage,
-        ),
-      ),
+  InputDecoration _inputDecoration({required String label, IconData? icon}) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: icon == null ? null : Icon(icon),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }

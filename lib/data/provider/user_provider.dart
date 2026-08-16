@@ -1,16 +1,20 @@
+import 'package:family_tree_app/data/models/export_file_data.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
 import 'package:family_tree_app/data/models/helper_member.dart';
+import 'package:family_tree_app/data/models/marriage_role_policy.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
+import 'package:family_tree_app/core/nit_hierarchy.dart';
 import 'package:flutter/material.dart';
 
 enum ViewState { initial, loading, success, error }
 
 class UserProvider extends ChangeNotifier {
-  final UserRepositoryImpl _repositoryImpl;
+  final UserRepository _repository;
 
-  UserProvider(this._repositoryImpl);
+  UserProvider(this._repository);
 
   ViewState _state = ViewState.initial;
   ViewState get state => _state;
@@ -21,11 +25,17 @@ class UserProvider extends ChangeNotifier {
   List<UserData> _rawAllUsers = [];
   List<UserData> get allUsers => _rawAllUsers;
 
-  List<FamilyUnit> _familyUnits = [];
-  List<FamilyUnit> get familyUnits => _familyUnits;
+  List<FamilyUnit> get familyUnits => const [];
+
+  final Map<int, List<FamilyTreeMarriage>> _marriagesByMember = {};
+  final Map<int, String> _marriageErrors = {};
+  final Map<int, Future<List<FamilyTreeMarriage>?>> _marriageRequests = {};
 
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
+
+  bool _isExporting = false;
+  bool get isExporting => _isExporting;
 
   bool _isLoadingMore = false;
   bool get isLoadingMore => _isLoadingMore;
@@ -39,6 +49,9 @@ class UserProvider extends ChangeNotifier {
   int _total = 0;
   int get total => _total;
 
+  int? _authenticatedMemberId;
+  int? get authenticatedMemberId => _authenticatedMemberId;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -47,10 +60,7 @@ class UserProvider extends ChangeNotifier {
       _directoryMembers.length >= _perPage &&
       _directoryMembers.length < _total;
 
-  Future<void> fetchData({
-    bool isRefresh = false,
-    String? keyword,
-  }) async {
+  Future<void> fetchData({bool isRefresh = false, String? keyword}) async {
     if (keyword != null) {
       _keyword = keyword.trim();
     }
@@ -59,14 +69,14 @@ class UserProvider extends ChangeNotifier {
       _perPage = 25;
       _directoryMembers = [];
       _rawAllUsers = [];
-      _familyUnits = [];
+      _clearMarriageCache();
     }
 
     _state = ViewState.loading;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await _repositoryImpl.getFamilyMembers(
+    final result = await _repository.getFamilyMembers(
       keyword: _keyword,
       perPage: _perPage,
     );
@@ -77,22 +87,7 @@ class UserProvider extends ChangeNotifier {
         _errorMessage = failure.message;
       },
       (response) {
-        _directoryMembers = response.members;
-        _total = response.meta.total;
-        _perPage = response.meta.perPage;
-        _rawAllUsers = response.members
-            .map(
-              (member) => UserData(
-                userId: member.userId,
-                familyTreeId: member.familyTreeId,
-                fullName: member.fullName,
-                address: member.address,
-                birthYear: member.birthYear,
-                avatar: member.avatarUrl ?? member.avatar,
-              ),
-            )
-            .toList();
-        _familyUnits = _buildFamilyTree(_rawAllUsers);
+        _applyDirectoryResponse(response);
         _state = ViewState.success;
       },
     );
@@ -108,33 +103,14 @@ class UserProvider extends ChangeNotifier {
     final nextPerPage = _perPage + 25;
     notifyListeners();
 
-    final result = await _repositoryImpl.getFamilyMembers(
+    final result = await _repository.getFamilyMembers(
       keyword: _keyword,
       perPage: nextPerPage,
     );
 
     result.fold(
-      (failure) {
-        _errorMessage = failure.message;
-      },
-      (response) {
-        _directoryMembers = response.members;
-        _total = response.meta.total;
-        _perPage = response.meta.perPage;
-        _rawAllUsers = response.members
-            .map(
-              (member) => UserData(
-                userId: member.userId,
-                familyTreeId: member.familyTreeId,
-                fullName: member.fullName,
-                address: member.address,
-                birthYear: member.birthYear,
-                avatar: member.avatarUrl ?? member.avatar,
-              ),
-            )
-            .toList();
-        _familyUnits = _buildFamilyTree(_rawAllUsers);
-      },
+      (failure) => _errorMessage = failure.message,
+      _applyDirectoryResponse,
     );
 
     _isLoadingMore = false;
@@ -142,7 +118,7 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> forceRefresh() async {
-    await fetchData(isRefresh: true);
+    await fetchData(isRefresh: true, keyword: _keyword);
   }
 
   Future<void> silentRefresh() async {
@@ -150,230 +126,418 @@ class UserProvider extends ChangeNotifier {
     await fetchData(isRefresh: true, keyword: _keyword);
   }
 
+  Future<UserData?> fetchMemberById(int memberId) async {
+    final result = await _repository.getById(memberId.toString());
+    return result.fold((failure) {
+      _errorMessage = failure.message;
+      notifyListeners();
+      return null;
+    }, (member) => member);
+  }
+
   Future<UserData?> updateProfile({required UserData data}) async {
-    _isSubmitting = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await _repositoryImpl.updateProfile(data);
-
+    _setSubmitting(true);
+    final result = await _repository.updateProfile(data);
     return result.fold(
       (failure) {
         _errorMessage = failure.message;
-        _isSubmitting = false;
-        notifyListeners();
+        _setSubmitting(false);
         return null;
       },
-      (updatedUser) {
-        _isSubmitting = false;
-        notifyListeners();
+      (updatedUser) async {
+        await fetchData(isRefresh: true, keyword: _keyword);
+        _setSubmitting(false);
         return updatedUser;
       },
     );
   }
 
-  Future<List<FamilyTreeMarriage>> getMarriagesForMember(int memberId) async {
-    final result = await _repositoryImpl.getMarriages(memberId.toString());
-    return result.fold((_) => const [], (marriages) => marriages);
+  List<FamilyTreeMarriage>? marriagesForMember(int memberId) {
+    return _marriagesByMember[memberId];
   }
 
-  Future<bool> addSpouse({
-    required UserData spouseData,
-    required int currentUserId,
-  }) async {
-    _isSubmitting = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await _repositoryImpl.createMarriage(
-      memberId: currentUserId.toString(),
-      spouseData: spouseData,
-    );
-
-    return result.fold(
-      (failure) {
-        _errorMessage = failure.message;
-        _isSubmitting = false;
-        notifyListeners();
-        return false;
-      },
-      (success) async {
-        await fetchData(isRefresh: true, keyword: _keyword);
-        _isSubmitting = false;
-        notifyListeners();
-        return success;
-      },
-    );
+  String? marriageErrorForMember(int memberId) {
+    return _marriageErrors[memberId];
   }
 
-  Future<bool> addChild({
-    required UserData childData,
-    required String nit,
-    String? marriageId,
-  }) async {
-    _isSubmitting = true;
-    _errorMessage = null;
-    notifyListeners();
+  bool isLoadingMarriagesForMember(int memberId) {
+    return _marriageRequests.containsKey(memberId);
+  }
 
-    final parentId = childData.parentId;
-    if (parentId == null) {
-      _errorMessage = 'Orang tua belum dipilih.';
-      _isSubmitting = false;
+  Future<List<FamilyTreeMarriage>?> getMarriagesForMember(
+    int memberId, {
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _marriagesByMember.containsKey(memberId)) {
+      return _marriagesByMember[memberId];
+    }
+
+    final inFlight = _marriageRequests[memberId];
+    if (inFlight != null) {
+      if (!forceRefresh) return inFlight;
+      await inFlight;
+      return getMarriagesForMember(memberId, forceRefresh: true);
+    }
+
+    _marriageErrors.remove(memberId);
+    final request = _loadMarriages(memberId);
+    _marriageRequests[memberId] = request;
+    notifyListeners();
+    try {
+      return await request;
+    } finally {
+      _marriageRequests.remove(memberId);
       notifyListeners();
-      return false;
     }
+  }
 
-    final result = await _repositoryImpl.createChild(
-      memberId: parentId.toString(),
-      marriageId: marriageId,
-      nit: nit,
-      childData: childData,
-    );
-
+  Future<List<FamilyTreeMarriage>?> _loadMarriages(int memberId) async {
+    final result = await _repository.getMarriages(memberId.toString());
     return result.fold(
       (failure) {
+        _marriageErrors[memberId] = failure.message;
         _errorMessage = failure.message;
-        _isSubmitting = false;
-        notifyListeners();
-        return false;
+        return null;
       },
-      (success) async {
-        await fetchData(isRefresh: true, keyword: _keyword);
-        _isSubmitting = false;
-        notifyListeners();
-        return success;
+      (marriages) {
+        _marriageErrors.remove(memberId);
+        _marriagesByMember[memberId] = marriages;
+        return marriages;
       },
     );
   }
 
-  List<FamilyUnit> _buildFamilyTree(List<UserData> allUsers) {
-    final rootUsers = allUsers.where((u) => u.familyTreeId != null).toList()
-      ..sort((a, b) => (a.familyTreeId ?? '').compareTo(b.familyTreeId ?? ''));
-
-    final rootMembers = rootUsers
-        .where((user) => !(user.familyTreeId ?? '').contains('.'))
-        .toList();
-
-    return rootMembers.map((root) {
-      final children = root.userId == null
-          ? const <ChildMember>[]
-          : _findChildren(root.userId!, allUsers);
-
-      return FamilyUnit(
-        headId: root.userId,
-        nit: root.familyTreeId ?? '-',
-        headName: root.fullName ?? 'Tanpa Nama',
-        spouseName: null,
-        location: root.address ?? '-',
-        avatar: root.avatar is String ? root.avatar as String : null,
-        birthYear: root.birthYear,
-        children: children,
-      );
-    }).toList();
-  }
-
-  List<ChildMember> _findChildren(int parentId, List<UserData> allUsers) {
-    UserData? parent;
-    for (final user in allUsers) {
-      if (user.userId == parentId) {
-        parent = user;
-        break;
+  Future<FamilyTreeMarriage?> addSpouse({
+    required UserData spouseData,
+    required int memberId,
+    required MarriageRole memberRole,
+    String? actorNit,
+    String? targetNit,
+  }) async {
+    if (actorNit != null &&
+        !canManageNit(
+          targetNit: targetNit ?? _nitForMember(memberId),
+          actorNit: actorNit,
+        )) {
+      _errorMessage =
+          'Anda hanya dapat mengelola pasangan diri sendiri dan anak langsung.';
+      notifyListeners();
+      return null;
+    }
+    if (!_tryStartSubmitting()) return null;
+    try {
+      List<FamilyTreeMarriage>? marriages;
+      try {
+        marriages = await getMarriagesForMember(memberId, forceRefresh: true);
+      } catch (_) {
+        _errorMessage =
+            'Riwayat pernikahan gagal dimuat. Coba lagi sebelum menambah pasangan.';
+        return null;
       }
-    }
+      if (marriages == null) {
+        _errorMessage =
+            marriageErrorForMember(memberId) ??
+            'Riwayat pernikahan gagal dimuat. Coba lagi sebelum menambah pasangan.';
+        return null;
+      }
 
-    if (parent?.familyTreeId == null) {
-      return const [];
-    }
+      final policy = MarriageRolePolicy.fromMarriages(marriages);
+      if (!policy.canCreateMarriage) {
+        _errorMessage =
+            policy.blockingMessage ??
+            'Pernikahan baru tidak dapat ditambahkan untuk anggota ini.';
+        return null;
+      }
+      if (!policy.allowsRole(memberRole)) {
+        final lockedRole = policy.lockedRole;
+        _errorMessage = lockedRole == null
+            ? 'Peran yang dipilih tidak sesuai dengan riwayat pernikahan anggota.'
+            : 'Peran anggota sudah dikunci sebagai ${lockedRole.label} berdasarkan riwayat pernikahan.';
+        return null;
+      }
 
-    final parentFamilyTreeId = parent!.familyTreeId!;
-    final parentPrefix = '$parentFamilyTreeId.';
-    final directChildren = allUsers
-        .where(
-          (user) =>
-              user.familyTreeId != null &&
-              user.familyTreeId!.startsWith(parentPrefix) &&
-              !_hasIntermediateLevel(parentFamilyTreeId, user.familyTreeId!),
-        )
-        .toList()
-      ..sort((a, b) => (a.familyTreeId ?? '').compareTo(b.familyTreeId ?? ''));
-
-    return directChildren.map((child) {
-      final nestedChildren = child.userId == null
-          ? const <ChildMember>[]
-          : _findChildren(child.userId!, allUsers);
-
-      return ChildMember(
-        id: child.userId,
-        nit: child.familyTreeId ?? '-',
-        name: child.fullName ?? 'Tanpa Nama',
-        spouseName: null,
-        location: child.address ?? '-',
-        photoUrl: child.avatar is String ? child.avatar as String : null,
-        birthYear: child.birthYear,
-        children: nestedChildren,
+      final result = await _repository.createMarriage(
+        memberId: memberId.toString(),
+        memberRole: memberRole,
+        spouseData: spouseData,
       );
-    }).toList();
+      return await result.fold(
+        (failure) async {
+          _errorMessage = failure.message;
+          return null;
+        },
+        (createdMarriage) async {
+          _marriagesByMember.remove(memberId);
+          await fetchData(isRefresh: true, keyword: _keyword);
+          return createdMarriage;
+        },
+      );
+    } finally {
+      _setSubmitting(false);
+    }
   }
 
-  bool _hasIntermediateLevel(String parentId, String childId) {
-    final parentParts = parentId.split('.');
-    final childParts = childId.split('.');
-    return childParts.length != parentParts.length + 1;
+  Future<FamilyTreeNode?> addChild({
+    required int parentId,
+    required ChildRelationshipType relationshipType,
+    required int? marriageId,
+    required UserData childData,
+  }) async {
+    if (!_tryStartSubmitting()) return null;
+    try {
+      if (relationshipType == ChildRelationshipType.biological &&
+          marriageId == null) {
+        _errorMessage = 'Anak kandung wajib memilih pernikahan.';
+        return null;
+      }
+
+      List<FamilyTreeMarriage>? marriages;
+      try {
+        marriages = await getMarriagesForMember(parentId, forceRefresh: true);
+      } catch (_) {
+        if (marriageId != null) {
+          _errorMessage = 'Data pernikahan gagal dimuat. Silakan coba lagi.';
+          return null;
+        }
+      }
+
+      if (marriages == null && marriageId != null) {
+        _errorMessage =
+            marriageErrorForMember(parentId) ??
+            'Data pernikahan gagal dimuat. Silakan coba lagi.';
+        return null;
+      }
+
+      if (marriages != null) {
+        final policy = MarriageRolePolicy.fromMarriages(marriages);
+        if (!policy.canAddChild) {
+          _errorMessage =
+              policy.childCreationBlockingMessage ??
+              'Data pernikahan perlu dirapikan sebelum menambah anak.';
+          return null;
+        }
+
+        if (marriageId != null &&
+            !marriages.any((marriage) => marriage.marriageId == marriageId)) {
+          _errorMessage =
+              'Pernikahan yang dipilih sudah berubah. Silakan pilih ulang.';
+          return null;
+        }
+      }
+
+      final result = await _repository.createChild(
+        memberId: parentId.toString(),
+        relationshipType: relationshipType,
+        marriageId: marriageId,
+        childData: childData,
+      );
+      return await result.fold(
+        (failure) async {
+          _errorMessage = failure.message;
+          return null;
+        },
+        (createdChild) async {
+          _marriagesByMember.remove(parentId);
+          await fetchData(isRefresh: true, keyword: _keyword);
+          return createdChild;
+        },
+      );
+    } finally {
+      _setSubmitting(false);
+    }
   }
 
   Future<bool> updateFamilyMember({
     required int memberId,
-    required String fullName,
-    String? address,
-    String? birthYear,
-    String? gender,
+    required UserData memberData,
   }) async {
-    _isSubmitting = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await _repositoryImpl.updateFamilyMember(
-      memberId: memberId,
-      fullName: fullName,
-      address: address,
-      birthYear: birthYear,
-      gender: gender,
+    _setSubmitting(true);
+    final result = await _repository.updateFamilyMember(
+      memberId: memberId.toString(),
+      memberData: memberData,
     );
-
-    _isSubmitting = false;
-    notifyListeners();
-
     return result.fold(
       (failure) {
         _errorMessage = failure.message;
+        _setSubmitting(false);
+        return false;
+      },
+      (_) async {
+        await fetchData(isRefresh: true, keyword: _keyword);
+        _setSubmitting(false);
+        return true;
+      },
+    );
+  }
+
+  Future<bool> updateMarriage({
+    required int marriageId,
+    required int memberId,
+    required UserData spouseData,
+    String? actorNit,
+    String? targetNit,
+  }) async {
+    if (actorNit != null &&
+        !canManageNit(
+          targetNit: targetNit ?? _nitForMember(memberId),
+          actorNit: actorNit,
+        )) {
+      _errorMessage =
+          'Anda hanya dapat mengelola pasangan diri sendiri dan anak langsung.';
+      notifyListeners();
+      return false;
+    }
+    _setSubmitting(true);
+    final result = await _repository.updateMarriage(
+      marriageId: marriageId.toString(),
+      spouseData: spouseData,
+    );
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _setSubmitting(false);
         return false;
       },
       (success) {
-        fetchData(isRefresh: true);
+        _marriagesByMember.remove(memberId);
+        _setSubmitting(false);
         return success;
       },
     );
   }
 
   Future<bool> deleteFamilyMember(int memberId) async {
-    _isSubmitting = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result = await _repositoryImpl.deleteFamilyMember(memberId);
-
-    _isSubmitting = false;
-    notifyListeners();
-
+    _setSubmitting(true);
+    final result = await _repository.deleteFamilyMember(memberId.toString());
     return result.fold(
       (failure) {
         _errorMessage = failure.message;
+        _setSubmitting(false);
         return false;
       },
-      (success) {
-        fetchData(isRefresh: true);
+      (success) async {
+        await fetchData(isRefresh: true, keyword: _keyword);
+        _setSubmitting(false);
         return success;
       },
     );
+  }
+
+  Future<bool> deleteMarriage({
+    required int marriageId,
+    required int memberId,
+    String? actorNit,
+    String? targetNit,
+  }) async {
+    if (actorNit != null &&
+        !canManageNit(
+          targetNit: targetNit ?? _nitForMember(memberId),
+          actorNit: actorNit,
+        )) {
+      _errorMessage =
+          'Anda hanya dapat mengelola pasangan diri sendiri dan anak langsung.';
+      notifyListeners();
+      return false;
+    }
+    _setSubmitting(true);
+    final result = await _repository.deleteMarriage(marriageId.toString());
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _setSubmitting(false);
+        return false;
+      },
+      (success) {
+        _marriagesByMember.remove(memberId);
+        _setSubmitting(false);
+        return success;
+      },
+    );
+  }
+
+  Future<ExportFileData?> exportFamily() async {
+    _isExporting = true;
+    _errorMessage = null;
+    notifyListeners();
+    final result = await _repository.exportFamilyMembers();
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        _isExporting = false;
+        notifyListeners();
+        return null;
+      },
+      (file) {
+        _isExporting = false;
+        notifyListeners();
+        return file;
+      },
+    );
+  }
+
+  void clearFamilyState() {
+    _directoryMembers = [];
+    _rawAllUsers = [];
+    _authenticatedMemberId = null;
+    _total = 0;
+    _state = ViewState.initial;
+    _clearMarriageCache();
+    notifyListeners();
+  }
+
+  void _setSubmitting(bool value) {
+    _isSubmitting = value;
+    if (value) {
+      _errorMessage = null;
+    }
+    notifyListeners();
+  }
+
+  bool _tryStartSubmitting() {
+    if (_isSubmitting) {
+      _errorMessage =
+          'Perubahan lain masih diproses. Tunggu sampai selesai lalu coba lagi.';
+      notifyListeners();
+      return false;
+    }
+    _setSubmitting(true);
+    return true;
+  }
+
+  void _clearMarriageCache() {
+    _marriagesByMember.clear();
+    _marriageErrors.clear();
+  }
+
+  String? _nitForMember(int memberId) {
+    for (final member in _directoryMembers) {
+      if (member.userId == memberId) return member.nit;
+    }
+    for (final member in _rawAllUsers) {
+      if (member.userId == memberId) return member.nit;
+    }
+    return null;
+  }
+
+  void _applyDirectoryResponse(FamilyDirectoryResponse response) {
+    _directoryMembers = response.members;
+    _total = response.meta.total;
+    _perPage = response.meta.perPage;
+    _authenticatedMemberId = response.meta.authenticatedMemberId;
+    _rawAllUsers = response.members
+        .map(
+          (member) => UserData(
+            userId: member.userId,
+            nit: member.nit,
+            familyTreeId: member.familyTreeId,
+            level: member.level,
+            fullName: member.fullName,
+            gender: member.gender,
+            address: member.address,
+            birthYear: member.birthYear,
+            avatar: member.avatarUrl ?? member.avatar,
+          ),
+        )
+        .toList();
   }
 }

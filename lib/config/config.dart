@@ -34,9 +34,15 @@ class Config {
           BaseOptions(
             baseUrl: baseUrl,
             headers: const {'Accept': 'application/json'},
-            connectTimeout: Duration(seconds: AppEnvironment.networkTimeoutSeconds),
-            receiveTimeout: Duration(seconds: AppEnvironment.networkTimeoutSeconds),
-            sendTimeout: Duration(seconds: AppEnvironment.networkTimeoutSeconds),
+            connectTimeout: Duration(
+              seconds: AppEnvironment.networkTimeoutSeconds,
+            ),
+            receiveTimeout: Duration(
+              seconds: AppEnvironment.networkTimeoutSeconds,
+            ),
+            sendTimeout: Duration(
+              seconds: AppEnvironment.networkTimeoutSeconds,
+            ),
           ),
         )
         ..interceptors.add(
@@ -52,21 +58,22 @@ class Config {
             onError: (error, handler) async {
               final statusCode = error.response?.statusCode;
               final requestPath = error.requestOptions.path;
-              final skipHandler = error.requestOptions.extra['skipUnauthorizedHandler'] == true;
+              final skipHandler =
+                  error.requestOptions.extra['skipUnauthorizedHandler'] == true;
 
               final shouldHandleUnauthorized =
                   !skipHandler &&
-                  (statusCode == 401 || statusCode == 403) &&
+                  statusCode == 401 &&
                   !requestPath.endsWith('/users/login') &&
                   !requestPath.endsWith('/users/logout');
 
-              if (shouldHandleUnauthorized && !_isHandlingUnauthorized && _unauthorizedHandler != null) {
+              if (shouldHandleUnauthorized &&
+                  !_isHandlingUnauthorized &&
+                  _unauthorizedHandler != null) {
                 _isHandlingUnauthorized = true;
                 try {
                   await _unauthorizedHandler!(
-                    statusCode == 403
-                        ? 'Akses tidak diizinkan. Silakan login kembali.'
-                        : 'Sesi login berakhir. Silakan login kembali.',
+                    'Sesi login berakhir. Silakan login kembali.',
                   );
                 } finally {
                   _isHandlingUnauthorized = false;
@@ -93,7 +100,9 @@ class Config {
       return cleanPath;
     }
 
-    String relative = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
+    String relative = cleanPath.startsWith('/')
+        ? cleanPath.substring(1)
+        : cleanPath;
     String storageBase = baseStorageUrl;
 
     if (storageBase.endsWith('/storage/') && relative.startsWith('storage/')) {
@@ -105,6 +114,23 @@ class Config {
     }
 
     return '$storageBase$relative';
+  }
+
+  static String? getAvatarUrl({Object? avatar, String? avatarUrl}) {
+    final candidates = <Object?>[
+      avatarUrl,
+      avatar is Map ? avatar['url'] : null,
+      avatar is Map ? avatar['path'] : null,
+      avatar is Map ? avatar['original_url'] : null,
+      avatar,
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate is! String || candidate.trim().isEmpty) continue;
+      final resolved = getFullImageUrl(candidate);
+      if (resolved != null) return resolved;
+    }
+    return null;
   }
 
   ThemeData get lightTheme {
@@ -123,9 +149,19 @@ class Config {
       ),
       textTheme: GoogleFonts.albertSansTextTheme(
         TextTheme(
-          headlineMedium: TextStyle(color: Config.textHead, fontWeight: Config.semiBold),
-          bodyLarge: TextStyle(color: Config.textHead, fontWeight: Config.regular, height: 1.5),
-          bodyMedium: TextStyle(color: Config.textSecondary, fontWeight: Config.regular),
+          headlineMedium: TextStyle(
+            color: Config.textHead,
+            fontWeight: Config.semiBold,
+          ),
+          bodyLarge: TextStyle(
+            color: Config.textHead,
+            fontWeight: Config.regular,
+            height: 1.5,
+          ),
+          bodyMedium: TextStyle(
+            color: Config.textSecondary,
+            fontWeight: Config.regular,
+          ),
           labelLarge: TextStyle(color: Config.white, fontWeight: Config.medium),
         ),
       ),
@@ -133,14 +169,21 @@ class Config {
         backgroundColor: Config.primary,
         foregroundColor: Config.white,
         elevation: 0,
-        titleTextStyle: GoogleFonts.albertSans(fontSize: 20, fontWeight: Config.semiBold, color: Config.white),
+        titleTextStyle: GoogleFonts.albertSans(
+          fontSize: 20,
+          fontWeight: Config.semiBold,
+          color: Config.white,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: Config.primary,
           foregroundColor: Config.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: GoogleFonts.albertSans(fontWeight: Config.medium, fontSize: 16),
+          textStyle: GoogleFonts.albertSans(
+            fontWeight: Config.medium,
+            fontSize: 16,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),

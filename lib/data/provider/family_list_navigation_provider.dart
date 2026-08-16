@@ -6,9 +6,8 @@ import 'package:flutter/foundation.dart';
 class FamilyListNavigationProvider extends ChangeNotifier {
   final List<Object> _breadcrumbs = [];
 
-  UnmodifiableListView<Object> get breadcrumbs => UnmodifiableListView(
-    _breadcrumbs,
-  );
+  UnmodifiableListView<Object> get breadcrumbs =>
+      UnmodifiableListView(_breadcrumbs);
 
   bool get isAtRoot => _breadcrumbs.isEmpty;
 

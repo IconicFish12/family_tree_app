@@ -61,12 +61,10 @@ class _FamilyListPageState extends State<FamilyListPage> {
     }
 
     final parentId = navigation.resolveCurrentParentId();
-    final parentName = navigation.resolveCurrentParentName();
-
     if (parentId != null) {
       context.pushNamed(
         'addFamilyMember',
-        extra: {'parentId': parentId, 'parentName': parentName},
+        queryParameters: {'parentId': parentId.toString()},
       );
       return;
     }
@@ -297,7 +295,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
             borderRadius: BorderRadius.circular(10),
           ),
           child: MemberAvatar(
-            photoUrl: Config.getFullImageUrl(photoUrl),
+            photoUrl: Config.getAvatarUrl(avatar: photoUrl),
             emoji: emoji.isNotEmpty ? emoji : 'Anggota',
             size: 44,
             borderRadius: 8,
@@ -343,7 +341,12 @@ class _FamilyListPageState extends State<FamilyListPage> {
           } else {
             return;
           }
-          context.pushNamed('memberInfo', extra: memberData);
+          if (memberData.id != null) {
+            context.pushNamed(
+              'memberInfo',
+              pathParameters: {'memberId': memberData.id.toString()},
+            );
+          }
         },
         trailing: isFolder
             ? IconButton(

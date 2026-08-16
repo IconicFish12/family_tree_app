@@ -1,25 +1,44 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/components/member_avatar.dart';
+import 'package:family_tree_app/data/models/family_contract.dart';
+import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
-import 'package:family_tree_app/views/profile/profile_edit.dart';
+import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      appBar: _buildAppBar(context),
-
+      backgroundColor: Config.background,
+      appBar: AppBar(
+        backgroundColor: Color(0xFF559260),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Profil',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: Colors.white),
+            tooltip: 'Edit Profil',
+            onPressed: () => context.pushNamed('profileEdit'),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           final user = authProvider.currentUser;
@@ -28,10 +47,10 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Data profil tidak ditemukan"),
+                  const Text('Data profil tidak ditemukan.'),
                   ElevatedButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text("Login Ulang"),
+                    child: const Text('Login Ulang'),
                   ),
                 ],
               ),
@@ -43,136 +62,111 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: const Text(
-        "Profile",
-        style: TextStyle(
-          color: Colors.black87,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
-      ),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, color: Colors.black87),
-          tooltip: "Edit Profile",
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileEditPage()),
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
-    );
-  }
-
-  Future<void> _handleExport() async {
-    final exportUrl = Uri.parse('${Config.baseUrl}/export-users');
-
-    try {
-      if (await canLaunchUrl(exportUrl)) {
-        await launchUrl(exportUrl, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak dapat membuka link export'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Widget _buildBody(BuildContext context, dynamic user) {
+  Widget _buildBody(BuildContext context, UserData user) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildProfileHeader(user),
           const SizedBox(height: 24),
           _buildInfoSection(user),
-          const SizedBox(height: 32),
-
-          // Export Button
-          ElevatedButton.icon(
-            onPressed: _handleExport,
-            icon: const Icon(Icons.download),
-            label: const Text(
-              "Export Data Keluarga",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Config.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              elevation: 2,
+          const SizedBox(height: 14),
+          _buildKeyValueCard(
+            label: 'NIT',
+            value: user.nit?.trim().isNotEmpty == true ? user.nit! : '-',
+          ),
+          const SizedBox(height: 14),
+          _buildNoteCard(
+            title: 'Tempat Tinggal',
+            content: user.address?.trim().isNotEmpty == true
+                ? user.address!
+                : 'Belum ada data tempat tinggal.',
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Unduh Data Keluarga',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: Config.semiBold,
+              color: Config.textHead,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Simpan daftar keluarga dalam bentuk dokumen Excel.',
+            style: TextStyle(color: Config.textSecondary),
+          ),
           const SizedBox(height: 12),
-
-          // Logout Button
+          Consumer<UserProvider>(
+            builder: (context, provider, child) {
+              return OutlinedButton.icon(
+                onPressed: provider.isExporting
+                    ? null
+                    : () => _downloadExcel(context),
+                icon: provider.isExporting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download_outlined),
+                label: Text(
+                  provider.isExporting
+                      ? 'Menyiapkan dokumen...'
+                      : 'Unduh Excel',
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () {
-              context.go('/login');
+            onPressed: () async {
+              await context.read<AuthProvider>().logout();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[400],
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.circular(12),
               ),
               elevation: 2,
             ),
             child: const Text(
-              "Logout",
+              'Logout',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildProfileHeader(dynamic user) {
+  Widget _buildProfileHeader(UserData user) {
+    final photoUrl = Config.getAvatarUrl(
+      avatar: user.avatar,
+      avatarUrl: user.avatarUrl,
+    );
+    final cacheKey = user.updatedAt?.millisecondsSinceEpoch.toString();
+
     return Center(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.grey[300],
-            backgroundImage: user.avatar != null
-                ? NetworkImage(
-                    Config.getFullImageUrl(user.avatar.toString()) as String,
-                  )
-                : null,
-            child: user.avatar == null
-                ? Icon(Icons.person, size: 60, color: Colors.grey[600])
-                : null,
+          MemberAvatar(
+            photoUrl: photoUrl,
+            size: 100,
+            borderRadius: 50,
+            emoji: '👤',
+            cacheKey: cacheKey,
           ),
           const SizedBox(height: 12),
           Text(
-            user.fullName ?? "Tanpa Nama",
+            user.fullName ?? 'Tanpa Nama',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
@@ -181,77 +175,193 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 4),
           Text(
-            "ID Keluarga: ${user.familyTreeId}",
-            style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+            'Jenis kelamin: ${user.gender?.label ?? 'Belum diketahui'}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Config.primary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoSection(dynamic user) {
+  Future<void> _downloadExcel(BuildContext context) async {
+    final provider = context.read<UserProvider>();
+    final file = await provider.exportFamily();
+    if (!context.mounted) return;
+
+    if (file == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.errorMessage ?? 'Dokumen Excel belum dapat diunduh.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Simpan data keluarga',
+        fileName: file.fileName,
+        type: FileType.custom,
+        allowedExtensions: const ['xlsx'],
+        bytes: file.bytes,
+      );
+      if (!context.mounted) return;
+
+      if (kIsWeb || savedPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dokumen Excel berhasil diunduh.'),
+            backgroundColor: Config.primary,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dokumen belum dapat disimpan. Silakan coba lagi.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildInfoSection(UserData user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
             Expanded(
-              child: _buildInfoCard(
-                title: "Nama Lengkap",
-                value: user.fullName ?? "-",
+              child: _buildSmallInfoCard(
+                title: 'Nama Lengkap',
+                value: user.fullName?.trim().isNotEmpty == true
+                    ? user.fullName!
+                    : '-',
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
-              child: _buildInfoCard(
-                title: "Tahun Lahir",
-                value: user.birthYear?.toString() ?? "-",
+              child: _buildSmallInfoCard(
+                title: 'Tahun Lahir',
+                value: user.birthYear?.trim().isNotEmpty == true
+                    ? user.birthYear!
+                    : '-',
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        _buildInfoCard(title: "Alamat", value: user.address ?? "-"),
-        const SizedBox(height: 12),
-
-        _buildInfoCard(
-          title: "Terdaftar Sejak",
-          value: user.createdAt.toLocal().toString().split(' ')[0],
         ),
       ],
     );
   }
 
-  Widget _buildInfoCard({required String title, required String value}) {
+  Widget _buildSmallInfoCard({required String title, required String value}) {
     return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Config.textHead,
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeyValueCard({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: _cardDecoration(),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
             style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-              color: Colors.black87,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Config.textHead,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Config.primary,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNoteCard({required String title, required String content}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Config.textHead,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            content,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Config.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 }

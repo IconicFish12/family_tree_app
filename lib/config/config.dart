@@ -1,21 +1,17 @@
 import 'package:dio/dio.dart';
+import 'package:family_tree_app/config/app_environment.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+typedef UnauthorizedHandler = Future<void> Function(String reason);
+
 class Config {
-  // Warna Utama
   static const Color primary = Color(0xFF1FA15D);
   static const Color primaryDark = Color(0xFF0C5531);
-
-  // Warna Aksen & Sekunder
   static const Color accent = Color(0xFF4AB97A);
   static const Color secondarySoft = Color(0xFFE8F5EE);
-
-  // Warna Latar Belakang & Netral
   static const Color background = Color(0xFFF3F3F3);
   static const Color white = Color(0xFFFFFFFF);
-
-  // Warna Teks
   static const Color textHead = Color(0xFF1C1C1C);
   static const Color textSecondary = Color(0xFF5F5F64);
 
@@ -26,22 +22,121 @@ class Config {
   static const FontWeight semiBold = FontWeight.w600;
   static const FontWeight bold = FontWeight.w700;
 
-  // Dio API Fetching
-  static const String baseUrl = "https://api-alusrah.oproject.id/api";
-  static const baseStorageUrl = "https://api-alusrah.oproject.id/storage/";
-  static final Dio dio = Dio();
+  static const String baseUrl = AppEnvironment.apiBaseUrl;
+  static String get baseStorageUrl => AppEnvironment.normalizedStorageBaseUrl;
+
+  static String? _accessToken;
+  static UnauthorizedHandler? _unauthorizedHandler;
+  static bool _isHandlingUnauthorized = false;
+
+  static final Dio dio =
+      Dio(
+          BaseOptions(
+            baseUrl: baseUrl,
+            headers: const {'Accept': 'application/json'},
+            connectTimeout: Duration(
+              seconds: AppEnvironment.networkTimeoutSeconds,
+            ),
+            receiveTimeout: Duration(
+              seconds: AppEnvironment.networkTimeoutSeconds,
+            ),
+            sendTimeout: Duration(
+              seconds: AppEnvironment.networkTimeoutSeconds,
+            ),
+          ),
+        )
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              if (_accessToken != null && _accessToken!.isNotEmpty) {
+                options.headers['Authorization'] = 'Bearer $_accessToken';
+              } else {
+                options.headers.remove('Authorization');
+              }
+              handler.next(options);
+            },
+            onError: (error, handler) async {
+              final statusCode = error.response?.statusCode;
+              final requestPath = error.requestOptions.path;
+              final skipHandler =
+                  error.requestOptions.extra['skipUnauthorizedHandler'] == true;
+
+              final shouldHandleUnauthorized =
+                  !skipHandler &&
+                  statusCode == 401 &&
+                  !requestPath.endsWith('/users/login') &&
+                  !requestPath.endsWith('/users/logout');
+
+              if (shouldHandleUnauthorized &&
+                  !_isHandlingUnauthorized &&
+                  _unauthorizedHandler != null) {
+                _isHandlingUnauthorized = true;
+                try {
+                  await _unauthorizedHandler!(
+                    'Sesi login berakhir. Silakan login kembali.',
+                  );
+                } finally {
+                  _isHandlingUnauthorized = false;
+                }
+              }
+
+              handler.next(error);
+            },
+          ),
+        );
+
+  static void setAccessToken(String? token) {
+    _accessToken = token?.trim().isEmpty == true ? null : token?.trim();
+  }
+
+  static void registerUnauthorizedHandler(UnauthorizedHandler? handler) {
+    _unauthorizedHandler = handler;
+  }
 
   static String? getFullImageUrl(String? path) {
-    if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http')) return path;
-    return "$baseStorageUrl$path";
+    if (path == null || path.trim().isEmpty) return null;
+    final cleanPath = path.trim();
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      return cleanPath;
+    }
+
+    String relative = cleanPath.startsWith('/')
+        ? cleanPath.substring(1)
+        : cleanPath;
+    String storageBase = baseStorageUrl;
+
+    if (storageBase.endsWith('/storage/') && relative.startsWith('storage/')) {
+      relative = relative.substring('storage/'.length);
+    }
+
+    if (!storageBase.endsWith('/')) {
+      storageBase = '$storageBase/';
+    }
+
+    return '$storageBase$relative';
+  }
+
+  static String? getAvatarUrl({Object? avatar, String? avatarUrl}) {
+    final candidates = <Object?>[
+      avatarUrl,
+      avatar is Map ? avatar['url'] : null,
+      avatar is Map ? avatar['path'] : null,
+      avatar is Map ? avatar['original_url'] : null,
+      avatar,
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate is! String || candidate.trim().isEmpty) continue;
+      final resolved = getFullImageUrl(candidate);
+      if (resolved != null) return resolved;
+    }
+    return null;
   }
 
   ThemeData get lightTheme {
     return ThemeData(
       primaryColor: Config.primary,
       scaffoldBackgroundColor: Config.background,
-
       colorScheme: ColorScheme.light(
         primary: Config.primary,
         onPrimary: Config.white,
@@ -52,34 +147,27 @@ class Config {
         error: Colors.red.shade700,
         onError: Config.white,
       ),
-
       textTheme: GoogleFonts.albertSansTextTheme(
         TextTheme(
-          // Judul Halaman Besar
           headlineMedium: TextStyle(
             color: Config.textHead,
             fontWeight: Config.semiBold,
           ),
-          // Teks Body Utama
           bodyLarge: TextStyle(
             color: Config.textHead,
             fontWeight: Config.regular,
             height: 1.5,
           ),
-          // Teks Body Sekunder
           bodyMedium: TextStyle(
             color: Config.textSecondary,
             fontWeight: Config.regular,
           ),
-          // Teks untuk Tombol
           labelLarge: TextStyle(color: Config.white, fontWeight: Config.medium),
         ),
       ),
-
-      // Atur Tema AppBar
       appBarTheme: AppBarTheme(
         backgroundColor: Config.primary,
-        foregroundColor: Config.white, 
+        foregroundColor: Config.white,
         elevation: 0,
         titleTextStyle: GoogleFonts.albertSans(
           fontSize: 20,
@@ -87,8 +175,6 @@ class Config {
           color: Config.white,
         ),
       ),
-
-      // Atur Tema Tombol
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: Config.primary,

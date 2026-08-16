@@ -1,11 +1,8 @@
+import 'package:family_tree_app/components/image_picker_field.dart';
 import 'package:family_tree_app/components/ui.dart';
 import 'package:family_tree_app/config/config.dart';
-import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
-import 'package:family_tree_app/data/provider/family_edit_form_provider.dart';
-import 'package:family_tree_app/data/provider/image_picker_provider.dart';
-import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -20,404 +17,250 @@ class ProfileEditPage extends StatefulWidget {
 }
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
-  late final FamilyEditFormProvider _profileFormProvider;
-  late final ImagePickerProvider _imagePickerProvider;
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _namaController;
+  late TextEditingController _tahunLahirController;
+  late TextEditingController _alamatController;
+
+  XFile? _newProfilePhoto;
+  String? _currentPhotoUrl;
 
   @override
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().currentUser;
-    final currentPhotoUrl = Config.getAvatarUrl(
-      avatar: user?.avatar,
-      avatarUrl: user?.avatarUrl,
-    );
 
-    _profileFormProvider = FamilyEditFormProvider(
-      initialName: user?.fullName ?? '',
-      initialGender: user?.gender,
-      initialAddress: user?.address,
-      initialBirthYear: user?.birthYear,
+    _namaController = TextEditingController(text: user?.fullName ?? "");
+    _tahunLahirController = TextEditingController(
+      text: user?.birthYear?.toString() ?? "",
     );
-    _imagePickerProvider = ImagePickerProvider(
-      initialImagePath: currentPhotoUrl,
-      isNetworkImage: currentPhotoUrl != null,
-    );
+    _alamatController = TextEditingController(text: user?.address ?? "");
+
+    if (user?.avatar != null && user!.avatar is String) {
+      _currentPhotoUrl = Config.getFullImageUrl(user.avatar as String);
+    }
   }
 
   @override
   void dispose() {
-    _profileFormProvider.dispose();
-    _imagePickerProvider.dispose();
+    _namaController.dispose();
+    _tahunLahirController.dispose();
+    _alamatController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleUpdate() async {
-    if (!(_profileFormProvider.formKey.currentState?.validate() ?? false)) {
-      return;
-    }
+  void _handleUpdate() async {
+    if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthProvider>();
     final userProvider = context.read<UserProvider>();
     final currentUser = authProvider.currentUser;
-    if (currentUser == null) {
-      _showError('Data pengguna tidak tersedia. Silakan muat ulang.');
-      return;
-    }
+
+    if (currentUser == null) return;
+
+    final updatedData = UserData(
+      fullName: _namaController.text,
+      address: _alamatController.text,
+      birthYear: _tahunLahirController.text,
+      avatar: _newProfilePhoto,
+    );
 
     final result = await userProvider.updateProfile(
-      data: UserData(
-        fullName: _profileFormProvider.nameController.text.trim(),
-        gender: currentUser.gender ?? _profileFormProvider.gender,
-        address: _emptyToNull(_profileFormProvider.addressController.text),
-        birthYear: _emptyToNull(_profileFormProvider.birthYearController.text),
-        avatar: _imagePickerProvider.pickedFile,
-      ),
+      id: currentUser.userId.toString(),
+      data: updatedData,
     );
 
     if (!mounted) return;
-    if (result == null) {
-      _showError(userProvider.errorMessage ?? 'Gagal memperbarui profil.');
-      return;
+
+    // 3. Handle Hasil
+    if (result != null) {
+      authProvider.updateUser(result);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Profil berhasil diperbarui!"),
+          backgroundColor: Config.primary,
+        ),
+      );
+      context.pop();
+    } else {
+      // GAGAL
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userProvider.errorMessage ?? "Gagal update profil"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    authProvider.updateUser(result);
-    await context.read<TreeProvider>().refreshCurrentTree();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profil berhasil diperbarui.'),
-        backgroundColor: Config.primary,
-      ),
-    );
-    context.pop(true);
-  }
-
-  String? _emptyToNull(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isSubmitting = context.select<UserProvider, bool>(
-      (provider) => provider.isSubmitting,
+      (p) => p.isSubmitting,
     );
 
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ImagePickerProvider>.value(
-          value: _imagePickerProvider,
-        ),
-        ChangeNotifierProvider<FamilyEditFormProvider>.value(
-          value: _profileFormProvider,
-        ),
-      ],
-      child: Scaffold(
-        backgroundColor: Config.background,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF559260),
-          elevation: 0,
-          leading: CustomBackButton(
-            color: Config.white,
-            onPressed: () => context.pop(),
-          ),
-          title: const Text(
-            'Edit Profil',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          centerTitle: true,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Form(
-            key: _profileFormProvider.formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPhotoPickerRow(),
-                const SizedBox(height: 24),
-                _buildLabel('Nama Lengkap'),
-                _buildStyledCardInput(
-                  controller: _profileFormProvider.nameController,
-                  hintText: 'Nama Lengkap',
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Nama lengkap wajib diisi.'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                _buildLabel('Gender (opsional)'),
-                _buildGenderDropdown(),
-                const SizedBox(height: 16),
-                _buildLabel('Tahun Lahir (opsional)'),
-                _buildStyledCardInput(
-                  controller: _profileFormProvider.birthYearController,
-                  hintText: 'Contoh: 1990',
-                  keyboardType: TextInputType.number,
-                  validator: _validateOptionalYear,
-                ),
-                const SizedBox(height: 16),
-                _buildLabel('Alamat Tempat Tinggal (opsional)'),
-                _buildStyledCardInput(
-                  controller: _profileFormProvider.addressController,
-                  hintText: 'Masukkan alamat',
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: isSubmitting ? null : _handleUpdate,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Simpan Perubahan',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: CustomBackButton(onPressed: () => context.pop()),
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
+        centerTitle: true,
       ),
-    );
-  }
-
-  Widget _buildPhotoPickerRow() {
-    return Consumer<ImagePickerProvider>(
-      builder: (context, imageProvider, child) {
-        final bytes = imageProvider.pickedBytes;
-        final networkUrl = imageProvider.networkImageUrl;
-        final ImageProvider<Object>? avatarImage = bytes != null
-            ? MemoryImage(bytes)
-            : networkUrl != null && networkUrl.isNotEmpty
-            ? NetworkImage(networkUrl)
-            : null;
-
-        return Row(
-          children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey.shade300,
-                image: avatarImage == null
-                    ? null
-                    : DecorationImage(image: avatarImage, fit: BoxFit.cover),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: avatarImage == null
-                  ? Icon(Icons.person, size: 50, color: Colors.grey.shade500)
-                  : null,
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton(
-                    onPressed: () => _pickProfilePhoto(ImageSource.gallery),
-                    style: _photoButtonStyle(Config.primary),
-                    child: const Text(
-                      'Galeri',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => _pickProfilePhoto(ImageSource.camera),
-                    style: _photoButtonStyle(
-                      Config.primary.withValues(alpha: 0.65),
-                    ),
-                    child: const Text(
-                      'Kamera',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildGenderDropdown() {
-    return Consumer<FamilyEditFormProvider>(
-      builder: (context, formProvider, child) {
-        final gender = formProvider.gender;
-        final isGenderLocked = gender != null;
-        final genderOptions = isGenderLocked
-            ? <PersonGender>[gender]
-            : PersonGender.values;
-        return Container(
-          decoration: _cardDecoration(),
-          child: DropdownButtonFormField<String>(
-            key: ValueKey('profile-gender-${gender?.apiValue ?? 'empty'}'),
-            initialValue: gender?.apiValue ?? '',
-            isExpanded: true,
-            decoration:
-                const InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ).copyWith(
-                  helperText: isGenderLocked
-                      ? 'Gender sudah dipilih dan tidak dapat diubah.'
-                      : null,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: ImagePickerField(
+                  label: "Foto Profil",
+                  initialImagePath: _currentPhotoUrl,
+                  isNetworkImage: true,
+                  onImageSelected: (file) {
+                    setState(() {
+                      _newProfilePhoto = file;
+                    });
+                  },
                 ),
-            items: [
-              if (!isGenderLocked)
-                const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
-              ...genderOptions.map(
-                (option) => DropdownMenuItem(
-                  value: option.apiValue,
-                  child: Text(option.label),
+              ),
+              const SizedBox(height: 32),
+
+              _buildTextField(
+                controller: _namaController,
+                label: "Nama Lengkap",
+                hint: "Masukan nama lengkap",
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 16),
+
+              _buildTextField(
+                controller: _tahunLahirController,
+                label: "Tahun Lahir",
+                hint: "Contoh: 1990",
+                icon: Icons.calendar_today,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+
+              _buildTextField(
+                controller: _alamatController,
+                label: "Alamat Tempat Tinggal",
+                hint: "Masukan alamat lengkap",
+                icon: Icons.location_on_outlined,
+                minLines: 1,
+                maxLines: 6,
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : _handleUpdate,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Simpan Perubahan",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
             ],
-            onChanged: isGenderLocked
-                ? null
-                : (value) =>
-                      formProvider.selectGender(_genderFromApiValue(value)),
           ),
-        );
-      },
-    );
-  }
-
-  PersonGender? _genderFromApiValue(String? value) {
-    for (final gender in PersonGender.values) {
-      if (gender.apiValue == value) return gender;
-    }
-    return null;
-  }
-
-  Future<void> _pickProfilePhoto(ImageSource source) async {
-    try {
-      await _imagePickerProvider.pickImage(source);
-    } catch (_) {
-      if (mounted) _showError('Foto profil gagal dipilih. Silakan coba lagi.');
-    }
-  }
-
-  String? _validateOptionalYear(String? value) {
-    final text = value?.trim() ?? '';
-    if (text.isEmpty) return null;
-    final year = int.tryParse(text);
-    if (year == null || year < 1900 || year > DateTime.now().year) {
-      return 'Masukkan tahun yang benar.';
-    }
-    return null;
-  }
-
-  ButtonStyle _photoButtonStyle(Color backgroundColor) {
-    return ElevatedButton.styleFrom(
-      backgroundColor: backgroundColor,
-      foregroundColor: Colors.white,
-      elevation: 2,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: Config.textHead,
         ),
       ),
     );
   }
 
-  Widget _buildStyledCardInput({
+  Widget _buildTextField({
     required TextEditingController controller,
-    required String hintText,
+    required String label,
+    required String hint,
+    IconData? icon,
     int maxLines = 1,
+    int minLines = 1,
     TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
   }) {
-    return Container(
-      decoration: _cardDecoration(),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        validator: validator,
-        style: const TextStyle(fontSize: 14, color: Config.textHead),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+    final isMultiline = maxLines > 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Colors.black87,
           ),
         ),
-      ),
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Config.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          minLines: minLines,
+          keyboardType: isMultiline ? TextInputType.multiline : keyboardType,
+          textAlignVertical: isMultiline
+              ? TextAlignVertical.top
+              : TextAlignVertical.center,
+          validator: (v) =>
+              v == null || v.isEmpty ? '$label wajib diisi' : null,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: icon != null
+                ? Icon(icon, color: Colors.grey[600])
+                : null,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: isMultiline ? 16 : 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              borderSide: const BorderSide(
+                color: Color(0xFF4CAF50),
+                width: 1.5,
+              ),
+            ),
+          ),
         ),
       ],
     );

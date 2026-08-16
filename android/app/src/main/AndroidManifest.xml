@@ -1,12 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET" />
-
     <application
         android:label="family_tree_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
-        android:enableOnBackInvokedCallback="true"
-        android:usesCleartextTraffic="true">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"

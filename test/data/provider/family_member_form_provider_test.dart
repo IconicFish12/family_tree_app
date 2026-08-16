@@ -15,7 +15,7 @@ void main() {
   const actor = UserData(userId: 1, fullName: 'Anggota Utama');
 
   test(
-    'anak adopsi tanpa pernikahan tetap dapat dikirim saat pemuatan pernikahan gagal',
+    'toggle adopsi tetap membutuhkan pernikahan saat pemuatan gagal',
     () async {
       final repository = _FamilyFormRepository(
         marriagesResult: Left(Failure('Data pernikahan gagal dimuat.')),
@@ -31,15 +31,15 @@ void main() {
       expect(formProvider.isBiological, isTrue);
       expect(formProvider.canSubmit, isFalse);
 
-      formProvider.selectRelationshipType(ChildRelationshipType.adopted);
+      formProvider.setAdoptedMarriageLink(true);
 
-      expect(formProvider.usesMarriage, isFalse);
+      expect(formProvider.relationshipType, ChildRelationshipType.adopted);
       expect(formProvider.selectedMarriageId, isNull);
-      expect(formProvider.canSubmit, isTrue);
+      expect(formProvider.canSubmit, isFalse);
     },
   );
 
-  test('anak adopsi tidak memilih otomatis satu-satunya pernikahan', () async {
+  test('toggle adopsi mempertahankan pernikahan yang dipilih', () async {
     final repository = _FamilyFormRepository(
       marriagesResult: const Right([_FamilyFormRepository.marriage]),
     );
@@ -52,13 +52,10 @@ void main() {
 
     expect(formProvider.selectedMarriageId, 10);
 
-    formProvider.selectRelationshipType(ChildRelationshipType.adopted);
     formProvider.setAdoptedMarriageLink(true);
 
-    expect(formProvider.selectedMarriageId, isNull);
-    expect(formProvider.canSubmit, isFalse);
-
-    formProvider.selectMarriage(10);
+    expect(formProvider.relationshipType, ChildRelationshipType.adopted);
+    expect(formProvider.selectedMarriageId, 10);
     expect(formProvider.canSubmit, isTrue);
   });
 
@@ -131,7 +128,7 @@ void main() {
         final formProvider = FamilyMemberFormProvider();
 
         await formProvider.initialize(userProvider: userProvider, actor: actor);
-        formProvider.selectRelationshipType(ChildRelationshipType.adopted);
+        formProvider.setAdoptedMarriageLink(true);
 
         expect(formProvider.childCreationBlockingMessage, isNotEmpty);
         expect(formProvider.childDataInputsEnabled, isFalse);

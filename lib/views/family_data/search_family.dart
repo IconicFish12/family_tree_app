@@ -303,8 +303,9 @@ class _SearchFamilyPageState extends State<SearchFamilyPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MemberAvatar(
-                photoUrl: Config.getFullImageUrl(
-                  member.avatarUrl ?? member.avatar,
+                photoUrl: Config.getAvatarUrl(
+                  avatar: member.avatar,
+                  avatarUrl: member.avatarUrl,
                 ),
                 emoji: '👤',
                 size: 54,

@@ -17,6 +17,7 @@ import 'package:family_tree_app/views/family_data/forms/add_family_member.dart';
 import 'package:family_tree_app/views/home.dart';
 import 'package:family_tree_app/views/profile/profile.dart';
 import 'package:family_tree_app/views/profile/profile_edit.dart';
+import 'package:family_tree_app/views/profile/gender_onboarding.dart';
 import 'package:family_tree_app/views/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -94,13 +95,6 @@ class MainNavigationShell extends StatelessWidget {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('API_BASE_URL terbaca: "${AppEnvironment.apiBaseUrl}"');
-
-  debugPrint('API_STORAGE_URL terbaca: "${AppEnvironment.storageBaseUrl}"');
-
-  debugPrint(
-    'NETWORK_TIMEOUT terbaca: ${AppEnvironment.networkTimeoutSeconds}',
-  );
   runApp(MyApp());
 }
 
@@ -132,12 +126,19 @@ class MyApp extends StatelessWidget {
       final location = state.matchedLocation;
       final isAtSplash = location == '/';
       final isAtLogin = location == '/login';
+      final isAtGenderSetup = location == '/complete-gender';
 
       if (status == AuthStatus.initializing) {
         return isAtSplash ? null : '/';
       }
 
       if (_authProvider.isAuthenticated) {
+        if (_authProvider.currentUser?.gender == null && !isAtGenderSetup) {
+          return '/complete-gender';
+        }
+        if (_authProvider.currentUser?.gender != null && isAtGenderSetup) {
+          return '/home';
+        }
         if (isAtSplash || isAtLogin) {
           return '/home';
         }
@@ -248,6 +249,11 @@ class MyApp extends StatelessWidget {
         path: '/profile-edit',
         name: 'profileEdit',
         builder: (context, state) => const ProfileEditPage(),
+      ),
+      GoRoute(
+        path: '/complete-gender',
+        name: 'completeGender',
+        builder: (context, state) => const GenderOnboardingPage(),
       ),
     ],
   );

@@ -13,6 +13,8 @@ Future<bool?> showFamilyEditDialog({
   required UserData initialData,
   required int memberId,
   int? marriageId,
+  String? actorNit,
+  String? targetNit,
 }) {
   assert(mode == FamilyEditMode.member || marriageId != null);
 
@@ -31,6 +33,8 @@ Future<bool?> showFamilyEditDialog({
         memberId: memberId,
         marriageId: marriageId,
         nit: initialData.nit,
+        actorNit: actorNit,
+        targetNit: targetNit,
       ),
     ),
   );
@@ -43,12 +47,16 @@ class FamilyEditDialog extends StatelessWidget {
     required this.memberId,
     this.marriageId,
     this.nit,
+    this.actorNit,
+    this.targetNit,
   });
 
   final FamilyEditMode mode;
   final int memberId;
   final int? marriageId;
   final String? nit;
+  final String? actorNit;
+  final String? targetNit;
 
   bool get _isMember => mode == FamilyEditMode.member;
 
@@ -194,6 +202,8 @@ class FamilyEditDialog extends StatelessWidget {
             userProvider: userProvider,
             memberId: memberId,
             marriageId: marriageId!,
+            actorNit: actorNit,
+            targetNit: targetNit,
           );
 
     if (success && context.mounted) {

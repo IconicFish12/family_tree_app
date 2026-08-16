@@ -1,4 +1,5 @@
 import 'package:family_tree_app/config/config.dart';
+import 'package:family_tree_app/components/member_avatar.dart';
 import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/auth_provider.dart';
@@ -146,31 +147,22 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(UserData user) {
-    final avatarPath =
-        user.avatarUrl ??
-        (user.avatar is String ? user.avatar as String : null);
-    final photoUrl = Config.getFullImageUrl(avatarPath);
+    final photoUrl = Config.getAvatarUrl(
+      avatar: user.avatar,
+      avatarUrl: user.avatarUrl,
+    );
+    final cacheKey = user.updatedAt?.millisecondsSinceEpoch.toString();
 
     return Center(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey.shade300,
-              image: photoUrl == null
-                  ? null
-                  : DecorationImage(
-                      image: NetworkImage(photoUrl),
-                      fit: BoxFit.cover,
-                    ),
-            ),
-            child: photoUrl == null
-                ? Icon(Icons.person, size: 54, color: Colors.grey.shade500)
-                : null,
+          MemberAvatar(
+            photoUrl: photoUrl,
+            size: 100,
+            borderRadius: 50,
+            emoji: '👤',
+            cacheKey: cacheKey,
           ),
           const SizedBox(height: 12),
           Text(

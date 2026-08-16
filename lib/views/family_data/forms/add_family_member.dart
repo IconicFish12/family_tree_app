@@ -62,8 +62,8 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
             _formProvider.childCreationBlockingMessage ??
             _formProvider.marriageError ??
             (_formProvider.isBiological
-                ? 'Anak kandung wajib memilih pernikahan.'
-                : 'Lengkapi pilihan relasi anak terlebih dahulu.'),
+                ? 'Pilih pernikahan terkait untuk anak kandung.'
+                : 'Pilih pernikahan terkait untuk anak adopsi.'),
       );
       return;
     }
@@ -72,9 +72,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     final createdChild = await provider.addChild(
       parentId: parentId,
       relationshipType: _formProvider.relationshipType,
-      marriageId: _formProvider.usesMarriage
-          ? _formProvider.selectedMarriageId
-          : null,
+      marriageId: _formProvider.selectedMarriageId,
       childData: UserData(
         fullName: _nameController.text.trim(),
         gender: _formProvider.gender,
@@ -167,12 +165,8 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          _buildRelationshipTypeDropdown(formProvider),
+                          _buildAdoptedMarriageChoice(formProvider),
                           const SizedBox(height: 16),
-                          if (!formProvider.isBiological) ...[
-                            _buildAdoptedMarriageChoice(formProvider),
-                            const SizedBox(height: 16),
-                          ],
                           _buildMarriageContext(formProvider),
                           const SizedBox(height: 32),
                           _buildSystemNitInfo(),
@@ -247,7 +241,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Pilih jenis hubungan anak. Anak kandung wajib terkait dengan pernikahan, sedangkan anak adopsi dapat dicatat tanpa pernikahan.',
+              'Anak otomatis dikaitkan ke pernikahan yang dipilih. Aktifkan toggle untuk menandai anak sebagai anak adopsi.',
               style: TextStyle(height: 1.4),
             ),
           ),
@@ -283,42 +277,20 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     );
   }
 
-  Widget _buildRelationshipTypeDropdown(FamilyMemberFormProvider provider) {
-    return DropdownButtonFormField<ChildRelationshipType>(
-      key: ValueKey('relationship-${provider.relationshipType.apiValue}'),
-      initialValue: provider.relationshipType,
-      isExpanded: true,
-      decoration: _inputDecoration(
-        label: 'Jenis hubungan anak',
-        icon: Icons.account_tree_outlined,
-      ),
-      items: ChildRelationshipType.values
-          .map((type) => DropdownMenuItem(value: type, child: Text(type.label)))
-          .toList(),
-      onChanged: provider.childDataInputsEnabled
-          ? (value) {
-              if (value != null) provider.selectRelationshipType(value);
-            }
-          : null,
-    );
-  }
-
   Widget _buildAdoptedMarriageChoice(FamilyMemberFormProvider provider) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade400),
+        border: Border.all(color: Colors.black),
       ),
       child: SwitchListTile(
         value: provider.linkAdoptedToMarriage,
         onChanged: provider.childDataInputsEnabled
             ? provider.setAdoptedMarriageLink
             : null,
-        title: const Text('Gabungkan ke pernikahan tertentu'),
-        subtitle: const Text(
-          '(OPSIONAL) Pilih jika anda sudah mempunyai status pernikahan.',
-        ),
+        title: const Text('Anak adopsi'),
+        subtitle: const Text('Aktif = anak adopsi. Nonaktif = anak kandung.'),
         secondary: const Icon(Icons.link_outlined),
       ),
     );
@@ -342,7 +314,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
           onRetry: () => provider.retryMarriages(
             userProvider: context.read<UserProvider>(),
           ),
-          isBlocking: provider.usesMarriage,
+          isBlocking: true,
         );
       case MarriageLoadState.success:
         if (provider.childCreationBlockingMessage != null) {
@@ -350,16 +322,9 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
             provider.childCreationBlockingMessage!,
           );
         }
-        if (!provider.usesMarriage) {
-          return _buildInfoBox(
-            'Anak adopsi akan dicatat tanpa dikaitkan ke pernikahan.',
-          );
-        }
         if (provider.marriages.isEmpty) {
           return _buildErrorBox(
-            provider.isBiological
-                ? 'Anak kandung wajib terkait dengan pernikahan. Tambahkan pasangan terlebih dahulu.'
-                : 'Belum ada pernikahan yang dapat dipilih.',
+            'Pilih pernikahan terkait. Tambahkan pasangan terlebih dahulu jika belum ada.',
             onRetry: () => provider.retryMarriages(
               userProvider: context.read<UserProvider>(),
             ),

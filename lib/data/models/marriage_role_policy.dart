@@ -10,9 +10,12 @@ enum MarriageRolePolicyState {
 }
 
 class MarriageRolePolicy {
+  static const int maximumWives = 4;
+
+  final int _wifeCount;
   final MarriageRolePolicyState state;
 
-  const MarriageRolePolicy._(this.state);
+  const MarriageRolePolicy._(this.state, this._wifeCount);
 
   factory MarriageRolePolicy.fromMarriages(
     Iterable<FamilyTreeMarriage> marriages,
@@ -20,6 +23,7 @@ class MarriageRolePolicy {
     var hasInvalidMarriage = false;
     var hasHusbandRole = false;
     var hasWifeRole = false;
+    var wifeCount = 0;
 
     for (final marriage in marriages) {
       if (!_isValidClassification(marriage)) {
@@ -29,6 +33,7 @@ class MarriageRolePolicy {
 
       if (marriage.memberRole == MarriageRole.husband) {
         hasHusbandRole = true;
+        if (marriage.spouseRole == MarriageRole.wife) wifeCount++;
       } else {
         hasWifeRole = true;
       }
@@ -37,21 +42,34 @@ class MarriageRolePolicy {
     // A mixed set is a stronger signal than an additional legacy row: the
     // participant already has contradictory authoritative classifications.
     if (hasHusbandRole && hasWifeRole) {
-      return const MarriageRolePolicy._(MarriageRolePolicyState.conflicting);
+      return MarriageRolePolicy._(
+        MarriageRolePolicyState.conflicting,
+        wifeCount,
+      );
     }
     if (hasInvalidMarriage) {
-      return const MarriageRolePolicy._(
+      return MarriageRolePolicy._(
         MarriageRolePolicyState.legacyUnclassified,
+        wifeCount,
       );
     }
     if (hasHusbandRole) {
-      return const MarriageRolePolicy._(MarriageRolePolicyState.lockedHusband);
+      return MarriageRolePolicy._(
+        MarriageRolePolicyState.lockedHusband,
+        wifeCount,
+      );
     }
     if (hasWifeRole) {
-      return const MarriageRolePolicy._(MarriageRolePolicyState.lockedWife);
+      return MarriageRolePolicy._(
+        MarriageRolePolicyState.lockedWife,
+        wifeCount,
+      );
     }
-    return const MarriageRolePolicy._(MarriageRolePolicyState.unset);
+    return MarriageRolePolicy._(MarriageRolePolicyState.unset, wifeCount);
   }
+
+  int get wifeCount => _wifeCount;
+  bool get hasReachedWifeLimit => wifeCount >= maximumWives;
 
   MarriageRole? get lockedRole => switch (state) {
     MarriageRolePolicyState.lockedHusband => MarriageRole.husband,
@@ -63,7 +81,7 @@ class MarriageRolePolicy {
 
   bool get canCreateMarriage => switch (state) {
     MarriageRolePolicyState.unset ||
-    MarriageRolePolicyState.lockedHusband => true,
+    MarriageRolePolicyState.lockedHusband => !hasReachedWifeLimit,
     MarriageRolePolicyState.lockedWife ||
     MarriageRolePolicyState.legacyUnclassified ||
     MarriageRolePolicyState.conflicting => false,
@@ -88,8 +106,7 @@ class MarriageRolePolicy {
   };
 
   String get guidanceMessage => switch (state) {
-    MarriageRolePolicyState.unset =>
-      'Pilih status hubungan yang benar',
+    MarriageRolePolicyState.unset => 'Pilih status hubungan yang benar',
     MarriageRolePolicyState.lockedHusband =>
       'Peran anggota dikunci sebagai Suami berdasarkan riwayat pernikahan. Untuk mengganti peran, hapus anak terkait terlebih dahulu lalu hapus seluruh data pasangan.',
     MarriageRolePolicyState.lockedWife =>
@@ -101,7 +118,9 @@ class MarriageRolePolicy {
   };
 
   String? get blockingMessage => switch (state) {
-    MarriageRolePolicyState.unset ||
+    MarriageRolePolicyState.unset => null,
+    MarriageRolePolicyState.lockedHusband when hasReachedWifeLimit =>
+      'Anggota ini sudah memiliki 4 istri. Tambah pasangan dinonaktifkan; pasangan yang ada masih dapat diedit atau dihapus.',
     MarriageRolePolicyState.lockedHusband => null,
     MarriageRolePolicyState.lockedWife =>
       'Anggota berperan sebagai Istri dan tidak dapat menambah Suami lagi. Jika peran ini salah, hapus anak terkait terlebih dahulu lalu hapus seluruh data pasangan.',

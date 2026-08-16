@@ -27,13 +27,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().currentUser;
-    final avatar = user?.avatar;
-    final rawPhotoUrl = user?.avatarUrl?.trim().isNotEmpty == true
-        ? user!.avatarUrl
-        : avatar is String && avatar.trim().isNotEmpty
-        ? avatar
-        : null;
-    final currentPhotoUrl = Config.getFullImageUrl(rawPhotoUrl);
+    final currentPhotoUrl = Config.getAvatarUrl(
+      avatar: user?.avatar,
+      avatarUrl: user?.avatarUrl,
+    );
 
     _profileFormProvider = FamilyEditFormProvider(
       initialName: user?.fullName ?? '',
@@ -61,7 +58,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     final authProvider = context.read<AuthProvider>();
     final userProvider = context.read<UserProvider>();
-    if (authProvider.currentUser == null) {
+    final currentUser = authProvider.currentUser;
+    if (currentUser == null) {
       _showError('Data pengguna tidak tersedia. Silakan muat ulang.');
       return;
     }
@@ -69,7 +67,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final result = await userProvider.updateProfile(
       data: UserData(
         fullName: _profileFormProvider.nameController.text.trim(),
-        gender: _profileFormProvider.gender,
+        gender: currentUser.gender ?? _profileFormProvider.gender,
         address: _emptyToNull(_profileFormProvider.addressController.text),
         birthYear: _emptyToNull(_profileFormProvider.birthYearController.text),
         avatar: _imagePickerProvider.pickedFile,
@@ -292,30 +290,42 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     return Consumer<FamilyEditFormProvider>(
       builder: (context, formProvider, child) {
         final gender = formProvider.gender;
+        final isGenderLocked = gender != null;
+        final genderOptions = isGenderLocked
+            ? <PersonGender>[gender]
+            : PersonGender.values;
         return Container(
           decoration: _cardDecoration(),
           child: DropdownButtonFormField<String>(
             key: ValueKey('profile-gender-${gender?.apiValue ?? 'empty'}'),
             initialValue: gender?.apiValue ?? '',
             isExpanded: true,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-            ),
+            decoration:
+                const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ).copyWith(
+                  helperText: isGenderLocked
+                      ? 'Gender sudah dipilih dan tidak dapat diubah.'
+                      : null,
+                ),
             items: [
-              const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
-              ...PersonGender.values.map(
+              if (!isGenderLocked)
+                const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
+              ...genderOptions.map(
                 (option) => DropdownMenuItem(
                   value: option.apiValue,
                   child: Text(option.label),
                 ),
               ),
             ],
-            onChanged: (value) =>
-                formProvider.selectGender(_genderFromApiValue(value)),
+            onChanged: isGenderLocked
+                ? null
+                : (value) =>
+                      formProvider.selectGender(_genderFromApiValue(value)),
           ),
         );
       },

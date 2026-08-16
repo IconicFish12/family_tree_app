@@ -133,6 +133,37 @@ void main() {
 
       expect(policy.state, MarriageRolePolicyState.legacyUnclassified);
     });
+
+    test('suami dengan empat istri tidak dapat menambah pasangan lagi', () {
+      final policy = MarriageRolePolicy.fromMarriages([
+        _marriage(
+          id: 1,
+          memberRole: MarriageRole.husband,
+          spouseRole: MarriageRole.wife,
+        ),
+        _marriage(
+          id: 2,
+          memberRole: MarriageRole.husband,
+          spouseRole: MarriageRole.wife,
+        ),
+        _marriage(
+          id: 3,
+          memberRole: MarriageRole.husband,
+          spouseRole: MarriageRole.wife,
+        ),
+        _marriage(
+          id: 4,
+          memberRole: MarriageRole.husband,
+          spouseRole: MarriageRole.wife,
+        ),
+      ]);
+
+      expect(policy.wifeCount, 4);
+      expect(policy.hasReachedWifeLimit, isTrue);
+      expect(policy.canCreateMarriage, isFalse);
+      expect(policy.allowsRole(MarriageRole.husband), isFalse);
+      expect(policy.blockingMessage, contains('4 istri'));
+    });
   });
 }
 

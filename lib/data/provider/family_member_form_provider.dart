@@ -16,9 +16,8 @@ class FamilyMemberFormProvider extends ChangeNotifier {
   List<FamilyTreeMarriage> _marriages = const [];
   int? _selectedParentId;
   int? _selectedMarriageId;
-  ChildRelationshipType _relationshipType = ChildRelationshipType.biological;
   PersonGender? _gender;
-  bool _linkAdoptedToMarriage = false;
+  bool _isAdopted = false;
   MarriageLoadState _marriageLoadState = MarriageLoadState.initial;
   String? _marriageError;
   String? _contextError;
@@ -30,9 +29,11 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       UnmodifiableListView(_marriages);
   int? get selectedParentId => _selectedParentId;
   int? get selectedMarriageId => _selectedMarriageId;
-  ChildRelationshipType get relationshipType => _relationshipType;
+  ChildRelationshipType get relationshipType => _isAdopted
+      ? ChildRelationshipType.adopted
+      : ChildRelationshipType.biological;
   PersonGender? get gender => _gender;
-  bool get linkAdoptedToMarriage => _linkAdoptedToMarriage;
+  bool get linkAdoptedToMarriage => _isAdopted;
   MarriageLoadState get marriageLoadState => _marriageLoadState;
   String? get marriageError => _marriageError;
   String? get contextError => _contextError;
@@ -50,13 +51,7 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       (_marriageLoadState == MarriageLoadState.success &&
           (marriageRolePolicy?.canAddChild ?? false));
 
-  bool get isBiological =>
-      _relationshipType == ChildRelationshipType.biological;
-
-  bool get usesMarriage => isBiological || _linkAdoptedToMarriage;
-
-  bool get hasNoMarriage =>
-      _marriageLoadState == MarriageLoadState.success && _marriages.isEmpty;
+  bool get isBiological => !_isAdopted;
 
   bool get canSubmit {
     if (_isLoadingContext || _selectedParentId == null) return false;
@@ -65,7 +60,6 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       return false;
     }
     if (marriageRolePolicy?.canAddChild == false) return false;
-    if (!usesMarriage) return true;
     return _marriageLoadState == MarriageLoadState.success &&
         _selectedMarriageId != null;
   }
@@ -196,7 +190,7 @@ class FamilyMemberFormProvider extends ChangeNotifier {
     _marriages = marriages;
     _marriageLoadState = MarriageLoadState.success;
     _marriageError = null;
-    if (isBiological && _marriages.length == 1) {
+    if (_marriages.length == 1) {
       _selectedMarriageId = _marriages.first.marriageId;
     } else {
       _selectedMarriageId = null;
@@ -204,21 +198,9 @@ class FamilyMemberFormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void selectRelationshipType(ChildRelationshipType type) {
-    if (_relationshipType == type) return;
-    _relationshipType = type;
-    _selectedMarriageId = null;
-    _linkAdoptedToMarriage = false;
-    if (isBiological && _marriages.length == 1) {
-      _selectedMarriageId = _marriages.first.marriageId;
-    }
-    notifyListeners();
-  }
-
   void setAdoptedMarriageLink(bool linkToMarriage) {
-    if (_linkAdoptedToMarriage == linkToMarriage) return;
-    _linkAdoptedToMarriage = linkToMarriage;
-    _selectedMarriageId = null;
+    if (_isAdopted == linkToMarriage) return;
+    _isAdopted = linkToMarriage;
     notifyListeners();
   }
 

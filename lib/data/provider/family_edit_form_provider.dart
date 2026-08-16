@@ -74,12 +74,16 @@ class FamilyEditFormProvider extends ChangeNotifier {
     required UserProvider userProvider,
     required int memberId,
     required int marriageId,
+    String? actorNit,
+    String? targetNit,
   }) {
     return _submit(
       action: () => userProvider.updateMarriage(
         marriageId: marriageId,
         memberId: memberId,
         spouseData: _formData,
+        actorNit: actorNit,
+        targetNit: targetNit,
       ),
       fallbackError: 'Data pasangan gagal diubah.',
       userProvider: userProvider,

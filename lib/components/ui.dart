@@ -23,8 +23,8 @@ class CustomBackButton extends StatelessWidget {
         Icons.arrow_back,
         size: size,
         color: canPop
-            ? (color ?? Colors.white)
-            : Config.textSecondary.withValues(alpha: 0.5),
+            ? (color ?? Config.textHead)
+            : Config.textSecondary.withOpacity(0.5),
       ),
       onPressed: canPop
           ? (onPressed ?? () => Navigator.of(context).pop())

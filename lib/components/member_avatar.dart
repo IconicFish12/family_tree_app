@@ -8,10 +8,6 @@ class MemberAvatar extends StatelessWidget {
   final double? borderRadius;
   final bool isAsset;
 
-  /// Optional cache key to force image refresh (e.g. updatedAt timestamp).
-  /// When this value changes, Flutter will bypass its image cache.
-  final String? cacheKey;
-
   const MemberAvatar({
     super.key,
     this.photoUrl,
@@ -19,15 +15,7 @@ class MemberAvatar extends StatelessWidget {
     this.size = 50,
     this.borderRadius,
     this.isAsset = false,
-    this.cacheKey,
   });
-
-  /// Appends a cache-busting query parameter to the URL when [cacheKey] is set.
-  String _resolvedUrl(String url) {
-    if (cacheKey == null || cacheKey!.isEmpty) return url;
-    final separator = url.contains('?') ? '&' : '?';
-    return '$url${separator}v=$cacheKey';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +45,7 @@ class MemberAvatar extends StatelessWidget {
                       },
                     )
                   : Image.network(
-                      _resolvedUrl(photoUrl!),
+                      photoUrl!,
                       fit: BoxFit.cover,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;

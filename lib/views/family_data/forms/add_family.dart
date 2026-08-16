@@ -55,13 +55,19 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
   Future<void> _saveFamily() async {
     final memberId = _formProvider.selectedMemberId;
     final memberRole = _formProvider.memberRole;
-    if (memberId == null || memberRole == null || !_formProvider.canSubmit) {
+    final spouseGender = _formProvider.spouseGender;
+    if (memberId == null ||
+        memberRole == null ||
+        spouseGender == null ||
+        !_formProvider.canSubmit) {
       _showError(
         _formProvider.blockingMessage ??
             _formProvider.roleCompatibilityError ??
             (memberId == null
                 ? 'Pilih anggota keluarga terlebih dahulu.'
-                : 'Pilih peran anggota dalam pernikahan.'),
+                : memberRole == null
+                ? 'Pilih peran anggota dalam pernikahan.'
+                : 'Jenis kelamin pasangan belum dapat ditentukan.'),
       );
       return;
     }
@@ -75,7 +81,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
       targetNit: _formProvider.selectedMember?.nit,
       spouseData: UserData(
         fullName: _spouseNameController.text.trim(),
-        gender: _formProvider.spouseGender,
+        gender: spouseGender,
         address: _emptyToNull(_locationController.text),
         birthYear: _emptyToNull(_birthYearController.text),
       ),
@@ -225,7 +231,7 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
                             enabled: formProvider.spouseInputsEnabled,
                           ),
                           const SizedBox(height: 16),
-                          _buildGenderDropdown(formProvider),
+                          _buildAutomaticGenderField(formProvider),
                           if (formProvider.roleCompatibilityError != null) ...[
                             const SizedBox(height: 12),
                             _buildCompatibilityWarning(
@@ -349,37 +355,34 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     );
   }
 
-  Widget _buildGenderDropdown(MarriageFormProvider provider) {
-    return DropdownButtonFormField<String>(
-      key: ValueKey(
-        'spouse-gender-${provider.spouseGender?.apiValue ?? 'empty'}',
-      ),
-      initialValue: provider.spouseGender?.apiValue ?? '',
+  Widget _buildAutomaticGenderField(MarriageFormProvider provider) {
+    final spouseGender = provider.spouseGender;
+    return DropdownButtonFormField<PersonGender>(
+      key: ValueKey('spouse-gender-${spouseGender?.apiValue ?? 'empty'}'),
+      initialValue: spouseGender,
       isExpanded: true,
-      decoration: _inputDecoration(
-        label: 'Jenis kelamin pasangan (opsional)',
-        icon: Icons.wc_outlined,
-      ),
-      items: [
-        const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
-        ...PersonGender.values.map(
-          (gender) => DropdownMenuItem(
-            value: gender.apiValue,
-            child: Text(gender.label),
+      decoration:
+          _inputDecoration(
+            label: 'Jenis kelamin pasangan',
+            icon: Icons.wc_outlined,
+          ).copyWith(
+            helperText: spouseGender == null
+                ? 'Ditentukan otomatis setelah status hubungan dipilih.'
+                : 'Otomatis terisi dari status hubungan anggota.',
+            helperMaxLines: 2,
           ),
-        ),
-      ],
-      onChanged: provider.spouseInputsEnabled
-          ? (value) => provider.selectSpouseGender(_genderFromApiValue(value))
+      hint: const Text('Ditentukan otomatis'),
+      items: PersonGender.values
+          .map(
+            (gender) =>
+                DropdownMenuItem(value: gender, child: Text(gender.label)),
+          )
+          .toList(),
+      onChanged: null,
+      validator: (value) => value == null
+          ? 'Jenis kelamin pasangan belum dapat ditentukan.'
           : null,
     );
-  }
-
-  PersonGender? _genderFromApiValue(String? value) {
-    for (final gender in PersonGender.values) {
-      if (gender.apiValue == value) return gender;
-    }
-    return null;
   }
 
   Widget _buildMemberDetailWarning(

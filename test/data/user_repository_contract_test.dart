@@ -102,6 +102,7 @@ void main() {
           'family_tree_id': '1.a.5',
           'level': 2,
           'full_name': 'Anak Adopsi',
+          'gender': 'female',
         },
       };
       adapter.statusCode = 201;
@@ -109,13 +110,16 @@ void main() {
       await UserRepositoryImpl().createChild(
         memberId: '7',
         relationshipType: ChildRelationshipType.adopted,
-        childData: const UserData(fullName: 'Anak Adopsi'),
+        childData: const UserData(
+          fullName: 'Anak Adopsi',
+          gender: PersonGender.female,
+        ),
       );
 
       expect(adapter.request?.data, {
         'relationship_type': 'adopted',
         'full_name': 'Anak Adopsi',
-        'gender': null,
+        'gender': 'female',
         'address': null,
         'birth_year': null,
       });
@@ -141,6 +145,7 @@ void main() {
         'family_tree_id': '1.2.3',
         'level': 2,
         'full_name': 'Anak Adopsi Pasangan',
+        'gender': 'male',
       },
     };
     adapter.statusCode = 201;
@@ -149,14 +154,17 @@ void main() {
       memberId: '7',
       relationshipType: ChildRelationshipType.adopted,
       marriageId: 12,
-      childData: const UserData(fullName: 'Anak Adopsi Pasangan'),
+      childData: const UserData(
+        fullName: 'Anak Adopsi Pasangan',
+        gender: PersonGender.male,
+      ),
     );
 
     expect(adapter.request?.data, {
       'relationship_type': 'adopted',
       'marriage_id': 12,
       'full_name': 'Anak Adopsi Pasangan',
-      'gender': null,
+      'gender': 'male',
       'address': null,
       'birth_year': null,
     });
@@ -176,8 +184,22 @@ void main() {
     );
   });
 
+  test('create child tanpa gender gagal sebelum request', () async {
+    final result = await UserRepositoryImpl().createChild(
+      memberId: '7',
+      relationshipType: ChildRelationshipType.adopted,
+      childData: const UserData(fullName: 'Anak Baru'),
+    );
+
+    expect(adapter.request, isNull);
+    expect(
+      result.fold((failure) => failure.message, (_) => null),
+      'Jenis kelamin anak wajib dipilih.',
+    );
+  });
+
   test(
-    'create marriage mengirim member_role tanpa field milik backend',
+    'create marriage otomatis mengirim gender spouse dari member_role',
     () async {
       adapter.responseJson = {
         'data': {
@@ -207,7 +229,6 @@ void main() {
         memberRole: MarriageRole.husband,
         spouseData: const UserData(
           fullName: 'Pasangan Baru',
-          gender: PersonGender.female,
           nit: 'tidak-boleh-dikirim',
           familyTreeId: 'tidak-boleh-dikirim',
           level: 99,
@@ -234,6 +255,44 @@ void main() {
       expect(marriage?.familyHeadPosition, FamilyHeadPosition.member);
     },
   );
+
+  test('create marriage sebagai wife otomatis mengirim gender male', () async {
+    adapter.responseJson = {
+      'data': {
+        'marriage_id': 31,
+        'member_id': 7,
+        'marriage_order': 1,
+        'member_role': 'wife',
+        'spouse_role': 'husband',
+        'is_role_classified': true,
+        'spouse': {
+          'user_id': 9,
+          'family_tree_id': '1.0.1',
+          'level': 1,
+          'full_name': 'Pasangan Baru',
+          'gender': 'male',
+        },
+        'children': <dynamic>[],
+      },
+    };
+    adapter.statusCode = 201;
+
+    await UserRepositoryImpl().createMarriage(
+      memberId: '7',
+      memberRole: MarriageRole.wife,
+      spouseData: const UserData(fullName: 'Pasangan Baru'),
+    );
+
+    expect(adapter.request?.data, {
+      'member_role': 'wife',
+      'spouse': {
+        'full_name': 'Pasangan Baru',
+        'gender': 'male',
+        'address': null,
+        'birth_year': null,
+      },
+    });
+  });
 
   test('update member hanya mengirim fakta person termasuk null', () async {
     adapter.responseJson = {

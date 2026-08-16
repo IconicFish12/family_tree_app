@@ -341,7 +341,7 @@ class UserRepositoryImpl implements UserRepository {
           'member_role': memberRole.apiValue,
           'spouse': {
             'full_name': spouseData.fullName?.trim(),
-            'gender': spouseData.gender?.apiValue,
+            'gender': memberRole.requiredSpouseGender.apiValue,
             'address': _nullableTrim(spouseData.address),
             'birth_year': _nullableTrim(spouseData.birthYear),
           },
@@ -422,13 +422,16 @@ class UserRepositoryImpl implements UserRepository {
         marriageId == null) {
       return Left(Failure('Anak kandung wajib memilih pernikahan.'));
     }
+    if (childData.gender == null) {
+      return Left(Failure('Jenis kelamin anak wajib dipilih.'));
+    }
 
     try {
       final payload = <String, dynamic>{
         'relationship_type': relationshipType.apiValue,
         if (marriageId != null) 'marriage_id': marriageId,
         'full_name': childData.fullName?.trim(),
-        'gender': childData.gender?.apiValue,
+        'gender': childData.gender!.apiValue,
         'address': _nullableTrim(childData.address),
         'birth_year': _nullableTrim(childData.birthYear),
       };

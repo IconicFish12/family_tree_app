@@ -19,4 +19,17 @@ void main() {
     expect(canManageNit(actorNit: null, targetNit: '1'), isFalse);
     expect(canManageNit(actorNit: '1..1', targetNit: '1.1'), isFalse);
   });
+
+  test('orang tua anak dibatasi sampai dua tingkat keturunan', () {
+    expect(canAddChildForNit(actorNit: '1.7', parentNit: '1.7'), isTrue);
+    expect(canAddChildForNit(actorNit: '1.7', parentNit: '1.7.1'), isTrue);
+    expect(canAddChildForNit(actorNit: '1.7', parentNit: '1.7.1.1'), isTrue);
+    expect(canAddChildForNit(actorNit: '1.7', parentNit: '1.7.1.1.1'), isFalse);
+  });
+
+  test('leluhur dan cabang lain tidak dapat menjadi orang tua anak', () {
+    expect(canAddChildForNit(actorNit: '1.7', parentNit: '1'), isFalse);
+    expect(canAddChildForNit(actorNit: '1.7', parentNit: '1.8'), isFalse);
+    expect(canAddChildForNit(actorNit: null, parentNit: '1.7'), isFalse);
+  });
 }

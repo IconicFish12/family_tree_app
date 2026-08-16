@@ -10,6 +10,20 @@ bool canManageNit({required String? actorNit, required String? targetNit}) {
   return isSelf || isDirectChild;
 }
 
+bool canAddChildForNit({
+  required String? actorNit,
+  required String? parentNit,
+}) {
+  final actorParts = _parts(actorNit);
+  final parentParts = _parts(parentNit);
+  if (actorParts == null || parentParts == null) return false;
+
+  final descendantDepth = parentParts.length - actorParts.length;
+  return descendantDepth >= 0 &&
+      descendantDepth <= 2 &&
+      _hasPrefix(parentParts, actorParts);
+}
+
 List<String>? _parts(String? nit) {
   final value = nit?.trim() ?? '';
   if (value.isEmpty) return null;

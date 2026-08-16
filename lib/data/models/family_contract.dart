@@ -24,6 +24,11 @@ extension MarriageRoleContract on MarriageRole {
     MarriageRole.husband => 'Suami',
     MarriageRole.wife => 'Istri',
   };
+
+  PersonGender get requiredSpouseGender => switch (this) {
+    MarriageRole.husband => PersonGender.female,
+    MarriageRole.wife => PersonGender.male,
+  };
 }
 
 enum ChildRelationshipType { biological, adopted }

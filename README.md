@@ -27,8 +27,11 @@ Repository ini hanya berisi frontend. Backend Laravel, dokumentasi API, Postman 
   bias.
 - Tambah anak kandung yang wajib terkait pernikahan.
 - Tambah anak adopsi dengan atau tanpa kaitan ke pernikahan.
+- Gender anak baru wajib dipilih: laki-laki atau perempuan.
+- Kandidat orang tua dibatasi pada pengguna, anak, dan cucunya.
 - NIT anak, `family_tree_id`, level, dan urutan relasi dibuat oleh backend.
-- Gender person nullable: laki-laki, perempuan, atau belum diisi.
+- Gender person lama dapat tetap nullable; gender pasangan baru wajib dan
+  ditentukan otomatis dari `member_role`.
 - Pernikahan legacy tetap terbaca tanpa menebak role.
 - Metadata kepala keluarga ditampilkan berdasarkan participant marriage yang ditunjuk backend.
 - Pohon keluarga rekursif untuk `marriages[].children` dan `adopted_children`.
@@ -80,13 +83,15 @@ Payload create child hanya berisi fakta yang diizinkan:
   "relationship_type": "biological",
   "marriage_id": 10,
   "full_name": "Nama Anak",
-  "gender": null,
+  "gender": "male",
   "address": null,
   "birth_year": null
 }
 ```
 
 Untuk adopsi personal, `marriage_id` tidak dikirim. Response backend menentukan NIT, `family_tree_id`, `relation_id`, `lineage_order`, dan `child_order` final.
+Gender wajib dikirim untuk setiap anak baru. Dropdown orang tua hanya menampilkan
+pengguna yang login dan keturunannya sampai dua tingkat di bawah berdasarkan NIT.
 
 ### Pernikahan
 
@@ -105,7 +110,7 @@ Payload create marriage:
   "member_role": "husband",
   "spouse": {
     "full_name": "Nama Pasangan",
-    "gender": null,
+    "gender": "female",
     "address": null,
     "birth_year": null
   }
@@ -113,6 +118,10 @@ Payload create marriage:
 ```
 
 Frontend tidak mengirim `spouse_role`, `spouse_id`, `marriage_order`, structural ID, ataupun metadata kepala keluarga.
+Untuk create pasangan baru, gender tidak dipilih manual: `member_role: husband`
+selalu mengirim gender spouse `female`, sedangkan `member_role: wife` selalu
+mengirim gender spouse `male`. Data lama dengan gender `null` tetap dibaca tanpa
+dipaksa berubah.
 
 #### Kebijakan konsistensi role
 

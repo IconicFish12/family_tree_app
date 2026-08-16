@@ -10,6 +10,7 @@ import 'package:family_tree_app/data/provider/auth_provider.dart';
 import 'package:family_tree_app/data/provider/member_detail_provider.dart';
 import 'package:family_tree_app/data/provider/tree_provider.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:family_tree_app/core/nit_hierarchy.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -109,7 +110,9 @@ class _MemberInfoPageState extends State<MemberInfoPage> {
     final member = detail.member!;
     final actor = context.watch<AuthProvider?>()?.currentUser;
     final isSelf = actor?.userId == member.userId;
-    final canManage = member.userId != null;
+    final canManage =
+        actor == null ||
+        canManageNit(actorNit: actor.nit, targetNit: member.nit);
     final canDelete = member.userId != null && !isSelf;
 
     return RefreshIndicator(
@@ -143,10 +146,10 @@ class _MemberInfoPageState extends State<MemberInfoPage> {
   }
 
   Widget _buildProfileHeader(UserData member) {
-    final avatarPath =
-        member.avatarUrl ??
-        (member.avatar is String ? member.avatar as String : null);
-    final avatar = Config.getFullImageUrl(avatarPath);
+    final avatar = Config.getAvatarUrl(
+      avatar: member.avatar,
+      avatarUrl: member.avatarUrl,
+    );
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -751,8 +754,9 @@ class _MemberInfoPageState extends State<MemberInfoPage> {
               Row(
                 children: [
                   MemberAvatar(
-                    photoUrl: Config.getFullImageUrl(
-                      child.avatarUrl ?? child.avatar,
+                    photoUrl: Config.getAvatarUrl(
+                      avatar: child.avatar,
+                      avatarUrl: child.avatarUrl,
                     ),
                     size: 48,
                   ),
@@ -927,6 +931,8 @@ class _MemberInfoPageState extends State<MemberInfoPage> {
       ),
       memberId: member.userId!,
       marriageId: marriage.marriageId,
+      actorNit: context.read<AuthProvider?>()?.currentUser?.nit,
+      targetNit: member.nit,
     );
     if (changed == true && mounted) {
       await context.read<TreeProvider>().refreshCurrentTree();
@@ -954,6 +960,8 @@ class _MemberInfoPageState extends State<MemberInfoPage> {
     final success = await provider.deleteMarriage(
       marriageId: marriage.marriageId,
       memberId: member.userId!,
+      actorNit: context.read<AuthProvider?>()?.currentUser?.nit,
+      targetNit: member.nit,
     );
     if (!mounted) return;
     if (!success) {

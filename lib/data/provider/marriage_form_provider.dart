@@ -5,6 +5,7 @@ import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/marriage_role_policy.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/provider/user_provider.dart';
+import 'package:family_tree_app/core/nit_hierarchy.dart';
 import 'package:flutter/foundation.dart';
 
 class MarriageFormProvider extends ChangeNotifier {
@@ -135,16 +136,16 @@ class MarriageFormProvider extends ChangeNotifier {
     _availableMembers =
         userProvider.directoryMembers
             .where((member) => member.userId != null)
+            .where(
+              (member) =>
+                  canManageNit(actorNit: actor.nit, targetNit: member.nit),
+            )
             .toList()
           ..sort((a, b) => a.nit.compareTo(b.nit));
 
     if (initialMemberId != null &&
         !_availableMembers.any((member) => member.userId == initialMemberId)) {
-      final target = await userProvider.fetchMemberById(initialMemberId);
-      if (!_isCurrent(epoch)) return;
-      if (target?.userId != null) {
-        _availableMembers.add(_fromUserData(target!));
-      }
+      _errorMessage = 'Anggota tersebut berada di luar tingkat akses Anda.';
     }
 
     if (_availableMembers.isEmpty) {
@@ -283,21 +284,6 @@ class MarriageFormProvider extends ChangeNotifier {
 
   void _notifyIfMounted() {
     if (!_isDisposed) notifyListeners();
-  }
-
-  FamilyDirectoryMember _fromUserData(UserData data) {
-    return FamilyDirectoryMember(
-      userId: data.userId,
-      familyTreeId: data.familyTreeId ?? '',
-      nit: data.nit ?? '',
-      level: data.level ?? 0,
-      fullName: data.fullName ?? 'Tanpa Nama',
-      gender: data.gender,
-      address: data.address,
-      birthYear: data.birthYear,
-      avatar: data.avatar is String ? data.avatar as String : null,
-      avatarUrl: data.avatarUrl,
-    );
   }
 
   @override

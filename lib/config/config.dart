@@ -116,6 +116,23 @@ class Config {
     return '$storageBase$relative';
   }
 
+  static String? getAvatarUrl({Object? avatar, String? avatarUrl}) {
+    final candidates = <Object?>[
+      avatarUrl,
+      avatar is Map ? avatar['url'] : null,
+      avatar is Map ? avatar['path'] : null,
+      avatar is Map ? avatar['original_url'] : null,
+      avatar,
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate is! String || candidate.trim().isEmpty) continue;
+      final resolved = getFullImageUrl(candidate);
+      if (resolved != null) return resolved;
+    }
+    return null;
+  }
+
   ThemeData get lightTheme {
     return ThemeData(
       primaryColor: Config.primary,

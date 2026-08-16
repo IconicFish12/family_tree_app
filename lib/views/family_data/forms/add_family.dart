@@ -71,6 +71,8 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
     final createdMarriage = await userProvider.addSpouse(
       memberId: memberId,
       memberRole: memberRole,
+      actorNit: context.read<AuthProvider>().currentUser?.nit,
+      targetNit: _formProvider.selectedMember?.nit,
       spouseData: UserData(
         fullName: _spouseNameController.text.trim(),
         gender: _formProvider.spouseGender,

@@ -6,6 +6,7 @@ import 'package:family_tree_app/data/models/helper_member.dart';
 import 'package:family_tree_app/data/models/marriage_role_policy.dart';
 import 'package:family_tree_app/data/models/user_data.dart';
 import 'package:family_tree_app/data/repository/user_repository.dart';
+import 'package:family_tree_app/core/nit_hierarchy.dart';
 import 'package:flutter/material.dart';
 
 enum ViewState { initial, loading, success, error }
@@ -210,7 +211,19 @@ class UserProvider extends ChangeNotifier {
     required UserData spouseData,
     required int memberId,
     required MarriageRole memberRole,
+    String? actorNit,
+    String? targetNit,
   }) async {
+    if (actorNit != null &&
+        !canManageNit(
+          targetNit: targetNit ?? _nitForMember(memberId),
+          actorNit: actorNit,
+        )) {
+      _errorMessage =
+          'Anda hanya dapat mengelola pasangan diri sendiri dan anak langsung.';
+      notifyListeners();
+      return null;
+    }
     if (!_tryStartSubmitting()) return null;
     try {
       List<FamilyTreeMarriage>? marriages;
@@ -361,7 +374,19 @@ class UserProvider extends ChangeNotifier {
     required int marriageId,
     required int memberId,
     required UserData spouseData,
+    String? actorNit,
+    String? targetNit,
   }) async {
+    if (actorNit != null &&
+        !canManageNit(
+          targetNit: targetNit ?? _nitForMember(memberId),
+          actorNit: actorNit,
+        )) {
+      _errorMessage =
+          'Anda hanya dapat mengelola pasangan diri sendiri dan anak langsung.';
+      notifyListeners();
+      return false;
+    }
     _setSubmitting(true);
     final result = await _repository.updateMarriage(
       marriageId: marriageId.toString(),
@@ -401,7 +426,19 @@ class UserProvider extends ChangeNotifier {
   Future<bool> deleteMarriage({
     required int marriageId,
     required int memberId,
+    String? actorNit,
+    String? targetNit,
   }) async {
+    if (actorNit != null &&
+        !canManageNit(
+          targetNit: targetNit ?? _nitForMember(memberId),
+          actorNit: actorNit,
+        )) {
+      _errorMessage =
+          'Anda hanya dapat mengelola pasangan diri sendiri dan anak langsung.';
+      notifyListeners();
+      return false;
+    }
     _setSubmitting(true);
     final result = await _repository.deleteMarriage(marriageId.toString());
     return result.fold(
@@ -470,6 +507,16 @@ class UserProvider extends ChangeNotifier {
   void _clearMarriageCache() {
     _marriagesByMember.clear();
     _marriageErrors.clear();
+  }
+
+  String? _nitForMember(int memberId) {
+    for (final member in _directoryMembers) {
+      if (member.userId == memberId) return member.nit;
+    }
+    for (final member in _rawAllUsers) {
+      if (member.userId == memberId) return member.nit;
+    }
+    return null;
   }
 
   void _applyDirectoryResponse(FamilyDirectoryResponse response) {

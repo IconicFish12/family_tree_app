@@ -295,7 +295,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
             borderRadius: BorderRadius.circular(10),
           ),
           child: MemberAvatar(
-            photoUrl: Config.getFullImageUrl(photoUrl),
+            photoUrl: Config.getAvatarUrl(avatar: photoUrl),
             emoji: emoji.isNotEmpty ? emoji : 'Anggota',
             size: 44,
             borderRadius: 8,

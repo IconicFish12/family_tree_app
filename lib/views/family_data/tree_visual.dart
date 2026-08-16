@@ -369,8 +369,9 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                       if (node.address != null && node.address!.isNotEmpty)
                         node.address!,
                     ],
-                    avatarUrl: Config.getFullImageUrl(
-                      node.avatarUrl ?? node.avatar,
+                    avatarUrl: Config.getAvatarUrl(
+                      avatar: node.avatar,
+                      avatarUrl: node.avatarUrl,
                     ),
                     footer: _buildMemberFooter(provider, node, nodeData),
                     role: nodeData.isCurrentRoot
@@ -402,8 +403,9 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
                             marriage.spouse!.address!.isNotEmpty)
                           marriage.spouse!.address!,
                       ],
-                      avatarUrl: Config.getFullImageUrl(
-                        marriage.spouse?.avatarUrl ?? marriage.spouse?.avatar,
+                      avatarUrl: Config.getAvatarUrl(
+                        avatar: marriage.spouse?.avatar,
+                        avatarUrl: marriage.spouse?.avatarUrl,
                       ),
                       footer: Container(),
                       role: _PersonCardRole.spouse,
@@ -475,9 +477,7 @@ class _TreeVisualPageState extends State<TreeVisualPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                childCount == 1
-                    ? 'berisi 1 anak'
-                    : 'berisi $childCount anak',
+                childCount == 1 ? 'berisi 1 anak' : 'berisi $childCount anak',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 11.5,

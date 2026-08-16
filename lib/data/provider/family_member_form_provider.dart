@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:family_tree_app/core/nit_hierarchy.dart';
 import 'package:family_tree_app/data/models/family_contract.dart';
 import 'package:family_tree_app/data/models/family_directory.dart';
 import 'package:family_tree_app/data/models/family_tree_node.dart';
@@ -54,7 +55,9 @@ class FamilyMemberFormProvider extends ChangeNotifier {
   bool get isBiological => !_isAdopted;
 
   bool get canSubmit {
-    if (_isLoadingContext || _selectedParentId == null) return false;
+    if (_isLoadingContext || _selectedParentId == null || _gender == null) {
+      return false;
+    }
     if (_marriageLoadState == MarriageLoadState.initial ||
         _marriageLoadState == MarriageLoadState.loading) {
       return false;
@@ -102,20 +105,29 @@ class FamilyMemberFormProvider extends ChangeNotifier {
     _availableParents =
         userProvider.directoryMembers
             .where((member) => member.userId != null)
+            .where(
+              (member) =>
+                  canAddChildForNit(actorNit: actor.nit, parentNit: member.nit),
+            )
             .toList()
           ..sort((a, b) => a.nit.compareTo(b.nit));
 
     if (initialParentId != null &&
         !_availableParents.any((member) => member.userId == initialParentId)) {
       final target = await userProvider.fetchMemberById(initialParentId);
-      if (target?.userId != null) {
+      if (target?.userId != null &&
+          canAddChildForNit(actorNit: actor.nit, parentNit: target?.nit)) {
         _availableParents.add(_fromUserData(target!));
+      } else if (target != null) {
+        _contextError =
+            'Anggota tersebut berada di luar batas dua tingkat keturunan Anda.';
       }
     }
 
     if (_availableParents.isEmpty) {
-      _contextError =
-          'Data anggota yang dapat dipilih belum tersedia. Silakan muat ulang.';
+      _contextError = actor.nit?.trim().isEmpty != false
+          ? 'NIT pengguna belum tersedia sehingga daftar orang tua tidak dapat ditentukan.'
+          : 'Data diri, anak, atau cucu yang dapat dipilih belum tersedia. Silakan muat ulang.';
       _isLoadingContext = false;
       notifyListeners();
       return;

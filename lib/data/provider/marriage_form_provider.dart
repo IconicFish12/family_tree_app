@@ -12,7 +12,6 @@ class MarriageFormProvider extends ChangeNotifier {
   List<FamilyDirectoryMember> _availableMembers = const [];
   int? _selectedMemberId;
   MarriageRole? _memberRole;
-  PersonGender? _spouseGender;
   UserData? _selectedMemberDetail;
   MarriageRolePolicy? _rolePolicy;
   bool _isLoading = false;
@@ -29,7 +28,7 @@ class MarriageFormProvider extends ChangeNotifier {
       UnmodifiableListView(_availableMembers);
   int? get selectedMemberId => _selectedMemberId;
   MarriageRole? get memberRole => _memberRole;
-  PersonGender? get spouseGender => _spouseGender;
+  PersonGender? get spouseGender => _memberRole?.requiredSpouseGender;
   UserData? get selectedMemberDetail => _selectedMemberDetail;
   MarriageRolePolicy? get rolePolicy => _rolePolicy;
   bool get isLoading => _isLoading;
@@ -71,17 +70,6 @@ class MarriageFormProvider extends ChangeNotifier {
       return 'Gender anggota perempuan tidak sesuai dengan peran Suami.';
     }
 
-    final expectedSpouseRole = role == MarriageRole.husband
-        ? MarriageRole.wife
-        : MarriageRole.husband;
-    if (_spouseGender == PersonGender.male &&
-        expectedSpouseRole == MarriageRole.wife) {
-      return 'Gender pasangan laki-laki tidak sesuai dengan peran Istri.';
-    }
-    if (_spouseGender == PersonGender.female &&
-        expectedSpouseRole == MarriageRole.husband) {
-      return 'Gender pasangan perempuan tidak sesuai dengan peran Suami.';
-    }
     return null;
   }
 
@@ -96,6 +84,7 @@ class MarriageFormProvider extends ChangeNotifier {
         policy != null &&
         policy.canCreateMarriage &&
         policy.allowsRole(role) &&
+        spouseGender != null &&
         roleCompatibilityError == null;
   }
 
@@ -268,12 +257,6 @@ class MarriageFormProvider extends ChangeNotifier {
     if (role != null && !policy.allowsRole(role)) return;
     if (_memberRole == role) return;
     _memberRole = role;
-    _notifyIfMounted();
-  }
-
-  void selectSpouseGender(PersonGender? gender) {
-    if (!spouseInputsEnabled || _spouseGender == gender) return;
-    _spouseGender = gender;
     _notifyIfMounted();
   }
 

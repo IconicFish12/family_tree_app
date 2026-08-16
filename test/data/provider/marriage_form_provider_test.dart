@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
 void main() {
-  const actor = UserData(userId: 1, fullName: 'Anggota Utama');
+  const actor = UserData(userId: 1, nit: '1', fullName: 'Anggota Utama');
 
   test(
     'riwayat kosong meminta peran eksplisit dan tidak menebak dari gender',
@@ -41,10 +41,12 @@ void main() {
 
       formProvider.selectMemberRole(MarriageRole.wife);
       expect(formProvider.memberRole, MarriageRole.wife);
+      expect(formProvider.spouseGender, PersonGender.male);
       expect(formProvider.roleCompatibilityError, isNotNull);
       expect(formProvider.canSubmit, isFalse);
 
       formProvider.selectMemberRole(MarriageRole.husband);
+      expect(formProvider.spouseGender, PersonGender.female);
       expect(formProvider.roleCompatibilityError, isNull);
       expect(formProvider.canSubmit, isTrue);
     },
@@ -67,6 +69,7 @@ void main() {
       await formProvider.initialize(userProvider: userProvider, actor: actor);
 
       expect(formProvider.memberRole, MarriageRole.husband);
+      expect(formProvider.spouseGender, PersonGender.female);
       expect(formProvider.isRoleLocked, isTrue);
       expect(formProvider.canChooseRole, isFalse);
       expect(formProvider.hasBlockingIssue, isFalse);
@@ -219,6 +222,7 @@ void main() {
 
       formProvider.selectMemberRole(MarriageRole.wife);
 
+      expect(formProvider.spouseGender, PersonGender.male);
       expect(formProvider.roleCompatibilityError, isNull);
       expect(formProvider.canSubmit, isTrue);
     },

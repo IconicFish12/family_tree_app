@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 
 void main() {
-  const actor = UserData(userId: 1, fullName: 'Anggota Utama');
+  const actor = UserData(userId: 1, nit: '1', fullName: 'Anggota Utama');
 
   test(
     'toggle adopsi tetap membutuhkan pernikahan saat pemuatan gagal',
@@ -51,12 +51,33 @@ void main() {
     await formProvider.initialize(userProvider: userProvider, actor: actor);
 
     expect(formProvider.selectedMarriageId, 10);
+    expect(formProvider.canSubmit, isFalse);
+
+    formProvider.selectGender(PersonGender.male);
+    expect(formProvider.canSubmit, isTrue);
 
     formProvider.setAdoptedMarriageLink(true);
 
     expect(formProvider.relationshipType, ChildRelationshipType.adopted);
     expect(formProvider.selectedMarriageId, 10);
     expect(formProvider.canSubmit, isTrue);
+  });
+
+  test('dropdown orang tua hanya memuat diri, anak, dan cucu', () async {
+    final repository = _FamilyFormRepository(
+      marriagesResult: const Right([_FamilyFormRepository.marriage]),
+    );
+    final userProvider = UserProvider(repository);
+    final formProvider = FamilyMemberFormProvider();
+    addTearDown(formProvider.dispose);
+    addTearDown(userProvider.dispose);
+
+    await formProvider.initialize(userProvider: userProvider, actor: actor);
+
+    expect(
+      formProvider.availableParents.map((member) => member.nit),
+      orderedEquals(['1', '1.1', '1.1.1']),
+    );
   });
 
   test(
@@ -428,10 +449,31 @@ class _FamilyFormRepository extends UserRepositoryImpl {
             level: 2,
             fullName: 'Anggota Terhubung',
           ),
+          FamilyDirectoryMember(
+            userId: 3,
+            familyTreeId: '1.1.1',
+            nit: '1.1.1',
+            level: 3,
+            fullName: 'Cucu',
+          ),
+          FamilyDirectoryMember(
+            userId: 4,
+            familyTreeId: '1.1.1.1',
+            nit: '1.1.1.1',
+            level: 4,
+            fullName: 'Cicit',
+          ),
+          FamilyDirectoryMember(
+            userId: 5,
+            familyTreeId: '2',
+            nit: '2',
+            level: 1,
+            fullName: 'Cabang Lain',
+          ),
         ],
         meta: FamilyDirectoryMeta(
           perPage: 25,
-          total: 2,
+          total: 5,
           authenticatedMemberId: 1,
         ),
       ),

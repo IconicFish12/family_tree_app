@@ -255,10 +255,15 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
       key: ValueKey('parent-${provider.selectedParentId}'),
       initialValue: provider.selectedParentId,
       isExpanded: true,
-      decoration: _inputDecoration(
-        label: 'Anggota yang menjadi orang tua',
-        icon: Icons.family_restroom,
-      ),
+      decoration:
+          _inputDecoration(
+            label: 'Anggota yang menjadi orang tua',
+            icon: Icons.family_restroom,
+          ).copyWith(
+            helperText:
+                'Pilih diri Anda, anak, atau cucu (maksimal 2 tingkat).',
+            helperMaxLines: 2,
+          ),
       items: provider.availableParents
           .map(
             (member) => DropdownMenuItem<int>(
@@ -367,34 +372,23 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
   }
 
   Widget _buildGenderDropdown(FamilyMemberFormProvider provider) {
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<PersonGender>(
       key: ValueKey('gender-${provider.gender?.apiValue ?? 'empty'}'),
-      initialValue: provider.gender?.apiValue ?? '',
+      initialValue: provider.gender,
       isExpanded: true,
       decoration: _inputDecoration(
-        label: 'Gender anak (opsional)',
+        label: 'Jenis kelamin anak',
         icon: Icons.wc_outlined,
       ),
-      items: [
-        const DropdownMenuItem(value: '', child: Text('Tidak diisi')),
-        ...PersonGender.values.map(
-          (gender) => DropdownMenuItem(
-            value: gender.apiValue,
-            child: Text(gender.label),
-          ),
-        ),
-      ],
-      onChanged: provider.childDataInputsEnabled
-          ? (value) => provider.selectGender(_genderFromApiValue(value))
-          : null,
+      items: PersonGender.values
+          .map(
+            (gender) =>
+                DropdownMenuItem(value: gender, child: Text(gender.label)),
+          )
+          .toList(),
+      onChanged: provider.childDataInputsEnabled ? provider.selectGender : null,
+      validator: (value) => value == null ? 'Pilih jenis kelamin anak.' : null,
     );
-  }
-
-  PersonGender? _genderFromApiValue(String? value) {
-    for (final gender in PersonGender.values) {
-      if (gender.apiValue == value) return gender;
-    }
-    return null;
   }
 
   Widget _buildInfoBox(String message, {IconData icon = Icons.info_outline}) {

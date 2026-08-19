@@ -29,7 +29,7 @@ void main() {
         'parent_id': 7,
         'child_id': 99,
         'marriage_id': 12,
-        'relationship_type': 'biological',
+        'is_biological': true,
         'lineage_order': 4,
         'child_order': 2,
         'user_id': 99,
@@ -44,7 +44,7 @@ void main() {
 
     final result = await UserRepositoryImpl().createChild(
       memberId: '7',
-      relationshipType: ChildRelationshipType.biological,
+      isBiological: true,
       marriageId: 12,
       childData: const UserData(
         fullName: 'Anak Baru',
@@ -58,7 +58,7 @@ void main() {
     expect(adapter.request?.method, 'POST');
     expect(adapter.request?.path, '/family-members/7/children');
     expect(adapter.request?.data, {
-      'relationship_type': 'biological',
+      'is_biological': true,
       'marriage_id': 12,
       'full_name': 'Anak Baru',
       'gender': 'male',
@@ -74,6 +74,9 @@ void main() {
       'child_order',
       'parent_id',
       'marriage_order',
+      'relationship_type',
+      'relation_type',
+      'is_adopted',
     ]) {
       expect(payloadKeys, isNot(contains(forbiddenKey)));
     }
@@ -85,59 +88,14 @@ void main() {
     expect(created?.lineageOrder, 4);
   });
 
-  test(
-    'create adopted child tanpa marriage tidak mengirim marriage_id',
-    () async {
-      adapter.responseJson = {
-        'data': {
-          'relation_id': 21,
-          'parent_id': 7,
-          'child_id': 100,
-          'marriage_id': null,
-          'relationship_type': 'adopted',
-          'lineage_order': 5,
-          'child_order': null,
-          'user_id': 100,
-          'nit': '1.5',
-          'family_tree_id': '1.a.5',
-          'level': 2,
-          'full_name': 'Anak Adopsi',
-          'gender': 'female',
-        },
-      };
-      adapter.statusCode = 201;
-
-      await UserRepositoryImpl().createChild(
-        memberId: '7',
-        relationshipType: ChildRelationshipType.adopted,
-        childData: const UserData(
-          fullName: 'Anak Adopsi',
-          gender: PersonGender.female,
-        ),
-      );
-
-      expect(adapter.request?.data, {
-        'relationship_type': 'adopted',
-        'full_name': 'Anak Adopsi',
-        'gender': 'female',
-        'address': null,
-        'birth_year': null,
-      });
-      expect(
-        (adapter.request?.data as Map).keys,
-        isNot(contains('marriage_id')),
-      );
-    },
-  );
-
-  test('create adopted child dapat ditautkan ke marriage', () async {
+  test('create adopted child mengirim boolean false dan marriage', () async {
     adapter.responseJson = {
       'data': {
         'relation_id': 22,
         'parent_id': 7,
         'child_id': 101,
         'marriage_id': 12,
-        'relationship_type': 'adopted',
+        'is_biological': false,
         'lineage_order': 6,
         'child_order': 3,
         'user_id': 101,
@@ -150,9 +108,9 @@ void main() {
     };
     adapter.statusCode = 201;
 
-    await UserRepositoryImpl().createChild(
+    final result = await UserRepositoryImpl().createChild(
       memberId: '7',
-      relationshipType: ChildRelationshipType.adopted,
+      isBiological: false,
       marriageId: 12,
       childData: const UserData(
         fullName: 'Anak Adopsi Pasangan',
@@ -161,20 +119,76 @@ void main() {
     );
 
     expect(adapter.request?.data, {
-      'relationship_type': 'adopted',
+      'is_biological': false,
       'marriage_id': 12,
       'full_name': 'Anak Adopsi Pasangan',
       'gender': 'male',
       'address': null,
       'birth_year': null,
     });
+    final created = result.fold((failure) => null, (member) => member);
+    expect(created?.relationshipType, ChildRelationshipType.adopted);
+    expect(
+      (adapter.request?.data as Map).keys,
+      isNot(contains('relationship_type')),
+    );
+    expect((adapter.request?.data as Map).keys, isNot(contains('is_adopted')));
   });
+
+  test(
+    'create adopted child tanpa marriage tetap memakai parent endpoint',
+    () async {
+      adapter.responseJson = {
+        'data': {
+          'relation_id': 23,
+          'parent_id': 7,
+          'child_id': 102,
+          'marriage_id': null,
+          'is_biological': false,
+          'lineage_order': 7,
+          'child_order': null,
+          'user_id': 102,
+          'nit': '1.7',
+          'family_tree_id': '1.a.7',
+          'level': 2,
+          'full_name': 'Anak Adopsi Personal',
+          'gender': 'female',
+        },
+      };
+      adapter.statusCode = 201;
+
+      await UserRepositoryImpl().createChild(
+        memberId: '7',
+        isBiological: false,
+        childData: const UserData(
+          fullName: 'Anak Adopsi Personal',
+          gender: PersonGender.female,
+        ),
+      );
+
+      expect(adapter.request?.path, '/family-members/7/children');
+      expect(adapter.request?.data, {
+        'is_biological': false,
+        'full_name': 'Anak Adopsi Personal',
+        'gender': 'female',
+        'address': null,
+        'birth_year': null,
+      });
+      expect(
+        (adapter.request?.data as Map).keys,
+        isNot(contains('marriage_id')),
+      );
+    },
+  );
 
   test('biological child tanpa marriage gagal sebelum request', () async {
     final result = await UserRepositoryImpl().createChild(
       memberId: '7',
-      relationshipType: ChildRelationshipType.biological,
-      childData: const UserData(fullName: 'Anak Baru'),
+      isBiological: true,
+      childData: const UserData(
+        fullName: 'Anak Baru',
+        gender: PersonGender.male,
+      ),
     );
 
     expect(adapter.request, isNull);
@@ -187,7 +201,8 @@ void main() {
   test('create child tanpa gender gagal sebelum request', () async {
     final result = await UserRepositoryImpl().createChild(
       memberId: '7',
-      relationshipType: ChildRelationshipType.adopted,
+      isBiological: false,
+      marriageId: 12,
       childData: const UserData(fullName: 'Anak Baru'),
     );
 

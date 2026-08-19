@@ -31,9 +31,10 @@ void main() {
       expect(formProvider.isBiological, isTrue);
       expect(formProvider.canSubmit, isFalse);
 
-      formProvider.setAdoptedMarriageLink(true);
+      formProvider.setIsAdopted(true);
 
-      expect(formProvider.relationshipType, ChildRelationshipType.adopted);
+      expect(formProvider.isAdopted, isTrue);
+      expect(formProvider.isBiological, isFalse);
       expect(formProvider.selectedMarriageId, isNull);
       expect(formProvider.canSubmit, isFalse);
     },
@@ -56,9 +57,10 @@ void main() {
     formProvider.selectGender(PersonGender.male);
     expect(formProvider.canSubmit, isTrue);
 
-    formProvider.setAdoptedMarriageLink(true);
+    formProvider.setIsAdopted(true);
 
-    expect(formProvider.relationshipType, ChildRelationshipType.adopted);
+    expect(formProvider.isAdopted, isTrue);
+    expect(formProvider.isBiological, isFalse);
     expect(formProvider.selectedMarriageId, 10);
     expect(formProvider.canSubmit, isTrue);
   });
@@ -91,7 +93,7 @@ void main() {
 
       final created = await userProvider.addChild(
         parentId: 1,
-        relationshipType: ChildRelationshipType.adopted,
+        isBiological: false,
         marriageId: null,
         childData: const UserData(
           fullName: 'Anak Adopsi',
@@ -101,10 +103,7 @@ void main() {
 
       expect(repository.getMarriagesCalls, 1);
       expect(repository.createChildCalls, 1);
-      expect(
-        repository.receivedRelationshipType,
-        ChildRelationshipType.adopted,
-      );
+      expect(repository.receivedIsBiological, isFalse);
       expect(repository.receivedMarriageId, isNull);
       expect(repository.receivedChildData?.nit, isNull);
       expect(created?.nit, 'SERVER-NIT');
@@ -120,7 +119,7 @@ void main() {
 
     final created = await userProvider.addChild(
       parentId: 1,
-      relationshipType: ChildRelationshipType.biological,
+      isBiological: true,
       marriageId: null,
       childData: const UserData(fullName: 'Anak Kandung'),
     );
@@ -131,7 +130,7 @@ void main() {
   });
 
   test(
-    'form anak memblokir conflict dan legacy walau memilih adopsi personal',
+    'form anak memblokir conflict dan legacy walau status adopsi aktif',
     () async {
       final histories = <List<FamilyTreeMarriage>>[
         const [
@@ -149,7 +148,7 @@ void main() {
         final formProvider = FamilyMemberFormProvider();
 
         await formProvider.initialize(userProvider: userProvider, actor: actor);
-        formProvider.setAdoptedMarriageLink(true);
+        formProvider.setIsAdopted(true);
 
         expect(formProvider.childCreationBlockingMessage, isNotEmpty);
         expect(formProvider.childDataInputsEnabled, isFalse);
@@ -180,7 +179,7 @@ void main() {
 
         final created = await userProvider.addChild(
           parentId: 1,
-          relationshipType: ChildRelationshipType.adopted,
+          isBiological: false,
           marriageId: null,
           childData: const UserData(fullName: 'Anak'),
         );
@@ -422,7 +421,7 @@ class _FamilyFormRepository extends UserRepositoryImpl {
   int getMarriagesCalls = 0;
   int createChildCalls = 0;
   int createMarriageCalls = 0;
-  ChildRelationshipType? receivedRelationshipType;
+  bool? receivedIsBiological;
   int? receivedMarriageId;
   UserData? receivedChildData;
   MarriageRole? receivedMemberRole;
@@ -497,12 +496,12 @@ class _FamilyFormRepository extends UserRepositoryImpl {
   @override
   Future<Either<Failure, FamilyTreeNode>> createChild({
     required String memberId,
-    required ChildRelationshipType relationshipType,
+    required bool isBiological,
     int? marriageId,
     required UserData childData,
   }) async {
     createChildCalls++;
-    receivedRelationshipType = relationshipType;
+    receivedIsBiological = isBiological;
     receivedMarriageId = marriageId;
     receivedChildData = childData;
     return const Right(

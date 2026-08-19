@@ -25,8 +25,8 @@ Repository ini hanya berisi frontend. Backend Laravel, dokumentasi API, Postman 
 - Validasi role dilakukan ulang dari response marriage terbaru sebelum create;
   data legacy atau role yang sudah bercampur diblokir agar relasi tidak semakin
   bias.
-- Tambah anak kandung yang wajib terkait pernikahan.
-- Tambah anak adopsi dengan atau tanpa kaitan ke pernikahan.
+- Tambah anak kandung maupun adopsi yang pada halaman Tambah Anak selalu
+  dikaitkan ke pernikahan yang dipilih.
 - Gender anak baru wajib dipilih: laki-laki atau perempuan.
 - Kandidat orang tua dibatasi pada pengguna, anak, dan cucunya.
 - NIT anak, `family_tree_id`, level, dan urutan relasi dibuat oleh backend.
@@ -34,7 +34,8 @@ Repository ini hanya berisi frontend. Backend Laravel, dokumentasi API, Postman 
   ditentukan otomatis dari `member_role`.
 - Pernikahan legacy tetap terbaca tanpa menebak role.
 - Metadata kepala keluarga ditampilkan berdasarkan participant marriage yang ditunjuk backend.
-- Pohon keluarga rekursif untuk `marriages[].children` dan `adopted_children`.
+- Pohon keluarga rekursif untuk `marriages[].children`; `adopted_children`
+  tetap dibaca untuk record API tanpa marriage dan kompatibilitas data lama.
 - Detail pasangan, anak, cucu, dan status kegagalan pemuatan yang dapat dicoba ulang.
 - Edit profil serta avatar pengguna yang sedang login.
 - Export data keluarga ke Excel.
@@ -69,18 +70,23 @@ Gender tidak pernah ditebak dari nama, gelar, NIT, posisi node, role pernikahan,
 
 ### Relasi anak
 
-Nilai `relationship_type`:
+Mutation create child memakai boolean `is_biological`:
 
-| API | UI | Aturan |
+| `is_biological` | UI | Aturan API |
 | --- | --- | --- |
-| `biological` | Anak Kandung | `marriage_id` wajib. |
-| `adopted` | Anak Adopsi | `marriage_id` opsional. |
+| `true` | Anak Kandung | `marriage_id` wajib. |
+| `false` | Anak Adopsi | `marriage_id` opsional pada kontrak API. |
+
+Parent selalu ditentukan oleh `{parent_id}` pada URL
+`POST /family-members/{parent_id}/children`; payload tidak mengirim
+`parent_id`. Toggle Anak adopsi memetakan kondisi aktif menjadi
+`is_biological: false` dan kondisi nonaktif menjadi `is_biological: true`.
 
 Payload create child hanya berisi fakta yang diizinkan:
 
 ```json
 {
-  "relationship_type": "biological",
+  "is_biological": true,
   "marriage_id": 10,
   "full_name": "Nama Anak",
   "gender": "male",
@@ -89,9 +95,20 @@ Payload create child hanya berisi fakta yang diizinkan:
 }
 ```
 
-Untuk adopsi personal, `marriage_id` tidak dikirim. Response backend menentukan NIT, `family_tree_id`, `relation_id`, `lineage_order`, dan `child_order` final.
+Walaupun kontrak API mengizinkan `marriage_id` kosong untuk anak adopsi,
+halaman Tambah Anak selalu mewajibkan pengguna memilih pernikahan dan mengirim
+`marriage_id` untuk anak kandung maupun adopsi. Dengan demikian setiap anak
+baru tetap berelasi dengan parent pada URL dan berada di `children` pernikahan
+yang dipilih. Response backend menentukan NIT, `family_tree_id`, `relation_id`,
+`lineage_order`, dan `child_order` final.
 Gender wajib dikirim untuk setiap anak baru. Dropdown orang tua hanya menampilkan
 pengguna yang login dan keturunannya sampai dua tingkat di bawah berdasarkan NIT.
+
+Response baru, termasuk tree, dibaca dari `is_biological` untuk menentukan label
+Anak Kandung atau Anak Adopsi. Parser tetap menerima `relationship_type` sebagai
+fallback data lama dan memproses `adopted_children` untuk record API tanpa
+marriage maupun kompatibilitas data lama. Halaman Tambah Anak tidak membuat alur
+tanpa marriage, dan mutation baru tidak lagi mengirim `relationship_type`.
 
 ### Pernikahan
 
@@ -150,11 +167,11 @@ request create marriage. Pemeriksaan ini melindungi seluruh caller aplikasi,
 dan mutation pasangan/anak diserialkan supaya dua ketukan cepat tidak memakai
 snapshot history kosong yang sama. `forceRefresh` menunggu request marriage
 yang sedang berjalan lalu benar-benar mengambil response baru sebelum mutation.
-Form anak juga memakai policy yang sama: conflict/legacy memblokir biological,
-adopted terkait marriage, maupun adopted personal. Jika endpoint marriage gagal
-dimuat, adopted personal tetap dapat dibuat karena kontraknya tidak memerlukan
-`marriage_id`; kegagalan tersebut tetap ditampilkan dan pemeriksaan diulang saat
-submit.
+Form anak juga memakai policy yang sama: conflict/legacy memblokir anak kandung
+maupun adopsi. Seluruh alur halaman Tambah Anak memerlukan response marriage yang
+berhasil dimuat dan satu `marriage_id` terpilih. Jika endpoint marriage gagal
+dimuat, form diblokir, kegagalan ditampilkan dengan aksi coba lagi, dan
+pemeriksaan diulang saat submit.
 
 Proteksi frontend mengurangi risiko dari satu instance aplikasi, tetapi
 invariant lintas request yang benar-benar atomik tetap perlu ditegakkan backend.
@@ -174,9 +191,13 @@ person
 └── adopted_children[]
 ```
 
-- Child dalam `marriages[].children` tetap dikelompokkan pada marriage asalnya.
-- `adopted_children` adalah adopsi personal tanpa marriage dan diproses pada setiap level secara rekursif.
-- Cabang adopsi personal memakai branch presentasional sendiri, bukan marriage palsu.
+- Child yang dibuat melalui halaman Tambah Anak, baik kandung maupun adopsi,
+  berada dalam `marriages[].children` dan tetap dikelompokkan pada marriage
+  asalnya. Statusnya berasal dari `is_biological`.
+- `adopted_children` diproses rekursif untuk record adopsi tanpa marriage yang
+  dikembalikan API, termasuk kompatibilitas record lama.
+- Cabang `adopted_children` tetap memakai branch presentasional sendiri, bukan
+  marriage palsu.
 - Layout Buchheim-Walker, zoom/pan, history subtree, dan batas tiga level visual dipertahankan.
 - Badge kepala keluarga hanya mengikuti `family_head_position`; metadata tersebut bukan sumber authorization.
 - Node dengan role anggota yang bercampur menampilkan badge `Konflik peran`,
@@ -192,15 +213,15 @@ Detail anggota menggabungkan tiga response backend berdasarkan `user_id` dan
 - `GET /family-members/{id}` untuk fakta person dan `parent_relation`;
 - `GET /family-members/{id}/marriages` untuk pasangan serta child yang terkait
   marriage;
-- `GET /family-tree` untuk `adopted_children` personal dengan
-  `marriage_id: null` pada node yang berada di subtree actor.
+- `GET /family-tree` untuk status `is_biological`, struktur turunan rekursif, dan
+  `adopted_children` tanpa marriage pada node yang berada di subtree actor.
 
 Child hasil gabungan diurutkan memakai `lineage_order` dari backend dan tidak
-pernah dideduplikasi memakai NIT atau `family_tree_id`. Cabang adopsi personal
-juga digabungkan saat menampilkan cucu. Jika node tidak tersedia pada actor
-subtree atau tree gagal dimuat, detail menampilkan status yang dapat dicoba
-ulang dan tidak menyatakan bahwa jumlah anak adalah nol. Penghapusan anggota
-dinonaktifkan sampai kelengkapan cabang tersebut dapat dipastikan.
+pernah dideduplikasi memakai NIT atau `family_tree_id`. Cabang adopsi tanpa
+marriage juga digabungkan saat menampilkan cucu. Jika node tidak tersedia pada actor subtree
+atau tree gagal dimuat, detail menampilkan status yang dapat dicoba ulang dan
+tidak menyatakan bahwa jumlah anak adalah nol. Penghapusan anggota dinonaktifkan
+sampai kelengkapan cabang tersebut dapat dipastikan.
 
 ## Struktur Repository
 
@@ -373,18 +394,23 @@ Build release tidak diperlukan untuk perubahan kontrak frontend biasa dan hanya 
 
 Test terfokus meliputi:
 
-- parsing gender nullable, marriage classified/legacy, spouse null, metadata head, child biological/adopted, serta recursive `adopted_children`;
+- parsing gender nullable, marriage classified/legacy, spouse null, metadata
+  head, child dari boolean `is_biological`, fallback `relationship_type`, serta
+  recursive `adopted_children` tanpa marriage;
 - perbedaan NIT dan `family_tree_id`;
-- payload create child tanpa NIT/structural field;
+- payload create child dengan `is_biological` tanpa `relationship_type`, NIT,
+  atau structural field;
 - payload create marriage dengan `member_role` dan tanpa `spouse_role`/`spouse_id`;
 - pemilihan pesan validasi `422` dari `errors.*`;
 - marriage loading error yang tetap berbeda dari empty success;
-- biological wajib marriage dan adopted dapat tanpa marriage;
+- kontrak API mewajibkan marriage untuk biological dan mengizinkannya opsional
+  untuk adopted, sedangkan form mewajibkan marriage terpilih untuk keduanya;
 - role/gender compatibility, penguncian role, wife-one-husband, mixed-role,
   legacy/incomplete metadata, serta revalidasi sebelum submit marriage;
 - serialisasi submit pasangan, force-refresh yang tidak memakai request lama,
   serta pemblokiran child baru pada history conflict/legacy;
-- subtree/history, multiple marriage, cabang adopsi, legacy label, dan family-head badge pada tree;
+- subtree/history, multiple marriage, cabang adopsi tanpa marriage, label status anak,
+  dan family-head badge pada tree;
 - detail member authoritative, retry pemuatan descendant, adopted-only delete guard, serta perlindungan stale response/reset.
 
 ## Batasan yang Diketahui

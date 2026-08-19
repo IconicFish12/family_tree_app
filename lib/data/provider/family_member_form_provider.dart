@@ -30,11 +30,8 @@ class FamilyMemberFormProvider extends ChangeNotifier {
       UnmodifiableListView(_marriages);
   int? get selectedParentId => _selectedParentId;
   int? get selectedMarriageId => _selectedMarriageId;
-  ChildRelationshipType get relationshipType => _isAdopted
-      ? ChildRelationshipType.adopted
-      : ChildRelationshipType.biological;
   PersonGender? get gender => _gender;
-  bool get linkAdoptedToMarriage => _isAdopted;
+  bool get isAdopted => _isAdopted;
   MarriageLoadState get marriageLoadState => _marriageLoadState;
   String? get marriageError => _marriageError;
   String? get contextError => _contextError;
@@ -210,9 +207,9 @@ class FamilyMemberFormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setAdoptedMarriageLink(bool linkToMarriage) {
-    if (_isAdopted == linkToMarriage) return;
-    _isAdopted = linkToMarriage;
+  void setIsAdopted(bool isAdopted) {
+    if (_isAdopted == isAdopted) return;
+    _isAdopted = isAdopted;
     notifyListeners();
   }
 

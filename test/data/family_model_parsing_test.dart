@@ -19,7 +19,7 @@ void main() {
         'parent_id': 1,
         'child_id': 4,
         'marriage_id': null,
-        'relationship_type': 'adopted',
+        'is_biological': false,
         'lineage_order': 2,
         'child_order': null,
       },
@@ -46,7 +46,7 @@ void main() {
         'parent': {'user_id': '1'},
         'child_id': 5,
         'marriage': {'marriage_id': '10'},
-        'relationship_type': 'biological',
+        'is_biological': true,
         'lineage_order': 3,
         'child_order': 2,
       },
@@ -93,7 +93,7 @@ void main() {
                 'parent_id': 1,
                 'child_id': 3,
                 'marriage_id': 10,
-                'relationship_type': 'biological',
+                'is_biological': true,
                 'lineage_order': 1,
                 'child_order': 1,
                 'user_id': 3,
@@ -114,7 +114,7 @@ void main() {
             'parent_id': 1,
             'child_id': 4,
             'marriage_id': null,
-            'relationship_type': 'adopted',
+            'is_biological': false,
             'lineage_order': 2,
             'child_order': null,
             'user_id': 4,
@@ -130,7 +130,7 @@ void main() {
                 'parent_id': 4,
                 'child_id': 5,
                 'marriage_id': null,
-                'relationship_type': 'adopted',
+                'is_biological': false,
                 'lineage_order': 1,
                 'child_order': null,
                 'user_id': 5,
@@ -194,4 +194,26 @@ void main() {
     expect(marriage.spouse, isNull);
     expect(personGenderFromJson('unknown'), isNull);
   });
+
+  test(
+    'is_biological diprioritaskan dan relationship_type legacy tetap dibaca',
+    () {
+      final currentRelation = ParentChildRelationData.fromJson({
+        'relation_id': 30,
+        'is_biological': '0',
+        'relationship_type': 'biological',
+      });
+      final legacyRelation = ParentChildRelationData.fromJson({
+        'relation_id': 31,
+        'relationship_type': 'adopted',
+      });
+
+      expect(currentRelation.relationshipType, ChildRelationshipType.adopted);
+      expect(legacyRelation.relationshipType, ChildRelationshipType.adopted);
+
+      final serialized = legacyRelation.toJson();
+      expect(serialized['is_biological'], isFalse);
+      expect(serialized, isNot(contains('relationship_type')));
+    },
+  );
 }

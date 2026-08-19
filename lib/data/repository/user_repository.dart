@@ -38,7 +38,7 @@ abstract class UserRepository {
   Future<Either<Failure, bool>> deleteMarriage(String marriageId);
   Future<Either<Failure, FamilyTreeNode>> createChild({
     required String memberId,
-    required ChildRelationshipType relationshipType,
+    required bool isBiological,
     int? marriageId,
     required UserData childData,
   });
@@ -414,12 +414,11 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Either<Failure, FamilyTreeNode>> createChild({
     required String memberId,
-    required ChildRelationshipType relationshipType,
+    required bool isBiological,
     int? marriageId,
     required UserData childData,
   }) async {
-    if (relationshipType == ChildRelationshipType.biological &&
-        marriageId == null) {
+    if (isBiological && marriageId == null) {
       return Left(Failure('Anak kandung wajib memilih pernikahan.'));
     }
     if (childData.gender == null) {
@@ -428,7 +427,7 @@ class UserRepositoryImpl implements UserRepository {
 
     try {
       final payload = <String, dynamic>{
-        'relationship_type': relationshipType.apiValue,
+        'is_biological': isBiological,
         if (marriageId != null) 'marriage_id': marriageId,
         'full_name': childData.fullName?.trim(),
         'gender': childData.gender!.apiValue,

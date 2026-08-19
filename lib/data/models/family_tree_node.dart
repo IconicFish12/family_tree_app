@@ -225,9 +225,7 @@ class FamilyTreeNode {
       marriageId: _toInt(json['marriage_id']),
       childOrder: _toInt(json['child_order']),
       relationId: _toInt(json['relation_id']),
-      relationshipType: childRelationshipTypeFromJson(
-        json['relationship_type'],
-      ),
+      relationshipType: childRelationshipTypeFromRelationJson(json),
       lineageOrder: _toInt(json['lineage_order']),
       fullName: (json['full_name'] ?? 'Tanpa Nama').toString(),
       gender: personGenderFromJson(json['gender']),

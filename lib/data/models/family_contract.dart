@@ -34,9 +34,9 @@ extension MarriageRoleContract on MarriageRole {
 enum ChildRelationshipType { biological, adopted }
 
 extension ChildRelationshipTypeContract on ChildRelationshipType {
-  String get apiValue => switch (this) {
-    ChildRelationshipType.biological => 'biological',
-    ChildRelationshipType.adopted => 'adopted',
+  bool get isBiological => switch (this) {
+    ChildRelationshipType.biological => true,
+    ChildRelationshipType.adopted => false,
   };
 
   String get label => switch (this) {
@@ -75,15 +75,31 @@ MarriageRole? marriageRoleFromJson(Object? value) => switch (value) {
 
 String? marriageRoleToJson(MarriageRole? value) => value?.apiValue;
 
-ChildRelationshipType? childRelationshipTypeFromJson(Object? value) =>
-    switch (value) {
-      'biological' => ChildRelationshipType.biological,
-      'adopted' => ChildRelationshipType.adopted,
-      _ => null,
-    };
+ChildRelationshipType? childRelationshipTypeFromJson(Object? value) {
+  final isBiological = familyBoolFromJson(value);
+  if (isBiological != null) {
+    return isBiological
+        ? ChildRelationshipType.biological
+        : ChildRelationshipType.adopted;
+  }
 
-String? childRelationshipTypeToJson(ChildRelationshipType? value) =>
-    value?.apiValue;
+  // Fallback hanya untuk response lama yang masih memakai relationship_type.
+  if (value is! String) return null;
+  return switch (value.trim().toLowerCase()) {
+    'biological' => ChildRelationshipType.biological,
+    'adopted' => ChildRelationshipType.adopted,
+    _ => null,
+  };
+}
+
+ChildRelationshipType? childRelationshipTypeFromRelationJson(
+  Map<String, dynamic> json,
+) =>
+    childRelationshipTypeFromJson(json['is_biological']) ??
+    childRelationshipTypeFromJson(json['relationship_type']);
+
+bool? childRelationshipTypeToJson(ChildRelationshipType? value) =>
+    value?.isBiological;
 
 FamilyHeadPosition? familyHeadPositionFromJson(Object? value) =>
     switch (value) {
@@ -98,6 +114,23 @@ int? familyIntFromJson(Object? value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   if (value is String) return int.tryParse(value);
+  return null;
+}
+
+bool? familyBoolFromJson(Object? value) {
+  if (value is bool) return value;
+  if (value is num) {
+    if (value == 1) return true;
+    if (value == 0) return false;
+    return null;
+  }
+  if (value is String) {
+    return switch (value.trim().toLowerCase()) {
+      'true' || '1' => true,
+      'false' || '0' => false,
+      _ => null,
+    };
+  }
   return null;
 }
 
@@ -141,9 +174,7 @@ class ParentChildRelationData {
       marriageId:
           familyIntFromJson(json['marriage_id']) ??
           _nestedInt(rawMarriage, 'marriage_id'),
-      relationshipType: childRelationshipTypeFromJson(
-        json['relationship_type'],
-      ),
+      relationshipType: childRelationshipTypeFromRelationJson(json),
       lineageOrder: familyIntFromJson(json['lineage_order']),
       childOrder: familyIntFromJson(json['child_order']),
     );
@@ -155,7 +186,7 @@ class ParentChildRelationData {
       'parent_id': parentId,
       'child_id': childId,
       'marriage_id': marriageId,
-      'relationship_type': relationshipType?.apiValue,
+      'is_biological': childRelationshipTypeToJson(relationshipType),
       'lineage_order': lineageOrder,
       'child_order': childOrder,
     };

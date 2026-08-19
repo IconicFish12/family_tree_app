@@ -279,14 +279,13 @@ class UserProvider extends ChangeNotifier {
 
   Future<FamilyTreeNode?> addChild({
     required int parentId,
-    required ChildRelationshipType relationshipType,
+    required bool isBiological,
     required int? marriageId,
     required UserData childData,
   }) async {
     if (!_tryStartSubmitting()) return null;
     try {
-      if (relationshipType == ChildRelationshipType.biological &&
-          marriageId == null) {
+      if (isBiological && marriageId == null) {
         _errorMessage = 'Anak kandung wajib memilih pernikahan.';
         return null;
       }
@@ -327,7 +326,7 @@ class UserProvider extends ChangeNotifier {
 
       final result = await _repository.createChild(
         memberId: parentId.toString(),
-        relationshipType: relationshipType,
+        isBiological: isBiological,
         marriageId: marriageId,
         childData: childData,
       );

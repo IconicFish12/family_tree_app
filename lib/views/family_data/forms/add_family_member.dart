@@ -56,7 +56,8 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     if (!_formKey.currentState!.validate()) return;
     final parent = _formProvider.selectedParent;
     final parentId = parent?.userId;
-    if (parentId == null || !_formProvider.canSubmit) {
+    final marriageId = _formProvider.selectedMarriageId;
+    if (parentId == null || marriageId == null || !_formProvider.canSubmit) {
       _showError(
         _formProvider.contextError ??
             _formProvider.childCreationBlockingMessage ??
@@ -71,8 +72,8 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     final provider = context.read<UserProvider>();
     final createdChild = await provider.addChild(
       parentId: parentId,
-      relationshipType: _formProvider.relationshipType,
-      marriageId: _formProvider.selectedMarriageId,
+      isBiological: _formProvider.isBiological,
+      marriageId: marriageId,
       childData: UserData(
         fullName: _nameController.text.trim(),
         gender: _formProvider.gender,
@@ -165,7 +166,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          _buildAdoptedMarriageChoice(formProvider),
+                          _buildAdoptionChoice(formProvider),
                           const SizedBox(height: 16),
                           _buildMarriageContext(formProvider),
                           const SizedBox(height: 32),
@@ -282,7 +283,7 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
     );
   }
 
-  Widget _buildAdoptedMarriageChoice(FamilyMemberFormProvider provider) {
+  Widget _buildAdoptionChoice(FamilyMemberFormProvider provider) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -290,9 +291,9 @@ class _AddFamilyMemberPageState extends State<AddFamilyMemberPage> {
         border: Border.all(color: Colors.black),
       ),
       child: SwitchListTile(
-        value: provider.linkAdoptedToMarriage,
+        value: provider.isAdopted,
         onChanged: provider.childDataInputsEnabled
-            ? provider.setAdoptedMarriageLink
+            ? provider.setIsAdopted
             : null,
         title: const Text('Anak adopsi'),
         subtitle: const Text('Aktif = anak adopsi. Nonaktif = anak kandung.'),
